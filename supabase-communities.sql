@@ -29,6 +29,14 @@ FOR SELECT
 TO authenticated, anon
 USING (visibility = 'public');
 
+-- Gizli topluluklar listede görünür (katılım ayrı onaylanır)
+DROP POLICY IF EXISTS "communities_select_private_listed" ON public.communities;
+CREATE POLICY "communities_select_private_listed"
+ON public.communities
+FOR SELECT
+TO authenticated, anon
+USING (visibility = 'private');
+
 CREATE POLICY "communities_select_own"
 ON public.communities
 FOR SELECT

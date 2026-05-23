@@ -4,10 +4,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function isSupabaseConfigured() {
-    if (typeof window.isRekabetliSupabaseConfigured === "function") {
-      return window.isRekabetliSupabaseConfigured();
+    if (window.__ENV__?.SUPABASE_URL && window.__ENV__?.SUPABASE_ANON_KEY) {
+      window.getSupabase?.();
+      return true;
     }
-    return Boolean(window.__ENV__?.SUPABASE_URL && window.__ENV__?.SUPABASE_ANON_KEY);
+    return false;
   }
 
   const AVATAR_BUCKET = "avatars";
@@ -339,6 +340,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadCommunities() {
     if (!communityList) return;
 
+    try {
     if (!isSupabaseConfigured()) {
       showCommunityListMessage(
         "Bağlantı ayarları yüklenemedi. Sayfayı yenileyin; sorun devam ederse site yöneticisine bildirin.",
@@ -393,6 +395,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     focusCommunityFromUrl();
+    } catch (err) {
+      console.error("Communities load failed:", err);
+      showCommunityListMessage("Topluluklar yüklenirken bir hata oluştu. Sayfayı yenileyin.", true);
+    }
   }
 
   async function joinPublicCommunity(communityId, triggerBtn) {
@@ -638,6 +644,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let appStarted = false;
 
   function startApp() {
+    if (!isSupabaseConfigured()) return;
     const sb = getSb();
     if (!sb) return;
 

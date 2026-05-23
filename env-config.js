@@ -111,6 +111,27 @@
     return window.__ENV__?.[key];
   };
 
-  publishEnv(mergeAllSources());
+  /** Tüm sayfalarda anahtarların supabase-client'tan önce yüklenmesi (community.html vb.) */
+  function tryLoadLocalEnvSync() {
+    if (typeof XMLHttpRequest === "undefined" || typeof location === "undefined") return false;
+    try {
+      const base =
+        (typeof document !== "undefined" &&
+          document.currentScript?.src &&
+          new URL(".", document.currentScript.src).href) ||
+        location.href;
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", new URL("env-config.local.js", base).href, false);
+      xhr.send(null);
+      if (xhr.status !== 200 || !String(xhr.responseText || "").trim()) return false;
+      // eslint-disable-next-line no-new-func
+      new Function(xhr.responseText)();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  tryLoadLocalEnvSync();
   finalizeEnv();
 })();

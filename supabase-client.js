@@ -105,7 +105,9 @@
   };
 
   window.isRekabetliSupabaseConfigured = function isRekabetliSupabaseConfigured() {
-    return hasConfig() && Boolean(window.sb && !window.sb._rekabetliStub);
+    if (!hasConfig()) return false;
+    const client = createClientIfNeeded();
+    return Boolean(client && !client._rekabetliStub);
   };
 
   function bootstrap() {

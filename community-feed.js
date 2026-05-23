@@ -15,7 +15,9 @@ document.addEventListener("click", (event) => {
 });
 
 // --- 2. SUPABASE (tek paylaşımlı istemci: supabase-client.js) ---
-const supabaseClient = window.getSupabase?.() || window.sb;
+function getSb() {
+  return window.getSupabase?.() || window.sb || null;
+}
 
 // --- 3. DOM ELEMANLARI VE DEĞİŞKENLER ---
 const form = document.getElementById("question-form");
@@ -158,7 +160,7 @@ function applyQuestionAvatar(container, avatarUrl, authorName) {
 
 // --- 5. OTURUM KONTROLÜ (Giriş Yap -> Profil Değişimi) ---
 async function syncProfileNavState() {
-  const { data, error } = await supabaseClient.auth.getSession();
+  const { data, error } = await getSb().auth.getSession();
   if (error) {
     console.error("Session check error:", error.message);
   }
@@ -170,7 +172,7 @@ async function syncProfileNavState() {
   currentUserAvatarUrl = null;
 
   if (currentUserId) {
-    const { data: profile } = await supabaseClient
+    const { data: profile } = await getSb()
       .from("profiles")
       .select("display_name, avatar_url")
       .eq("id", currentUserId)
@@ -273,11 +275,11 @@ function updateJoinActions() {
 
 async function loadMyJoinRequestStatus() {
   myJoinRequestStatus = null;
-  if (!currentUserId || !communityId || !supabaseClient || isCommunityAdmin || isCommunityMember) {
+  if (!currentUserId || !communityId || !getSb() || isCommunityAdmin || isCommunityMember) {
     return;
   }
 
-  const { data, error } = await supabaseClient
+  const { data, error } = await getSb()
     .from("community_join_requests")
     .select("status")
     .eq("community_id", communityId)
@@ -292,7 +294,7 @@ async function loadMyJoinRequestStatus() {
 }
 
 async function joinPublicCommunity() {
-  if (!communityId || !supabaseClient) return;
+  if (!communityId || !getSb()) return;
 
   if (!isUserLoggedIn) {
     window.location.href = "/login";
@@ -302,7 +304,7 @@ async function joinPublicCommunity() {
   if (communityJoinBtn) communityJoinBtn.disabled = true;
 
   try {
-    const { error } = await supabaseClient.from("community_members").upsert(
+    const { error } = await getSb().from("community_members").upsert(
       [{ community_id: communityId, user_id: currentUserId }],
       { onConflict: "community_id,user_id" }
     );
@@ -334,7 +336,7 @@ async function joinPublicCommunity() {
 }
 
 async function sendJoinRequestPrivate() {
-  if (!communityId || !supabaseClient) return;
+  if (!communityId || !getSb()) return;
 
   if (!isUserLoggedIn) {
     window.location.href = "/login";
@@ -344,7 +346,7 @@ async function sendJoinRequestPrivate() {
   if (communityJoinBtn) communityJoinBtn.disabled = true;
 
   try {
-    const { error } = await supabaseClient.from("community_join_requests").insert([
+    const { error } = await getSb().from("community_join_requests").insert([
       { community_id: communityId, user_id: currentUserId, status: "pending" },
     ]);
 
@@ -380,7 +382,7 @@ async function sendJoinRequestPrivate() {
 }
 
 async function leaveCommunity() {
-  if (!communityId || !supabaseClient || !isUserLoggedIn || isCommunityAdmin) return;
+  if (!communityId || !getSb() || !isUserLoggedIn || isCommunityAdmin) return;
 
   if (
     !(await rekabetliConfirm({
@@ -396,7 +398,7 @@ async function leaveCommunity() {
   if (communityJoinBtn) communityJoinBtn.disabled = true;
 
   try {
-    const { error: memberError } = await supabaseClient
+    const { error: memberError } = await getSb()
       .from("community_members")
       .delete()
       .eq("community_id", communityId)
@@ -404,7 +406,7 @@ async function leaveCommunity() {
 
     if (memberError) throw memberError;
 
-    await supabaseClient
+    await getSb()
       .from("community_join_requests")
       .delete()
       .eq("community_id", communityId)
@@ -426,7 +428,7 @@ async function leaveCommunity() {
 }
 
 async function closeCommunity() {
-  if (!communityId || !supabaseClient || !isCommunityAdmin) return;
+  if (!communityId || !getSb() || !isCommunityAdmin) return;
 
   if (
     !(await rekabetliConfirm({
@@ -444,7 +446,7 @@ async function closeCommunity() {
   if (communityJoinBtn) communityJoinBtn.disabled = true;
 
   try {
-    const { error } = await supabaseClient.from("communities").delete().eq("id", communityId);
+    const { error } = await getSb().from("communities").delete().eq("id", communityId);
 
     if (error) throw error;
 
@@ -589,7 +591,7 @@ async function loadJoinRequests() {
     return;
   }
 
-  const { data: requests, error } = await supabaseClient
+  const { data: requests, error } = await getSb()
     .from("community_join_requests")
     .select("id, user_id, created_at, status")
     .eq("community_id", community.id)
@@ -624,7 +626,7 @@ async function loadJoinRequests() {
   let profilesById = new Map();
 
   if (userIds.length > 0) {
-    const { data: profiles } = await supabaseClient
+    const { data: profiles } = await getSb()
       .from("profiles")
       .select("id, display_name, avatar_url")
       .in("id", userIds);
@@ -648,9 +650,9 @@ async function loadJoinRequests() {
 }
 
 async function approveJoinRequest(requestId) {
-  if (!requestId || !supabaseClient) return;
+  if (!requestId || !getSb()) return;
 
-  const { error } = await supabaseClient.rpc("approve_community_join_request", {
+  const { error } = await getSb().rpc("approve_community_join_request", {
     request_id: requestId,
   });
 
@@ -671,7 +673,7 @@ async function approveJoinRequest(requestId) {
 }
 
 async function rejectJoinRequest(requestId) {
-  if (!requestId || !supabaseClient) return;
+  if (!requestId || !getSb()) return;
 
   const row = panelJoinRequests?.querySelector(
     `[data-request-id="${CSS.escape(String(requestId))}"]`
@@ -690,7 +692,7 @@ async function rejectJoinRequest(requestId) {
     return;
   }
 
-  const { error } = await supabaseClient.rpc("reject_community_join_request", {
+  const { error } = await getSb().rpc("reject_community_join_request", {
     request_id: requestId,
   });
 
@@ -751,7 +753,7 @@ function renderMemberItem({ id, displayName, avatarUrl, roleLabel, joinedAt, rem
 }
 
 async function removeCommunityMember(userId) {
-  if (!community || !supabaseClient || !isCommunityAdmin || !userId) return;
+  if (!community || !getSb() || !isCommunityAdmin || !userId) return;
   if (userId === community.owner_id) return;
 
   const memberRow = panelMembers?.querySelector(
@@ -771,7 +773,7 @@ async function removeCommunityMember(userId) {
     return;
   }
 
-  const { error } = await supabaseClient
+  const { error } = await getSb()
     .from("community_members")
     .delete()
     .eq("community_id", community.id)
@@ -796,7 +798,7 @@ async function loadMembers() {
 
   const seq = ++membersLoadSeq;
 
-  const { data: ownerProfile } = await supabaseClient
+  const { data: ownerProfile } = await getSb()
     .from("profiles")
     .select("id, display_name, avatar_url")
     .eq("id", community.owner_id)
@@ -815,7 +817,7 @@ async function loadMembers() {
   ];
   const seenUserIds = new Set([String(community.owner_id).toLowerCase()]);
 
-  const { data: membersData, error } = await supabaseClient
+  const { data: membersData, error } = await getSb()
     .from("community_members")
     .select("user_id, joined_at")
     .eq("community_id", community.id)
@@ -837,7 +839,7 @@ async function loadMembers() {
 
     let profilesById = new Map();
     if (otherIds.length > 0) {
-      const { data: profiles } = await supabaseClient
+      const { data: profiles } = await getSb()
         .from("profiles")
         .select("id, display_name, avatar_url")
         .in("id", otherIds);
@@ -924,12 +926,12 @@ async function loadCommunity() {
     return false;
   }
 
-  if (!supabaseClient) {
+  if (!getSb()) {
     showPageError("Bağlantı kurulamadı. Sayfayı yenileyin.");
     return false;
   }
 
-  const { data, error } = await supabaseClient
+  const { data, error } = await getSb()
     .from("communities")
     .select("id, owner_id, name, purpose, size_band, visibility, avatar_url, created_at")
     .eq("id", communityId)
@@ -943,7 +945,7 @@ async function loadCommunity() {
   community = data;
 
   if (currentUserId) {
-    const { data: membership } = await supabaseClient
+    const { data: membership } = await getSb()
       .from("community_members")
       .select("user_id")
       .eq("community_id", communityId)
@@ -1121,7 +1123,7 @@ async function loadPosts() {
     return;
   }
 
-  const { data: postRows, error: postsError } = await supabaseClient
+  const { data: postRows, error: postsError } = await getSb()
     .from("posts")
     .select("id, user_id, author, title, content, created_at")
     .eq("community_id", communityId)
@@ -1147,13 +1149,13 @@ async function loadPosts() {
 
   if (postIds.length > 0) {
     const [commentsResult, likesResult, savesResult] = await Promise.all([
-      supabaseClient
+      getSb()
         .from("comments")
         .select("id, post_id, user_id, author, content, created_at")
         .in("post_id", postIds)
         .order("created_at", { ascending: false }),
-      supabaseClient.from("post_likes").select("post_id, user_id").in("post_id", postIds),
-      supabaseClient.from("post_saves").select("post_id, user_id").in("post_id", postIds),
+      getSb().from("post_likes").select("post_id, user_id").in("post_id", postIds),
+      getSb().from("post_saves").select("post_id, user_id").in("post_id", postIds),
     ]);
 
     if (commentsResult.error) {
@@ -1182,7 +1184,7 @@ async function loadPosts() {
   const profilesByUserId = new Map();
 
   if (authorIds.length > 0) {
-    const { data: profileRows, error: profilesError } = await supabaseClient
+    const { data: profileRows, error: profilesError } = await getSb()
       .from("profiles")
       .select("id, display_name, avatar_url")
       .in("id", authorIds);
@@ -1228,7 +1230,7 @@ async function savePost({ author, title, content, userId }) {
   const row = { author, title, content, community_id: communityId };
   if (userId) row.user_id = userId;
 
-  const { data, error } = await supabaseClient
+  const { data, error } = await getSb()
     .from("posts")
     .insert([row])
     .select("id, user_id, author, title, content, created_at")
@@ -1239,7 +1241,7 @@ async function savePost({ author, title, content, userId }) {
 }
 
 async function deletePost(postId) {
-  const { error } = await supabaseClient.from("posts").delete().eq("id", postId);
+  const { error } = await getSb().from("posts").delete().eq("id", postId);
   if (error) throw error;
 }
 
@@ -1249,7 +1251,7 @@ async function deleteComment(commentId) {
     return;
   }
 
-  const { error } = await supabaseClient
+  const { error } = await getSb()
     .from("comments")
     .delete()
     .eq("id", commentId)
@@ -1264,14 +1266,14 @@ async function setPostLiked(postId, shouldLike) {
   }
 
   if (shouldLike) {
-    const { error } = await supabaseClient
+    const { error } = await getSb()
       .from("post_likes")
       .insert([{ post_id: postId, user_id: currentUserId }]);
     if (error) throw error;
     return;
   }
 
-  const { error } = await supabaseClient
+  const { error } = await getSb()
     .from("post_likes")
     .delete()
     .eq("post_id", postId)
@@ -1286,14 +1288,14 @@ async function setPostSaved(postId, shouldSave) {
   }
 
   if (shouldSave) {
-    const { error } = await supabaseClient
+    const { error } = await getSb()
       .from("post_saves")
       .insert([{ post_id: postId, user_id: currentUserId }]);
     if (error) throw error;
     return;
   }
 
-  const { error } = await supabaseClient
+  const { error } = await getSb()
     .from("post_saves")
     .delete()
     .eq("post_id", postId)
@@ -1311,7 +1313,7 @@ async function saveComment({ postId, author, content, userId }) {
   const row = { post_id: postId, author, content };
   if (userId) row.user_id = userId;
 
-  const { data, error } = await supabaseClient
+  const { data, error } = await getSb()
     .from("comments")
     .insert([row])
     .select("id, post_id, user_id, author, content, created_at")
@@ -1661,7 +1663,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   async function bootstrap() {
-    if (!supabaseClient) {
+    if (!getSb()) {
       showPageError("Bağlantı kurulamadı.");
       return;
     }
@@ -1672,7 +1674,7 @@ document.addEventListener("DOMContentLoaded", () => {
     await loadPosts();
   }
 
-  supabaseClient.auth.onAuthStateChange(() => {
+  getSb().auth.onAuthStateChange(() => {
     bootstrap();
   });
 
