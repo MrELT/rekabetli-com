@@ -1,6 +1,6 @@
 # Ortam değişkenleri (gizli anahtarlar)
 .env
-env-config.js
+env-config.local.js
 
 # Bağımlılıklar
 node_modules/
