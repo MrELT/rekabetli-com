@@ -1811,6 +1811,10 @@ body.question-modal-open {
   box-shadow: none;
 }
 
+.communities-load-error {
+  color: #fca5a5;
+}
+
 .communities-empty {
   margin: 0.5rem 0 0;
   text-align: center;

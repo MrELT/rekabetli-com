@@ -1,8 +1,13 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const sb = window.getSupabase?.() || window.sb;
-  if (!sb) {
-    console.error("[rekabetli] Supabase yüklenemedi. Sayfayı yerel sunucu ile açın.");
-    return;
+  function getSb() {
+    return window.getSupabase?.() || window.sb || null;
+  }
+
+  function isSupabaseConfigured() {
+    if (typeof window.isRekabetliSupabaseConfigured === "function") {
+      return window.isRekabetliSupabaseConfigured();
+    }
+    return Boolean(window.__ENV__?.SUPABASE_URL && window.__ENV__?.SUPABASE_ANON_KEY);
   }
 
   const AVATAR_BUCKET = "avatars";
@@ -23,6 +28,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const submitBtn = document.getElementById("community-form-submit");
   const communityList = document.getElementById("community-list");
   const addBtn = document.getElementById("community-add-btn");
+
+  function showCommunityListMessage(text, isError = false) {
+    if (!communityList) return;
+    communityList.querySelectorAll("[data-dynamic-community]").forEach((node) => node.remove());
+    let el = communityList.querySelector("[data-communities-empty]");
+    if (!el) {
+      el = document.createElement("p");
+      el.className = "empty communities-empty";
+      el.dataset.communitiesEmpty = "true";
+      communityList.appendChild(el);
+    }
+    el.textContent = text;
+    el.classList.toggle("communities-load-error", isError);
+    el.hidden = false;
+  }
 
   const nameInput = document.getElementById("community-name");
   const purposeInput = document.getElementById("community-purpose");
@@ -49,6 +69,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function ensureSession() {
+    const sb = getSb();
+    if (!sb) return null;
     const { data: sessionData } = await sb.auth.getSession();
     if (sessionData.session?.user) {
       currentUser = sessionData.session.user;
@@ -268,6 +290,9 @@ document.addEventListener("DOMContentLoaded", () => {
     memberCommunityIds = new Set();
     if (!userId) return;
 
+    const sb = getSb();
+    if (!sb) return;
+
     const [requestsRes, membersRes] = await Promise.all([
       sb.from("community_join_requests").select("community_id, status").eq("user_id", userId),
       sb.from("community_members").select("community_id").eq("user_id", userId),
@@ -313,6 +338,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function loadCommunities() {
     if (!communityList) return;
+
+    if (!isSupabaseConfigured()) {
+      showCommunityListMessage(
+        "Bağlantı ayarları yüklenemedi. Sayfayı yenileyin; sorun devam ederse site yöneticisine bildirin.",
+        true
+      );
+      return;
+    }
+
+    const sb = getSb();
+    if (!sb) {
+      showCommunityListMessage("Supabase istemcisi hazır değil. Lütfen sayfayı yenileyin.", true);
+      return;
+    }
+
     await loadUserCommunityState(currentUser?.id ?? null);
 
     const { data, error } = await sb
@@ -322,6 +362,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (error) {
       console.error("Communities load error:", error.message);
+      showCommunityListMessage(
+        "Topluluklar yüklenemedi. Giriş yaptığınızdan ve veritabanı tablolarının kurulu olduğundan emin olun.",
+        true
+      );
       return;
     }
 
@@ -361,6 +405,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (triggerBtn) triggerBtn.disabled = true;
 
     try {
+      const sb = getSb();
+      if (!sb) return;
       const { error } = await sb.from("community_members").upsert(
         [{ community_id: communityId, user_id: user.id }],
         { onConflict: "community_id,user_id" }
@@ -404,6 +450,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (triggerBtn) triggerBtn.disabled = true;
 
+    const sb = getSb();
+    if (!sb) return;
+
     try {
       const { error } = await sb.from("community_join_requests").insert([
         { community_id: communityId, user_id: user.id, status: "pending" },
@@ -439,6 +488,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function uploadCommunityAvatar(file, userId) {
+    const sb = getSb();
+    if (!sb) throw new Error("Supabase istemcisi hazır değil.");
+
     const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
     const path = `${userId}/community-${Date.now()}.${ext}`;
 
@@ -545,6 +597,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
+      const sb = getSb();
+      if (!sb) {
+        setFormMessage("Bağlantı hazır değil. Sayfayı yenileyin.", true);
+        return;
+      }
+
       const { data, error } = await sb
         .from("communities")
         .insert([
@@ -577,14 +635,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  sb.auth.onAuthStateChange(async (_event, session) => {
-    currentUser = session?.user ?? null;
-    window.syncProfileNavState?.();
-    await loadCommunities();
-  });
+  let appStarted = false;
 
-  ensureSession().then(() => {
-    window.syncProfileNavState?.();
-    loadCommunities();
-  });
+  function startApp() {
+    const sb = getSb();
+    if (!sb) return;
+
+    if (!appStarted) {
+      appStarted = true;
+      sb.auth.onAuthStateChange(async (_event, session) => {
+        currentUser = session?.user ?? null;
+        window.syncProfileNavState?.();
+        await loadCommunities();
+      });
+    }
+
+    ensureSession().then(() => {
+      window.syncProfileNavState?.();
+      loadCommunities();
+    });
+  }
+
+  startApp();
+  window.addEventListener("rekabetli-env-ready", startApp);
 });

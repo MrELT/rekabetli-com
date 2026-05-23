@@ -43,7 +43,9 @@
     }
 
     if (addType === "community") {
-      if (typeof window.openCommunityModal === "function") {
+      if (typeof window.rekabetliOpenCommunityModal === "function") {
+        await window.rekabetliOpenCommunityModal(event);
+      } else if (typeof window.openCommunityModal === "function") {
         window.openCommunityModal();
       } else {
         window.alert("Topluluk formu yüklenemedi. Sayfayı yenileyin (Ctrl+F5).");

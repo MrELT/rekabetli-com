@@ -112,17 +112,5 @@
   };
 
   publishEnv(mergeAllSources());
-
-  if (typeof document !== "undefined" && document.write) {
-    const needsLocal =
-      getMissingKeys(window.__ENV__).length > 0 &&
-      !document.querySelector('script[data-rekabetli-env-local="1"]');
-    if (needsLocal) {
-      document.write(
-        '<script src="env-config.local.js" data-rekabetli-env-local="1"><\/script>'
-      );
-    }
-  }
-
   finalizeEnv();
 })();
