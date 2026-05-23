@@ -184,7 +184,7 @@ function updateClassLevelVisibility() {
 async function ensureLoggedOutRedirect() {
   const { data } = await supabase.auth.getSession();
   if (data.session) {
-    window.location.href = "profile.html";
+    window.location.href = "/profile";
   }
 }
 
@@ -282,7 +282,7 @@ registerForm.addEventListener("submit", async (event) => {
 });
 
 goLoginBtn.addEventListener("click", () => {
-  window.location.href = "login.html";
+  window.location.href = "/login";
 });
 
 userTypeSelect.addEventListener("change", updateUserTypeVisibility);

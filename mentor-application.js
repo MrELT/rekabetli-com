@@ -225,8 +225,8 @@
     } = await supabase.auth.getSession();
 
     if (!session) {
-      const returnUrl = "kimler-icin.html?openMentorApp=1#mentorler";
-      window.location.href = `login.html?redirect=${encodeURIComponent(returnUrl)}`;
+      const returnUrl = "/kimler-icin?openMentorApp=1#mentorler";
+      window.location.href = `/login?redirect=${encodeURIComponent(returnUrl)}`;
       return;
     }
 
@@ -262,7 +262,7 @@
     } = await supabase.auth.getSession();
 
     if (!session) {
-      window.location.href = `login.html?redirect=${encodeURIComponent("kimler-icin.html?openMentorApp=1#mentorler")}`;
+      window.location.href = `/login?redirect=${encodeURIComponent("/kimler-icin?openMentorApp=1#mentorler")}`;
       return;
     }
 

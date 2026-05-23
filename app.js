@@ -106,7 +106,7 @@ function renderBentoFeaturedCommunities(listEl, rows) {
     const span = document.createElement("span");
     const link = document.createElement("a");
     link.className = "bento-community-link";
-    link.href = `communities.html?community=${encodeURIComponent(row.id)}`;
+    link.href = `/communities?community=${encodeURIComponent(row.id)}`;
     link.textContent = row.name;
     span.appendChild(link);
 
@@ -276,7 +276,7 @@ async function syncProfileNavState() {
 
   // Butonun ne yazacağını ve nereye gideceğini belirle
   const label = isUserLoggedIn ? "Profil" : "Giriş Yap";
-  const targetHref = isUserLoggedIn ? "profile.html" : "login.html";
+  const targetHref = isUserLoggedIn ? "/profile" : "/login";
 
   if (desktopProfileBtn) {
     desktopProfileBtn.textContent = label;
@@ -353,7 +353,7 @@ function renderAnswers(container, answers, postId) {
       currentUserId,
       isLoggedIn: isUserLoggedIn,
       onRequireLogin: () => {
-        window.location.href = "login.html";
+        window.location.href = "/login";
       },
     });
 
@@ -580,7 +580,7 @@ async function deletePost(postId) {
 
 async function deleteComment(commentId) {
   if (!currentUserId) {
-    window.location.href = "login.html";
+    window.location.href = "/login";
     return;
   }
 
@@ -594,7 +594,7 @@ async function deleteComment(commentId) {
 
 async function setPostLiked(postId, shouldLike) {
   if (!currentUserId) {
-    window.location.href = "login.html";
+    window.location.href = "/login";
     return;
   }
 
@@ -616,7 +616,7 @@ async function setPostLiked(postId, shouldLike) {
 
 async function setPostSaved(postId, shouldSave) {
   if (!currentUserId) {
-    window.location.href = "login.html";
+    window.location.href = "/login";
     return;
   }
 
@@ -638,7 +638,7 @@ async function setPostSaved(postId, shouldSave) {
 
 function requireLoginForAction() {
   if (isUserLoggedIn) return true;
-  window.location.href = "login.html";
+  window.location.href = "/login";
   return false;
 }
 
@@ -673,12 +673,12 @@ function renderGuestFeedCta() {
   actions.className = "feed-guest-cta-actions";
 
   const loginLink = document.createElement("a");
-  loginLink.href = "login.html";
+  loginLink.href = "/login";
   loginLink.className = "nav-btn nav-btn-primary";
   loginLink.textContent = "Giriş Yap";
 
   const registerLink = document.createElement("a");
-  registerLink.href = "register.html";
+  registerLink.href = "/register";
   registerLink.className = "nav-btn";
   registerLink.textContent = "Hesap Oluştur";
 
@@ -935,7 +935,7 @@ document.addEventListener("DOMContentLoaded", () => {
     button.addEventListener("click", () => {
       if (!isUserLoggedIn) {
         // Kullanıcı giriş yapmamışsa login sayfasına yönlendir
-        window.location.href = "login.html";
+        window.location.href = "/login";
         return;
       }
       

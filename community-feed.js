@@ -182,7 +182,7 @@ async function syncProfileNavState() {
 
   // Butonun ne yazacağını ve nereye gideceğini belirle
   const label = isUserLoggedIn ? "Profil" : "Giriş Yap";
-  const targetHref = isUserLoggedIn ? "profile.html" : "login.html";
+  const targetHref = isUserLoggedIn ? "/profile" : "/login";
 
   if (desktopProfileBtn) {
     desktopProfileBtn.textContent = label;
@@ -295,7 +295,7 @@ async function joinPublicCommunity() {
   if (!communityId || !supabaseClient) return;
 
   if (!isUserLoggedIn) {
-    window.location.href = "login.html";
+    window.location.href = "/login";
     return;
   }
 
@@ -337,7 +337,7 @@ async function sendJoinRequestPrivate() {
   if (!communityId || !supabaseClient) return;
 
   if (!isUserLoggedIn) {
-    window.location.href = "login.html";
+    window.location.href = "/login";
     return;
   }
 
@@ -410,7 +410,7 @@ async function leaveCommunity() {
       .eq("community_id", communityId)
       .eq("user_id", currentUserId);
 
-    window.location.href = "communities.html";
+    window.location.href = "/communities";
     return;
   } catch (error) {
     console.error("Leave community error:", error.message);
@@ -448,7 +448,7 @@ async function closeCommunity() {
 
     if (error) throw error;
 
-    window.location.href = "communities.html";
+    window.location.href = "/communities";
   } catch (error) {
     console.error("Close community error:", error.message);
     await rekabetliAlert({
@@ -1027,7 +1027,7 @@ function renderAnswers(container, answers, postId) {
       currentUserId,
       isLoggedIn: isUserLoggedIn,
       onRequireLogin: () => {
-        window.location.href = "login.html";
+        window.location.href = "/login";
       },
     });
 
@@ -1245,7 +1245,7 @@ async function deletePost(postId) {
 
 async function deleteComment(commentId) {
   if (!currentUserId) {
-    window.location.href = "login.html";
+    window.location.href = "/login";
     return;
   }
 
@@ -1259,7 +1259,7 @@ async function deleteComment(commentId) {
 
 async function setPostLiked(postId, shouldLike) {
   if (!currentUserId) {
-    window.location.href = "login.html";
+    window.location.href = "/login";
     return;
   }
 
@@ -1281,7 +1281,7 @@ async function setPostLiked(postId, shouldLike) {
 
 async function setPostSaved(postId, shouldSave) {
   if (!currentUserId) {
-    window.location.href = "login.html";
+    window.location.href = "/login";
     return;
   }
 
@@ -1303,7 +1303,7 @@ async function setPostSaved(postId, shouldSave) {
 
 function requireLoginForAction() {
   if (isUserLoggedIn) return true;
-  window.location.href = "login.html";
+  window.location.href = "/login";
   return false;
 }
 
@@ -1580,7 +1580,7 @@ document.addEventListener("DOMContentLoaded", () => {
   openQuestionModalButtons.forEach((button) => {
     button.addEventListener("click", () => {
       if (!isUserLoggedIn) {
-        window.location.href = "login.html";
+        window.location.href = "/login";
         return;
       }
       if (!canPostInCommunity) {

@@ -10,15 +10,44 @@ function setMessage(text) {
   if (authMessage) authMessage.textContent = text;
 }
 
+const ALLOWED_REDIRECT_PATHS = [
+  "/",
+  "/kimler-icin",
+  "/hakkimizda",
+  "/profile",
+  "/mentors",
+  "/communities",
+  "/community",
+  "/competitions",
+  "/exams",
+  "/register",
+  "/login",
+  "/sinav-bilgileri",
+  "/yarisma-bilgileri",
+];
+
+function normalizeRedirectPath(redirect) {
+  let normalized = redirect.trim();
+  normalized = normalized.replace(/^\/?index\.html(?=[$?#]|$)/i, "/");
+  normalized = normalized.replace(/^([a-z0-9-]+)\.html(?=[$?#]|$)/i, "/$1");
+  if (!normalized.startsWith("/")) normalized = `/${normalized}`;
+  return normalized;
+}
+
 function getSafeRedirectAfterLogin() {
   const params = new URLSearchParams(window.location.search);
   const redirect = params.get("redirect");
-  if (!redirect) return "index.html";
-  if (redirect.includes("://") || redirect.startsWith("//")) return "index.html";
-  const allowedPaths = ["index.html", "kimler-icin.html", "hakkimizda.html", "profile.html", "mentors.html"];
-  const pathOnly = redirect.split("?")[0].split("#")[0];
-  if (!allowedPaths.includes(pathOnly)) return "index.html";
-  return redirect;
+  if (!redirect) return "/";
+  if (redirect.includes("://") || redirect.startsWith("//")) return "/";
+
+  const normalized = normalizeRedirectPath(redirect);
+  const pathOnly = normalized.split("?")[0].split("#")[0];
+  const allowed = ALLOWED_REDIRECT_PATHS.some(
+    (p) => pathOnly === p || (p !== "/" && pathOnly.startsWith(`${p}/`))
+  );
+
+  if (!allowed) return "/";
+  return normalized;
 }
 
 // Eğer zaten giriş yapmış biriyse yönlendir

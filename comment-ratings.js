@@ -86,7 +86,7 @@
       currentUserId = null,
       isLoggedIn = false,
       onRequireLogin = () => {
-        window.location.href = "login.html";
+        window.location.href = "/login";
       },
       onRated = null,
     } = options;

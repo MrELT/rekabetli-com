@@ -114,16 +114,16 @@ function buildNotificationLink(record: NotificationRecord, siteUrl: string): str
 
   if (record.type === "community_join_request") {
     if (record.community_id) {
-      return `${base}/community.html?id=${encodeURIComponent(record.community_id)}`;
+      return `${base}//community?id=${encodeURIComponent(record.community_id)}`;
     }
-    return `${base}/communities.html`;
+    return `${base}//communities`;
   }
 
   if (record.type === "community_join_rejected") {
     if (record.community_id) {
-      return `${base}/communities.html?community=${encodeURIComponent(record.community_id)}`;
+      return `${base}//communities?community=${encodeURIComponent(record.community_id)}`;
     }
-    return `${base}/communities.html`;
+    return `${base}//communities`;
   }
 
   const tab = "questions";
@@ -134,7 +134,7 @@ function buildNotificationLink(record: NotificationRecord, siteUrl: string): str
   if (postId) params.set("post", postId);
   if (commentId) params.set("comment", commentId);
 
-  return `${base}/profile.html?${params.toString()}`;
+  return `${base}//profile?${params.toString()}`;
 }
 
 function buildEmailHtml(options: {

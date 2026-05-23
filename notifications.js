@@ -44,19 +44,19 @@
   function notificationHref(row) {
     if (row.type === "community_join_request") {
       return row.community_id
-        ? `community.html?id=${encodeURIComponent(row.community_id)}`
-        : "communities.html";
+        ? `/community?id=${encodeURIComponent(row.community_id)}`
+        : "/communities";
     }
     if (row.type === "community_join_rejected") {
       return row.community_id
-        ? `communities.html?community=${encodeURIComponent(row.community_id)}`
-        : "communities.html";
+        ? `/communities?community=${encodeURIComponent(row.community_id)}`
+        : "/communities";
     }
     const params = new URLSearchParams({ tab: "questions", post: row.post_id });
     if (row.type === "comment" && row.comment_id) {
       params.set("comment", row.comment_id);
     }
-    return `profile.html?${params.toString()}`;
+    return `/profile?${params.toString()}`;
   }
 
   function setNavVisible(isLoggedIn) {
@@ -179,7 +179,7 @@
   btn.addEventListener("click", (event) => {
     event.stopPropagation();
     if (!currentUserId) {
-      window.location.href = "login.html";
+      window.location.href = "/login";
       return;
     }
     togglePopup();
@@ -189,7 +189,7 @@
     const mobileMenu = document.getElementById("mobile-menu");
     if (mobileMenu) mobileMenu.hidden = true;
     if (!currentUserId) {
-      window.location.href = "login.html";
+      window.location.href = "/login";
       return;
     }
     openPopup();

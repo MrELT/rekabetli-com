@@ -23,7 +23,7 @@
   ];
   const MIN_BRANCH_FIELDS = 2;
   const MAX_BRANCH_FIELDS = 8;
-  const RETURN_URL = "mentors.html?openMentorshipRequest=1";
+  const RETURN_URL = "/mentors?openMentorshipRequest=1";
 
   let branchFieldCount = MIN_BRANCH_FIELDS;
 
@@ -215,7 +215,7 @@
     } = await supabase.auth.getSession();
 
     if (!session) {
-      window.location.href = `login.html?redirect=${encodeURIComponent(RETURN_URL)}`;
+      window.location.href = `/login?redirect=${encodeURIComponent(RETURN_URL)}`;
       return;
     }
 
@@ -251,7 +251,7 @@
     } = await supabase.auth.getSession();
 
     if (!session) {
-      window.location.href = `login.html?redirect=${encodeURIComponent(RETURN_URL)}`;
+      window.location.href = `/login?redirect=${encodeURIComponent(RETURN_URL)}`;
       return;
     }
 

@@ -54,7 +54,7 @@ async function syncProfileNavState() {
   }
   const isLoggedIn = Boolean(data?.session);
   const label = isLoggedIn ? "Profil" : "Giriş Yap";
-  const targetHref = isLoggedIn ? "profile.html" : "login.html";
+  const targetHref = isLoggedIn ? "/profile" : "/login";
 
   if (desktopProfileBtn) {
     desktopProfileBtn.textContent = label;

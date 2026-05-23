@@ -279,7 +279,7 @@
       console.error("Forum görseli yüklenemedi:", error);
 
       if (error.code === "NOT_LOGGED_IN") {
-        window.location.href = "login.html";
+        window.location.href = "/login";
         return;
       }
 

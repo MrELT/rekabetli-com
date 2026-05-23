@@ -223,7 +223,7 @@
     const params = new URLSearchParams();
     params.set("post", postId);
     if (commentId) params.set("comment", commentId);
-    return `index.html?${params.toString()}`;
+    return `/?${params.toString()}`;
   }
 
   function goToRelatedQuestion(postId, commentId) {
@@ -617,7 +617,7 @@
     } = await supabase.auth.getSession();
 
     if (!session) {
-      window.location.href = "login.html";
+      window.location.href = "/login";
       return;
     }
 
@@ -768,7 +768,7 @@
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      window.location.href = "login.html";
+      window.location.href = "/login";
     } catch (error) {
       console.error("Çıkış hatası:", error.message);
       setMessage("Çıkış yapılamadı.", true);

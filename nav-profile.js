@@ -29,7 +29,7 @@
     const session = await readSession(supabaseClient);
     const isLoggedIn = Boolean(session?.user);
     const label = isLoggedIn ? "Profil" : "Giriş Yap";
-    const targetHref = isLoggedIn ? "profile.html" : "login.html";
+    const targetHref = isLoggedIn ? "/profile" : "/login";
 
     if (desktopProfileBtn) {
       desktopProfileBtn.textContent = label;

@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (event) event.preventDefault();
     const user = await ensureSession();
     if (!user) {
-      window.location.href = "login.html";
+      window.location.href = "/login";
       return false;
     }
     openCommunityModal();
@@ -149,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function appendCommunityAction(actionsEl, row) {
     actionsEl.replaceChildren();
     const { isOwner, joinStatus, isMember } = getCardContext(row);
-    const detailHref = `community.html?id=${encodeURIComponent(row.id)}`;
+    const detailHref = `/community?id=${encodeURIComponent(row.id)}`;
 
     if (isOwner || isMember) {
       const link = document.createElement("a");
@@ -354,7 +354,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function joinPublicCommunity(communityId, triggerBtn) {
     const user = await ensureSession();
     if (!user) {
-      window.location.href = "login.html";
+      window.location.href = "/login";
       return;
     }
 
@@ -398,7 +398,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function sendJoinRequest(communityId, triggerBtn) {
     const user = await ensureSession();
     if (!user) {
-      window.location.href = "login.html";
+      window.location.href = "/login";
       return;
     }
 
@@ -515,7 +515,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const user = await ensureSession();
     if (!user) {
-      window.location.href = "login.html";
+      window.location.href = "/login";
       return;
     }
 
@@ -568,7 +568,7 @@ document.addEventListener("DOMContentLoaded", () => {
       );
 
       closeCommunityModal();
-      window.location.href = `community.html?id=${encodeURIComponent(data.id)}`;
+      window.location.href = `/community?id=${encodeURIComponent(data.id)}`;
     } catch (error) {
       console.error("Community create error:", error.message);
       setFormMessage("Topluluk kaydedilemedi. Supabase tablolarını kontrol edin.", true);
