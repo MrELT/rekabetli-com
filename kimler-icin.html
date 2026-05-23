@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kimler İçin? | rekabetli.com</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png" />
+    <link rel="apple-touch-icon" href="assets/rekabetli_logo.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="security-utils.js"></script>
+  </head>
+  <body>
+    <nav class="top-menu">
+      <div class="menu-actions">
+        <a class="menu-btn" href="kimler-icin.html#ogrenciler">Öğrenciler</a>
+        <a class="menu-btn" href="kimler-icin.html#ogretmenler">Öğretmenler</a>
+        <a class="menu-btn" href="kimler-icin.html#mentorler">Mentörler</a>
+        <a class="menu-btn" href="kimler-icin.html#veliler">Veliler</a>
+        <a class="menu-btn menu-btn-about" href="hakkimizda.html">Hakkımızda</a>
+      </div>
+    </nav>
+
+    <nav class="top-nav">
+      <a class="brand" href="index.html">
+        <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
+      </a>
+      <button id="open-mobile-menu" class="menu-toggle" type="button" aria-label="Menüyü aç">☰</button>
+      <div class="nav-actions">
+        <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+        <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+        <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+        <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+        <div class="notifications-wrap">
+          <button id="notifications-btn" class="nav-btn notifications-btn" type="button" aria-label="Bildirimler" hidden>
+            🔔
+            <span id="notifications-badge" class="notifications-badge" hidden>0</span>
+          </button>
+          <div id="notifications-popup" class="notifications-popup" hidden>
+            <div class="notifications-popup-header">
+              <strong>Bildirimler</strong>
+              <button id="close-notifications" type="button" class="icon-btn" aria-label="Kapat">✕</button>
+            </div>
+            <ul id="notifications-list" class="notifications-list"></ul>
+            <p id="notifications-empty" class="empty notifications-empty">Bildirim yok.</p>
+          </div>
+        </div>
+        <a id="desktop-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+      </div>
+    </nav>
+
+    <div id="mobile-menu" class="mobile-menu-overlay" hidden>
+      <section class="mobile-menu-sheet" role="dialog" aria-modal="true" aria-label="Mobil menu">
+        <div class="mobile-menu-header">
+          <strong>Menü</strong>
+          <button id="close-mobile-menu" type="button" class="icon-btn" aria-label="Menüyü kapat">✕</button>
+        </div>
+        <div class="mobile-menu-actions">
+          <a class="nav-btn" href="kimler-icin.html#ogrenciler">Öğrenciler</a>
+          <a class="nav-btn" href="kimler-icin.html#ogretmenler">Öğretmenler</a>
+          <a class="nav-btn" href="kimler-icin.html#mentorler">Mentörler</a>
+          <a class="nav-btn" href="kimler-icin.html#veliler">Veliler</a>
+          <a class="nav-btn" href="hakkimizda.html">Hakkımızda</a>
+          <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+          <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+          <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+          <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+          <button id="mobile-notifications-btn" class="nav-btn notifications-btn" type="button" hidden>
+            🔔 Bildirimler
+          </button>
+          <a id="mobile-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+        </div>
+      </section>
+    </div>
+
+    <main class="layout about-page-layout">
+      <section class="panel about-panel audience-guide-panel">
+        <p class="eyebrow">rekabetli.com</p>
+        <h1>Kimler İçin?</h1>
+        <p class="about-lead">
+          Her kullanıcı tipi için rekabetli.com&rsquo;da neler yapabileceğinizi aşağıda sırayla bulabilirsiniz.
+        </p>
+
+        <nav class="audience-jump-nav" aria-label="Bölümlere git">
+          <a href="#ogrenciler">Öğrenciler</a>
+          <a href="#ogretmenler">Öğretmenler</a>
+          <a href="#mentorler">Mentörler</a>
+          <a href="#veliler">Veliler</a>
+        </nav>
+
+        <div class="audience-sections">
+          <article id="ogrenciler" class="audience-section audience-section-student">
+            <header class="audience-section-head">
+              <span class="audience-badge">Öğrenciler</span>
+              <h2>Hedefine giden yolu birlikte kur</h2>
+            </header>
+            <div class="audience-section-body">
+              <p>
+                rekabetli.com, YKS derecesi hedefleyen, bilim olimpiyatlarına hazırlanan veya TEKNOFEST gibi büyük
+                proje yarışmalarına katılan öğrenciler için tasarlandı. Burada yalnızca soru çözmez; doğru kişilerden
+                strateji, disiplin ve vizyon öğrenirsin.
+              </p>
+              <ul class="audience-tips">
+                <li>
+                  <strong>Hesap oluştur</strong> ve profilinde okulunu, hedeflerini ve başarılarını paylaş; mentörler seni
+                  daha iyi tanısın.
+                </li>
+                <li>
+                  <strong>Topluluklara katıl</strong> veya yeni bir topluluk aç; akranlarınla aynı hedefe giden öğrencilerle
+                  bir arada çalış.
+                </li>
+                <li>
+                  <strong>Soru sor, paylaşım yap</strong> — ana akış ve topluluk sayfalarında deneyimli mentörlerden ve
+                  akranlarından geri bildirim al.
+                </li>
+                <li>
+                  <strong>Mentör keşfet</strong> — derece yapmış, madalya kazanmış veya proje deneyimi olan üniversiteli
+                  ve mezun mentörlerin profillerini incele.
+                </li>
+                <li>
+                  <strong>Yarışma ve sınav alanlarını</strong> takip ederek motivasyonunu ve rekabetçi ivmeni koru.
+                </li>
+              </ul>
+              <p class="audience-cta-hint">
+                Hemen başlamak için kayıt ol, ardından <a href="communities.html">topluluklara</a> göz at veya
+                <a href="mentors.html">mentör listesini</a> keşfet.
+              </p>
+            </div>
+          </article>
+
+          <article id="ogretmenler" class="audience-section audience-section-teacher">
+            <header class="audience-section-head">
+              <span class="audience-badge">Öğretmenler</span>
+              <h2>Sınıfının dijital akademik merkezi</h2>
+            </header>
+            <div class="audience-section-body">
+              <p>
+                Öğretmenler olarak öğrencilerinizi sınıf duvarının ötesine taşıyabilir; rekabetli.com&rsquo;u ek bir
+                kaynak ve motivasyon kanalı olarak kullanabilirsiniz.
+              </p>
+              <ul class="audience-tips">
+                <li>
+                  <strong>Okul veya branş topluluğu</strong> oluşturarak öğrencilerinizi aynı platformda toplayın; proje,
+                  sınav ve olimpiyat hazırlığını tek çatı altında izleyin.
+                </li>
+                <li>
+                  <strong>Öğrencilere yönlendirme yapın</strong> — hangi mentör profillerinin, hangi yarışma veya sınav
+                  içeriklerinin onlara uygun olduğunu birlikte değerlendirin.
+                </li>
+                <li>
+                  <strong>Akışta soru-cevap kültürünü</strong> destekleyin; öğrencilerin birbirine yardım etmesini ve
+                  mentörlerden faydalanmasını teşvik edin.
+                </li>
+                <li>
+                  <strong>Velilerle köprü kurun</strong> — platformu çocuklarının hedeflerine uygun mentör ve topluluk
+                  bulması için güvenilir bir ortam olarak tanıtın.
+                </li>
+              </ul>
+              <p class="audience-cta-hint">
+                Kayıt olurken kullanıcı tipinizi &ldquo;Öğretmen&rdquo; seçerek branş ve okul bilgilerinizi profilinize
+                ekleyebilirsiniz.
+              </p>
+            </div>
+          </article>
+
+          <article id="mentorler" class="audience-section audience-section-mentor">
+            <header class="audience-section-head">
+              <span class="audience-badge">Mentörler</span>
+              <h2>Deneyimini paylaş, öğrencilere yol göster</h2>
+            </header>
+            <div class="audience-section-body">
+              <p>
+                Olimpiyat madalyası, YKS derecesi, proje yarışması başarısı veya üniversite deneyimin varsa
+                rekabetli.com&rsquo;da mentör olarak yer alabilirsin. Amacımız, bilgini paylaşırken öğrencilerin gerçek
+                hayattaki rehberlik ihtiyacını karşılamak.
+              </p>
+              <ul class="audience-tips">
+                <li>
+                  <strong>Doğrulanmış profil</strong> oluşturun; akademik başarılarınız, bölümünüz ve biyografiniz
+                  öğrencilerin sizi tanımasını sağlar.
+                </li>
+                <li>
+                  <strong>Topluluklarda ve akışta</strong> yanıt vererek görünürlük kazanın; uzun vadede düzenli mentee
+                  kitlesi oluşturun.
+                </li>
+                <li>
+                  <strong>Mentörlük oturumları ve ücretlendirme</strong> süreçleri rekabetli.com tarafından planlanır ve
+                  koordine edilir; siz içerik ve rehberliğe odaklanırsınız.
+                </li>
+                <li>
+                  <strong>Gelir imkânı</strong> — platform üzerinden yürütülen mentörlük programlarında, önceden
+                  belirlenen çerçeve ve takvimle çalışarak deneyiminizi değerlendirebilirsiniz. Tüm planlama, eşleştirme
+                  ve ödeme süreçleri ekibimiz tarafından yönetilir.
+                </li>
+                <li>
+                  <strong>Güven ve şeffaflık</strong> — yanlış beyan eden profiller denetlenir; topluluk kurallarına
+                  uyum beklenir.
+                </li>
+              </ul>
+              <div class="mentor-candidate-box" id="mentor-adayi">
+                <h3>Mentör adayı ol</h3>
+                <p>
+                  Yakında ödeme sistemlerimizi aktif edeceğiz; bu sayede öğrenciler ve mentörler platform üzerinden
+                  güvenli şekilde buluşabilecek. Deneyiminizi paylaşmak ve mentörlük yapmak istiyorsanız ön kayıt formunu
+                  doldurun — ekibimiz başvurunuzu inceledikten sonra süreç hakkında sizinle iletişime geçecek.
+                </p>
+                <button type="button" class="nav-btn nav-btn-primary" id="mentor-apply-btn">
+                  Mentör adayı ol
+                </button>
+              </div>
+
+              <p class="audience-cta-hint">
+                Henüz hesabınız yoksa <a href="register.html">kayıt olun</a> ve profilinizi güncel tutun. Sorularınız için
+                <a href="mailto:info@rekabetli.com">info@rekabetli.com</a>.
+              </p>
+            </div>
+          </article>
+
+          <article id="veliler" class="audience-section audience-section-parent">
+            <header class="audience-section-head">
+              <span class="audience-badge">Veliler</span>
+              <h2>Çocuğunuz için doğru rehberi bulun</h2>
+            </header>
+            <div class="audience-section-body">
+              <p>
+                Veli olarak çocuğunuzun akademik yolculuğunda yalnız bırakmamanız için rekabetli.com, deneyimli mentörler
+                ve hedef odaklı topluluklarla güvenli bir köprü sunar.
+              </p>
+              <ul class="audience-tips">
+                <li>
+                  <strong>Çocuğunuzun hedefini netleştirin</strong> — YKS, olimpiyat, TEKNOFEST veya lise projeleri; platform
+                  bu hedeflere göre filtrelenmiş içerik sunar.
+                </li>
+                <li>
+                  <strong>Mentör profillerini birlikte inceleyin</strong> — derece, madalya ve okul bilgileri doğrulama
+                  sürecinden geçmiş mentörlerden seçim yapabilirsiniz.
+                </li>
+                <li>
+                  <strong>Derece ve vizyon aktarımı</strong> — çocuğunuz yalnızca konu öğrenmez; başarılı öğrencilerin
+                  çalışma düzenini ve hedef koyma bakış açısını da görür.
+                </li>
+                <li>
+                  <strong>Topluluk ortamı</strong> — çocuğunuz benzer hedeflere sahip akranlarla motive kalır; siz de
+                  süreci şeffaf biçimde takip edebilirsiniz.
+                </li>
+                <li>
+                  <strong>Güvenli iletişim</strong> — platform kuralları saygı, akademik odak ve spam karşıtıdır;
+                  uygunsuz davranışlar hesap kapatma ile sonuçlanır.
+                </li>
+              </ul>
+              <p class="audience-cta-hint">
+                Çocuğunuz için <a href="register.html">hesap oluşturabilir</a> veya mevcut hesabıyla birlikte
+                <a href="mentors.html">mentör sayfasını</a> gezebilirsiniz.
+              </p>
+            </div>
+          </article>
+        </div>
+
+        <div class="about-actions">
+          <a class="nav-btn nav-btn-primary" href="index.html">Ana sayfaya dön</a>
+          <a class="nav-btn" href="hakkimizda.html">Hakkımızda</a>
+          <a class="nav-btn" href="register.html">Hesap oluştur</a>
+        </div>
+      </section>
+    </main>
+
+    <div id="mentor-application-modal" class="modal-overlay" hidden>
+      <section class="modal-card mentor-application-card" role="dialog" aria-modal="true" aria-labelledby="mentor-application-title">
+        <div class="modal-header">
+          <h2 id="mentor-application-title">Mentör adayı ön kayıt</h2>
+          <button id="close-mentor-application-modal" type="button" class="icon-btn" aria-label="Pencereyi kapat">✕</button>
+        </div>
+        <form id="mentor-application-form" class="modal-form mentor-application-form">
+          <p class="profile-hint">
+            Bilgileriniz profilinizden otomatik doldurulur; isterseniz düzenleyebilirsiniz.
+          </p>
+
+          <label for="mentor-first-name">Ad</label>
+          <input id="mentor-first-name" name="first_name" type="text" maxlength="80" required autocomplete="given-name" />
+
+          <label for="mentor-last-name">Soyad</label>
+          <input id="mentor-last-name" name="last_name" type="text" maxlength="80" required autocomplete="family-name" />
+
+          <label for="mentor-email">E-posta</label>
+          <input id="mentor-email" name="email" type="email" maxlength="120" required autocomplete="email" />
+
+          <label for="mentor-phone">Telefon</label>
+          <input id="mentor-phone" name="phone" type="tel" maxlength="20" autocomplete="tel" placeholder="05xx xxx xx xx" />
+
+          <span class="form-label-block">Mentörlük branşları</span>
+          <p class="profile-hint">En az iki branş girin. İsterseniz daha fazla alan ekleyebilirsiniz.</p>
+          <div id="mentor-branches-container" class="mentor-branches-container"></div>
+          <button type="button" class="secondary mentor-add-branch-btn" id="mentor-add-branch-btn">
+            + Alan ekle
+          </button>
+
+          <label for="mentor-weekly-sessions">Yaklaşık haftalık kaç oturum yapabilirsiniz?</label>
+          <input
+            id="mentor-weekly-sessions"
+            name="weekly_sessions"
+            type="number"
+            min="1"
+            max="60"
+            step="1"
+            required
+            placeholder="Örn: 3"
+          />
+          <p class="profile-hint">1 oturum = 1 saat</p>
+
+          <p id="mentor-application-message" class="form-message" role="status" hidden></p>
+          <button type="submit" id="mentor-application-submit">Ön kaydı gönder</button>
+        </form>
+      </section>
+    </div>
+
+    <script src="confirm-dialog.js"></script>
+    <script src="nav-profile.js"></script>
+    <script src="notifications.js"></script>
+    <script src="nav-auth.js"></script>
+    <script src="mentor-application.js"></script>
+  </body>
+</html>

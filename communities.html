@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Topluluklar | rekabetli.com</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png" />
+    <link rel="apple-touch-icon" href="assets/rekabetli_logo.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="security-utils.js"></script>
+  </head>
+  <body>
+    <nav class="top-menu">
+      <div class="menu-actions">
+        <a class="menu-btn" href="kimler-icin.html#ogrenciler">Öğrenciler</a>
+        <a class="menu-btn" href="kimler-icin.html#ogretmenler">Öğretmenler</a>
+        <a class="menu-btn" href="kimler-icin.html#mentorler">Mentörler</a>
+        <a class="menu-btn" href="kimler-icin.html#veliler">Veliler</a>
+        <a class="menu-btn menu-btn-about" href="hakkimizda.html">Hakkımızda</a>
+      </div>
+    </nav>
+
+    <nav class="top-nav">
+      <a class="brand" href="index.html">
+        <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
+      </a>
+      <button id="open-mobile-menu" class="menu-toggle" type="button" aria-label="Menüyü aç">☰</button>
+      <div class="nav-actions">
+        <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+        <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+        <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+        <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+        <div class="notifications-wrap">
+          <button id="notifications-btn" class="nav-btn notifications-btn" type="button" aria-label="Bildirimler" hidden>
+            🔔
+            <span id="notifications-badge" class="notifications-badge" hidden>0</span>
+          </button>
+          <div id="notifications-popup" class="notifications-popup" hidden>
+            <div class="notifications-popup-header">
+              <strong>Bildirimler</strong>
+              <button id="close-notifications" type="button" class="icon-btn" aria-label="Kapat">✕</button>
+            </div>
+            <ul id="notifications-list" class="notifications-list"></ul>
+            <p id="notifications-empty" class="empty notifications-empty">Bildirim yok.</p>
+          </div>
+        </div>
+        <a id="desktop-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+      </div>
+    </nav>
+
+    <div id="mobile-menu" class="mobile-menu-overlay" hidden>
+      <section class="mobile-menu-sheet" role="dialog" aria-modal="true" aria-label="Mobil menu">
+        <div class="mobile-menu-header">
+          <strong>Menü</strong>
+          <button id="close-mobile-menu" type="button" class="icon-btn" aria-label="Menüyü kapat">✕</button>
+        </div>
+        <div class="mobile-menu-actions">
+          <a class="nav-btn" href="hakkimizda.html">Hakkımızda</a>
+          <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+          <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+          <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+          <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+          <button id="mobile-notifications-btn" class="nav-btn notifications-btn" type="button" hidden>
+            🔔 Bildirimler
+          </button>
+          <a id="mobile-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+        </div>
+      </section>
+    </div>
+
+    <header class="site-header">
+      <p class="eyebrow">Ağını Kur, Birlikte Başar</p>
+      <h1>Kendi Topluluğunu Bul, Geleceği Tasarla.</h1>
+      <p>İlgi alanlarına uygun topluluklara katıl, projeler geliştir ve senin gibi düşünenlerle tanış.</p>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Aktif Topluluklar</h2>
+          <button
+            type="button"
+            id="community-add-btn"
+            class="nav-btn nav-btn-primary js-panel-add-btn"
+            data-add-type="community"
+          >
+            Topluluk Ekle
+          </button>
+        </div>
+
+        <div id="community-list" class="community-list"></div>
+      </section>
+    </main>
+
+    <div id="community-modal" class="modal-overlay" hidden>
+      <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="community-modal-title">
+        <div class="modal-header">
+          <h2 id="community-modal-title">Yeni Topluluk</h2>
+          <button id="close-community-modal" type="button" class="icon-btn" aria-label="Pencereyi kapat">✕</button>
+        </div>
+        <form id="community-form" class="modal-form">
+          <label for="community-name">Topluluk Adı</label>
+          <input
+            id="community-name"
+            name="name"
+            type="text"
+            maxlength="80"
+            placeholder="Örn: METU NCC Aerospace Society"
+            required
+          />
+
+          <span class="form-label-block">Profil Fotoğrafı</span>
+          <div class="profile-avatar-block community-avatar-block">
+            <div class="profile-avatar-wrap">
+              <img id="community-avatar-preview" class="profile-avatar-img" alt="" hidden />
+              <span id="community-avatar-fallback" class="profile-avatar-fallback">?</span>
+            </div>
+            <div class="profile-avatar-actions">
+              <label for="community-avatar-input" class="secondary avatar-upload-label">Fotoğraf Seç</label>
+              <input id="community-avatar-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+              <button id="community-remove-avatar" type="button" class="secondary" hidden>Fotoğrafı Kaldır</button>
+              <p class="profile-hint">JPG, PNG veya WebP · En fazla 2 MB</p>
+            </div>
+          </div>
+
+          <label for="community-purpose">Amaç</label>
+          <textarea
+            id="community-purpose"
+            name="purpose"
+            rows="4"
+            maxlength="600"
+            placeholder="Topluluğunuzun amacını ve üyelerin neler yapacağını kısaca anlatın..."
+            required
+          ></textarea>
+
+          <label for="community-size-band">Kapasite</label>
+          <select id="community-size-band" name="size_band" required>
+            <option value="" disabled selected>Kişi sayısı aralığı seçin</option>
+            <option value="0-10">0–10 kişi</option>
+            <option value="10-50">10–50 kişi</option>
+            <option value="50-100">50–100 kişi</option>
+            <option value="100+">100+ kişi</option>
+          </select>
+
+          <fieldset class="community-visibility-fieldset">
+            <legend>Görünürlük</legend>
+            <div class="radio-row">
+              <label class="radio-option">
+                <input type="radio" name="visibility" value="public" checked />
+                <span>Açık</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="visibility" value="private" />
+                <span>Gizli</span>
+              </label>
+            </div>
+            <p class="profile-hint">
+              Gizli topluluklar listede görünür; katılmak isteyenler katılma isteği gönderir, siz onayladığınızda üye
+              olurlar.
+            </p>
+          </fieldset>
+
+          <p id="community-form-message" class="form-message" role="status" hidden></p>
+          <button type="submit" id="community-form-submit">Topluluğu Oluştur</button>
+        </form>
+      </section>
+    </div>
+
+    <script src="confirm-dialog.js"></script>
+    <script src="image-upload-limit.js"></script>
+    <script src="nav-profile.js"></script>
+    <script src="notifications.js"></script>
+    <script src="nav-auth.js"></script>
+    <script src="communities-form.js"></script>
+  </body>
+</html>

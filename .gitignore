@@ -1,0 +1,11 @@
+# Ortam değişkenleri (gizli anahtarlar)
+.env
+env-config.js
+
+# Bağımlılıklar
+node_modules/
+
+# OS / editör
+.DS_Store
+Thumbs.db
+*.log

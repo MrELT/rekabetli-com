@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mentörüm | rekabetli.com</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png"/>
+    <link rel="apple-touch-icon" href="assets/rekabetli_logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="security-utils.js"></script>
+  </head>
+  <body>
+    <nav class="top-menu">
+      <div class="menu-actions">
+        <a class="menu-btn" href="kimler-icin.html#ogrenciler">Öğrenciler</a>
+        <a class="menu-btn" href="kimler-icin.html#ogretmenler">Öğretmenler</a>
+        <a class="menu-btn" href="kimler-icin.html#mentorler">Mentörler</a>
+        <a class="menu-btn" href="kimler-icin.html#veliler">Veliler</a>
+        <a class="menu-btn menu-btn-about" href="hakkimizda.html">Hakkımızda</a>
+      </div>
+    </nav>
+
+    <nav class="top-nav">
+      <a class="brand" href="index.html">
+        <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo"/>
+      </a>
+      <button id="open-mobile-menu" class="menu-toggle" type="button" aria-label="Menüyü aç">☰</button>
+      <div class="nav-actions">
+        <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+        <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+        <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+        <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+        <div class="notifications-wrap">
+          <button id="notifications-btn" class="nav-btn notifications-btn" type="button" aria-label="Bildirimler" hidden>
+            🔔
+            <span id="notifications-badge" class="notifications-badge" hidden>0</span>
+          </button>
+          <div id="notifications-popup" class="notifications-popup" hidden>
+            <div class="notifications-popup-header">
+              <strong>Bildirimler</strong>
+              <button id="close-notifications" type="button" class="icon-btn" aria-label="Kapat">✕</button>
+            </div>
+            <ul id="notifications-list" class="notifications-list"></ul>
+            <p id="notifications-empty" class="empty notifications-empty">Bildirim yok.</p>
+          </div>
+        </div>
+        <a id="desktop-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+      </div>
+    </nav>
+
+    <div id="mobile-menu" class="mobile-menu-overlay" hidden>
+      <section class="mobile-menu-sheet" role="dialog" aria-modal="true" aria-label="Mobil menu">
+        <div class="mobile-menu-header">
+          <strong>Menü</strong>
+          <button id="close-mobile-menu" type="button" class="icon-btn" aria-label="Menüyü kapat">✕</button>
+        </div>
+        <div class="mobile-menu-actions">
+          <a class="nav-btn" href="hakkimizda.html">Hakkımızda</a>
+          <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+          <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+          <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+          <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+          <button id="mobile-notifications-btn" class="nav-btn notifications-btn" type="button" hidden>
+            🔔 Bildirimler
+          </button>
+          <a id="mobile-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+        </div>
+      </section>
+    </div>
+
+    <header class="site-header">
+      <p class="eyebrow">Mentörlük</p>
+      <h1>Deneyimli mezunlardan birebir rehberlik</h1>
+      <p>
+        Olimpiyat, YKS, proje yarışmaları ve üniversite hazırlığında doğrulanmış mentörlerle hedeflerine odaklan.
+      </p>
+    </header>
+
+    <main class="layout">
+      <section class="panel mentorship-info-panel">
+        <h2>Mentörlük sistemi</h2>
+        <p>
+          rekabetli.com mentörlük modülü, öğrencilerin akademik hedeflerine uygun <strong>doğrulanmış mezun ve üniversite
+          öğrencisi mentörlerle</strong> güvenli şekilde buluşmasını sağlar. Tüm eşleştirme, oturum planlama ve ödeme
+          süreçleri platform ekibi tarafından koordine edilir.
+        </p>
+        <ul class="audience-tips mentorship-info-list">
+          <li>
+            <strong>Yakında burada</strong> — başarıları doğrulanmış mezunların profilleri bu sayfada listelenecek;
+            derece, madalya ve uzmanlık alanlarına göre filtreleyebileceksiniz.
+          </li>
+          <li>
+            <strong>Dilediğiniz mentörden mentörlük</strong> — hedefinize uygun branşta (olimpiyat, YKS, proje vb.)
+            seçtiğiniz mentörlerden birebir oturum talep edebileceksiniz.
+          </li>
+          <li>
+            <strong>Ödeme ve randevu</strong> — ödeme altyapısı aktif edildiğinde oturumlar platform üzerinden
+            planlanacak; siz yalnızca öğrenmeye odaklanacaksınız.
+          </li>
+        </ul>
+        <p class="profile-hint">
+          Mentör listesi henüz yayında değil. İlgilendiğiniz branşları ve aylık görüşme ihtiyacınızı şimdiden
+          iletebilirsiniz; uygun mentörler hazır olduğunda öncelikli olarak değerlendirileceksiniz.
+        </p>
+
+        <div class="mentor-candidate-box mentorship-request-box">
+          <h3>Mentörlük ön talebi</h3>
+          <p>
+            Hangi alanlarda destek istediğinizi ve ayda yaklaşık kaç görüşme talep ettiğinizi paylaşın. Ekibimiz ön
+            talebinizi kaydedecek ve mentör ağı genişledikçe sizinle iletişime geçecek.
+          </p>
+          <button type="button" class="nav-btn nav-btn-primary" id="mentorship-request-btn">Ön talep et</button>
+        </div>
+      </section>
+    </main>
+
+    <div id="mentorship-request-modal" class="modal-overlay" hidden>
+      <section class="modal-card mentor-application-card" role="dialog" aria-modal="true" aria-labelledby="mentorship-request-title">
+        <div class="modal-header">
+          <h2 id="mentorship-request-title">Mentörlük ön talep formu</h2>
+          <button id="close-mentorship-request-modal" type="button" class="icon-btn" aria-label="Pencereyi kapat">✕</button>
+        </div>
+        <form id="mentorship-request-form" class="modal-form mentor-application-form">
+          <p class="profile-hint">
+            Bilgileriniz profilinizden otomatik doldurulur; isterseniz düzenleyebilirsiniz.
+          </p>
+
+          <label for="mentorship-first-name">Ad</label>
+          <input id="mentorship-first-name" name="first_name" type="text" maxlength="80" required autocomplete="given-name" />
+
+          <label for="mentorship-last-name">Soyad</label>
+          <input id="mentorship-last-name" name="last_name" type="text" maxlength="80" required autocomplete="family-name" />
+
+          <label for="mentorship-email">E-posta</label>
+          <input id="mentorship-email" name="email" type="email" maxlength="120" required autocomplete="email" />
+
+          <label for="mentorship-phone">Telefon</label>
+          <input id="mentorship-phone" name="phone" type="tel" maxlength="20" autocomplete="tel" placeholder="05xx xxx xx xx" />
+
+          <span class="form-label-block">Talep ettiğiniz branşlar</span>
+          <p class="profile-hint">En az iki branş girin. İsterseniz daha fazla alan ekleyebilirsiniz.</p>
+          <div id="mentorship-branches-container" class="mentor-branches-container"></div>
+          <button type="button" class="secondary mentor-add-branch-btn" id="mentorship-add-branch-btn">+ Alan ekle</button>
+
+          <label for="mentorship-monthly-sessions">Ayda kaç görüşme talep ediyorsunuz?</label>
+          <input
+            id="mentorship-monthly-sessions"
+            name="monthly_sessions"
+            type="number"
+            min="1"
+            max="60"
+            step="1"
+            required
+            placeholder="Örn: 4"
+          />
+          <p class="profile-hint">1 görüşme = 1 saat</p>
+
+          <p id="mentorship-request-message" class="form-message" role="status" hidden></p>
+          <button type="submit" id="mentorship-request-submit">Ön talep formunu gönder</button>
+        </form>
+      </section>
+    </div>
+
+    <script src="confirm-dialog.js"></script>
+    <script src="nav-profile.js"></script>
+    <script src="notifications.js"></script>
+    <script src="nav-auth.js"></script>
+    <script src="mentorship-request.js"></script>
+  </body>
+</html>

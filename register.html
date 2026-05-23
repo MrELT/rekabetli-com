@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kayıt Ol | rekabetli.com</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png"/>
+    <link rel="apple-touch-icon" href="assets/rekabetli_logo.png">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="supabase-client.js"></script>
+  </head>
+  <body>
+    <main class="layout auth-layout">
+      <section class="panel auth-panel">
+        <h1>Kayıt Ol</h1>
+        <p class="auth-subtitle">Hesabını oluştur ve rekabetli.com topluluguna katıl.</p>
+
+        <form id="register-form">
+          <label for="firstName">Ad</label>
+          <input id="firstName" name="firstName" type="text" maxlength="40" required />
+
+          <label for="lastName">Soyad</label>
+          <input id="lastName" name="lastName" type="text" maxlength="40" required />
+
+          <label for="email">E-posta</label>
+          <input id="email" name="email" type="email" required />
+
+          <label for="phone">Telefon Numarası</label>
+          <input id="phone" name="phone" type="tel" maxlength="20" placeholder="05xx xxx xx xx" required />
+
+          <label for="userType">Kullanıcı Tipi</label>
+          <select id="userType" name="userType" required>
+            <option value="">Seçiniz</option>
+            <option value="Veli">Veli</option>
+            <option value="Ogretmen">Öğretmen</option>
+            <option value="Ogrenci">Öğrenci</option>
+          </select>
+
+          <div id="parent-fields" hidden>
+            <label for="profession">Meslek</label>
+            <input id="profession" name="profession" type="text" maxlength="100" />
+          </div>
+
+          <div id="teacher-fields" hidden>
+            <label for="branch">Branş</label>
+            <input id="branch" name="branch" type="text" maxlength="100" />
+
+            <label for="teacherSchool">Okul</label>
+            <input id="teacherSchool" name="teacherSchool" type="text" maxlength="120" />
+          </div>
+
+          <div id="student-fields" hidden>
+            <label for="studentSchool">Okul</label>
+            <input id="studentSchool" name="studentSchool" type="text" maxlength="120" />
+
+            <label for="educationLevel">Eğitim Durumu</label>
+            <select id="educationLevel" name="educationLevel">
+              <option value="">Seçiniz</option>
+              <option value="Ortaokul">Ortaokul</option>
+              <option value="Lise">Lise</option>
+              <option value="On Lisans">Ön Lisans</option>
+              <option value="Lisans">Lisans</option>
+              <option value="Yuksek Lisans">Yüksek Lisans</option>
+              <option value="Doktora">Doktora</option>
+              <option value="Mezun">Mezun</option>
+            </select>
+
+            <div id="class-level-wrap" hidden>
+              <label for="classLevel">Sınıf</label>
+              <select id="classLevel" name="classLevel" disabled>
+                <option value="">Sınıf seçiniz</option>
+              </select>
+            </div>
+          </div>
+
+          <label for="password">Şifre</label>
+          <input id="password" name="password" type="password" minlength="6" required />
+
+          <fieldset class="legal-consents" id="legal-consents">
+            <legend class="legal-consents-legend">Yasal onaylar</legend>
+
+            <label class="legal-consent-item" for="consent-kvkk">
+              <input id="consent-kvkk" name="consentKvkk" type="checkbox" required />
+              <span>
+                <a href="kvkk.html" target="_blank" rel="noopener noreferrer">KVKK Aydınlatma Metni</a>’ni
+                okudum ve anladım.
+              </span>
+            </label>
+
+            <label class="legal-consent-item" for="consent-acik-riza">
+              <input id="consent-acik-riza" name="consentAcikRiza" type="checkbox" required />
+              <span>
+                <a href="acik-riza.html" target="_blank" rel="noopener noreferrer">Açık Rıza Metni</a>’ni
+                okudum ve onaylıyorum.
+              </span>
+            </label>
+
+            <label class="legal-consent-item" for="consent-sozlesme">
+              <input id="consent-sozlesme" name="consentSozlesme" type="checkbox" required />
+              <span>
+                <a href="kullanici-sozlesmesi.html" target="_blank" rel="noopener noreferrer">Kullanıcı Sözleşmesi</a>’ni
+                okudum ve kabul ediyorum.
+              </span>
+            </label>
+          </fieldset>
+
+          <button type="submit" id="register-submit-btn">Kayıt Ol</button>
+        </form>
+
+        <button id="go-login-btn" class="secondary full-width" type="button">Giriş Sayfasına Dön</button>
+        <p id="register-message" class="empty"></p>
+      </section>
+    </main>
+
+    <script src="register.js"></script>
+  </body>
+</html>

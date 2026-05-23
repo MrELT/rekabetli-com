@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yarışma Bilgileri | rekabetli.com</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png" />
+    <link rel="apple-touch-icon" href="assets/rekabetli_logo.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="security-utils.js"></script>
+  </head>
+  <body>
+    <nav class="top-menu">
+      <div class="menu-actions">
+        <a class="menu-btn" href="kimler-icin.html#ogrenciler">Öğrenciler</a>
+        <a class="menu-btn" href="kimler-icin.html#ogretmenler">Öğretmenler</a>
+        <a class="menu-btn" href="kimler-icin.html#mentorler">Mentörler</a>
+        <a class="menu-btn" href="kimler-icin.html#veliler">Veliler</a>
+        <a class="menu-btn menu-btn-about" href="hakkimizda.html">Hakkımızda</a>
+      </div>
+    </nav>
+
+    <nav class="top-nav">
+      <a class="brand" href="index.html">
+        <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
+      </a>
+      <button id="open-mobile-menu" class="menu-toggle" type="button" aria-label="Menüyü aç">☰</button>
+      <div class="nav-actions">
+        <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+        <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+        <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+        <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+        <div class="notifications-wrap">
+          <button id="notifications-btn" class="nav-btn notifications-btn" type="button" aria-label="Bildirimler" hidden>
+            🔔
+            <span id="notifications-badge" class="notifications-badge" hidden>0</span>
+          </button>
+          <div id="notifications-popup" class="notifications-popup" hidden>
+            <div class="notifications-popup-header">
+              <strong>Bildirimler</strong>
+              <button id="close-notifications" type="button" class="icon-btn" aria-label="Kapat">✕</button>
+            </div>
+            <ul id="notifications-list" class="notifications-list"></ul>
+            <p id="notifications-empty" class="empty notifications-empty">Bildirim yok.</p>
+          </div>
+        </div>
+        <a id="desktop-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+      </div>
+    </nav>
+
+    <div id="mobile-menu" class="mobile-menu-overlay" hidden>
+      <section class="mobile-menu-sheet" role="dialog" aria-modal="true" aria-label="Mobil menu">
+        <div class="mobile-menu-header">
+          <strong>Menü</strong>
+          <button id="close-mobile-menu" type="button" class="icon-btn" aria-label="Menüyü kapat">✕</button>
+        </div>
+        <div class="mobile-menu-actions">
+          <a class="nav-btn" href="kimler-icin.html#ogrenciler">Öğrenciler</a>
+          <a class="nav-btn" href="kimler-icin.html#ogretmenler">Öğretmenler</a>
+          <a class="nav-btn" href="kimler-icin.html#mentorler">Mentörler</a>
+          <a class="nav-btn" href="kimler-icin.html#veliler">Veliler</a>
+          <a class="nav-btn" href="hakkimizda.html">Hakkımızda</a>
+          <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+          <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+          <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+          <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+          <button id="mobile-notifications-btn" class="nav-btn notifications-btn" type="button" hidden>
+            🔔 Bildirimler
+          </button>
+          <a id="mobile-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+        </div>
+      </section>
+    </div>
+
+    <main class="layout about-page-layout">
+      <section class="panel about-panel audience-guide-panel">
+        <p class="eyebrow">Proje ve teknoloji</p>
+        <h1>Yarışma Bilgileri</h1>
+        <p class="about-lead">
+          Listelediğimiz bilim ve teknoloji yarışmalarına dair özet bilgi, hazırlık süreci ve rekabetli.com&rsquo;da nasıl
+          destek bulabileceğiniz aşağıdadır. Başvuru tarihleri ve şartlar her yıl güncellenir; resmî duyuruları mutlaka
+          kontrol edin.
+        </p>
+
+        <nav class="audience-jump-nav" aria-label="Yarışma bölümlerine git">
+          <a href="#tubitak-2204a">TÜBİTAK 2204-A</a>
+          <a href="#teknofest-iha">Teknofest İHA</a>
+        </nav>
+
+        <div class="audience-sections">
+          <article id="tubitak-2204a" class="audience-section info-section-competition">
+            <header class="audience-section-head">
+              <span class="audience-badge">Araştırma</span>
+              <h2>TÜBİTAK 2204-A Lise Öğrencileri Araştırma Projeleri</h2>
+            </header>
+            <div class="audience-section-body">
+              <dl class="info-facts">
+                <div><dt>Düzenleyen</dt><dd>TÜBİTAK</dd></div>
+                <div><dt>Kategori</dt><dd>Lise düzeyi bilimsel araştırma projesi</dd></div>
+                <div><dt>Örnek son başvuru</dt><dd>15 Ocak 2026</dd></div>
+                <div><dt>Örnek alan</dt><dd>Astronomi, Astrofizik ve diğer bilim alanları</dd></div>
+              </dl>
+              <p>
+                2204-A, lise öğrencilerinin danışman öğretmen eşliğinde yürüttüğü özgün bilimsel araştırma projelerini
+                değerlendiren prestijli bir yarışmadır. Proje raporu, poster/sunum ve bazı kategorilerde ek belgeler
+                istenir; bölgesel ve ulusal aşamalarda jüri önünde savunma yapılır.
+              </p>
+              <ul class="audience-tips">
+                <li>
+                  <strong>Erken konu seçimi</strong> — ölçülebilir hipotez ve sınırlı kapsam; “her şeyi yapma” tuzağından
+                  kaçının.
+                </li>
+                <li>
+                  <strong>Danışman ve mentör</strong> — alan uzmanı bir öğretmen veya üniversite mentörü süreci hızlandırır.
+                </li>
+                <li>
+                  <strong>Belge disiplini</strong> — etik kurul, kaynakça ve veri defteri baştan düzenli tutulmalıdır.
+                </li>
+                <li>
+                  <strong>Topluluk</strong> — benzer projede çalışan öğrencilerle rekabetli.com topluluklarında deneyim paylaşın.
+                </li>
+              </ul>
+              <p class="audience-cta-hint">
+                <a href="https://www.tubitak.gov.tr" target="_blank" rel="noopener noreferrer">TÜBİTAK resmî sitesi</a>
+                · <a href="competitions.html">Yarışmalar listesine dön</a>
+              </p>
+            </div>
+          </article>
+
+          <article id="teknofest-iha" class="audience-section info-section-competition">
+            <header class="audience-section-head">
+              <span class="audience-badge">Havacılık</span>
+              <h2>Teknofest Liseler Arası İHA Yarışması</h2>
+            </header>
+            <div class="audience-section-body">
+              <dl class="info-facts">
+                <div><dt>Düzenleyen</dt><dd>Teknofest / T3 Vakfı</dd></div>
+                <div><dt>Kategori</dt><dd>İnsansız hava aracı (İHA) — lise takımları</dd></div>
+                <div><dt>Örnek son başvuru</dt><dd>20 Şubat 2026</dd></div>
+                <div><dt>Örnek görev yeri</dt><dd>İstanbul (final etkinlikleri yıla göre değişir)</dd></div>
+              </dl>
+              <p>
+                Teknofest kapsamındaki İHA yarışmaları, lise takımlarının tasarladığı döner kanat veya sabit kanatlı
+                platformlarla otonom uçuş görevlerini tamamlamasını hedefler. Mekanik tasarım, elektronik, yazılım ve
+                operasyon disiplinlerinin bir arada yürütülmesini gerektirir.
+              </p>
+              <ul class="audience-tips">
+                <li>
+                  <strong>Takım rolleri</strong> — yazılım, gövde, güç, test pilotu ve dokümantasyon sorumlularını net ayırın.
+                </li>
+                <li>
+                  <strong>Prototip döngüsü</strong> — erken uçuş testleri ile şartnameye uyumu sürekli doğrulayın.
+                </li>
+                <li>
+                  <strong>Güvenlik</strong> — saha kuralları, pil güvenliği ve uçuş izinleri ihmal edilmemelidir.
+                </li>
+                <li>
+                  <strong>Mentörlük</strong> — havacılık veya gömülü sistem deneyimi olan mentörlerden destek alın
+                  (<a href="mentors.html">Mentörüm</a>).
+                </li>
+              </ul>
+              <p class="audience-cta-hint">
+                <a href="https://www.teknofest.org" target="_blank" rel="noopener noreferrer">Teknofest resmî sitesi</a>
+                · <a href="competitions.html">Yarışmalar listesine dön</a>
+              </p>
+            </div>
+          </article>
+        </div>
+
+        <div class="about-actions">
+          <a class="nav-btn nav-btn-primary" href="competitions.html">Yarışmalar sayfası</a>
+          <a class="nav-btn" href="sinav-bilgileri.html">Sınav bilgileri</a>
+          <a class="nav-btn" href="index.html">Ana sayfa</a>
+        </div>
+      </section>
+    </main>
+
+    <script src="nav-profile.js"></script>
+    <script src="notifications.js"></script>
+    <script src="nav-auth.js"></script>
+  </body>
+</html>

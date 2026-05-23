@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hakkımızda | rekabetli.com</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png" />
+    <link rel="apple-touch-icon" href="assets/rekabetli_logo.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="security-utils.js"></script>
+  </head>
+  <body>
+    <nav class="top-menu">
+      <div class="menu-actions">
+        <a class="menu-btn" href="kimler-icin.html#ogrenciler">Öğrenciler</a>
+        <a class="menu-btn" href="kimler-icin.html#ogretmenler">Öğretmenler</a>
+        <a class="menu-btn" href="kimler-icin.html#mentorler">Mentörler</a>
+        <a class="menu-btn" href="kimler-icin.html#veliler">Veliler</a>
+        <a class="menu-btn menu-btn-about is-active" href="hakkimizda.html" aria-current="page">Hakkımızda</a>
+      </div>
+    </nav>
+
+    <nav class="top-nav">
+      <a class="brand" href="index.html">
+        <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
+      </a>
+      <button id="open-mobile-menu" class="menu-toggle" type="button" aria-label="Menüyü aç">☰</button>
+      <div class="nav-actions">
+        <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+        <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+        <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+        <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+        <div class="notifications-wrap">
+          <button id="notifications-btn" class="nav-btn notifications-btn" type="button" aria-label="Bildirimler" hidden>
+            🔔
+            <span id="notifications-badge" class="notifications-badge" hidden>0</span>
+          </button>
+          <div id="notifications-popup" class="notifications-popup" hidden>
+            <div class="notifications-popup-header">
+              <strong>Bildirimler</strong>
+              <button id="close-notifications" type="button" class="icon-btn" aria-label="Kapat">✕</button>
+            </div>
+            <ul id="notifications-list" class="notifications-list"></ul>
+            <p id="notifications-empty" class="empty notifications-empty">Bildirim yok.</p>
+          </div>
+        </div>
+        <a id="desktop-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+      </div>
+    </nav>
+
+    <div id="mobile-menu" class="mobile-menu-overlay" hidden>
+      <section class="mobile-menu-sheet" role="dialog" aria-modal="true" aria-label="Mobil menu">
+        <div class="mobile-menu-header">
+          <strong>Menü</strong>
+          <button id="close-mobile-menu" type="button" class="icon-btn" aria-label="Menüyü kapat">✕</button>
+        </div>
+        <div class="mobile-menu-actions">
+          <a class="nav-btn" href="hakkimizda.html">Hakkımızda</a>
+          <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+          <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+          <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+          <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+          <button id="mobile-notifications-btn" class="nav-btn notifications-btn" type="button" hidden>
+            🔔 Bildirimler
+          </button>
+          <a id="mobile-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+        </div>
+      </section>
+    </div>
+
+    <main class="layout about-page-layout">
+      <section class="panel about-panel">
+        <p class="eyebrow">rekabetli.com</p>
+        <h1>Hakkımızda</h1>
+
+        <div class="about-content">
+          <section class="about-block">
+            <h2 class="about-heading">Biz Kimiz?</h2>
+            <p>
+              rekabetli.com, akademik başarıyı hedefleyen, olimpiyatlara hazırlanan ve geleceğini inşa etmek isteyen
+              tutkulu öğrenciler ile bu yollardan başarıyla geçmiş tecrübeli mentörleri bir araya getiren bağımsız bir
+              topluluk ve mentörlük platformudur.
+            </p>
+            <p>
+              Amacımız; bilgiye ulaşmanın kolay, ancak &ldquo;doğru deneyime ve vizyona&rdquo; ulaşmanın zor olduğu
+              günümüz eğitim dünyasında, parlak beyinlerin birbirine rehberlik etmesini sağlamaktır.
+            </p>
+          </section>
+
+          <section class="about-block about-founder-block">
+            <h2 class="about-heading">Hikayemiz ve Kurucumuz</h2>
+            <div class="about-founder-card">
+              <div class="about-founder-photo-wrap">
+                <img
+                  class="about-founder-photo"
+                  src="assets/kurucu.jpg"
+                  alt="İsmail Efe Eltutan — rekabetli.com kurucusu"
+                  width="160"
+                  height="160"
+                  onerror="this.hidden=true; this.nextElementSibling.hidden=false;"
+                />
+                <span class="about-founder-photo-fallback" hidden aria-hidden="true">İE</span>
+              </div>
+              <div class="about-founder-text">
+                <p class="about-founder-name">İsmail Efe Eltutan</p>
+                <p class="about-founder-role">Kurucu & CEO</p>
+                <p>
+                  Platformun temelleri, kurucumuz İsmail Efe Eltutan&rsquo;ın kendi akademik serüvenindeki bir eksikliği
+                  fark etmesiyle atıldı. TÜBİTAK Astronomi ve Astrofizik Bilim Olimpiyatları&rsquo;nda Altın Madalya
+                  kazanan, uluslararası arenada ülkemizi temsil ederek derece (Honorable Mention) elde eden ve şu anda
+                  Orta Doğu Teknik Üniversitesi (ODTÜ) Havacılık ve Uzay Mühendisliği bölümünde eğitimine devam eden
+                  İsmail Efe, rekabetçi eğitim süreçlerinin içinden geldi.
+                </p>
+                <p>
+                  Büyük başarılara giden yolun sadece çok çalışmaktan değil, doğru zamanda, doğru kişiden alınan
+                  stratejik tavsiyelerden geçtiğini bizzat deneyimledi. Bilim olimpiyatlarına hazırlanırken, YKS&rsquo;de
+                  dereceyi hedeflerken veya büyük teknoloji yarışmalarına (TEKNOFEST vb.) katılırken yaşanan
+                  &ldquo;rehber bulamama&rdquo; sorununu kökten çözmek amacıyla rekabetli.com projesini hayata geçirdi.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="about-block">
+            <h2 class="about-heading">Neden rekabetli.com?</h2>
+            <p class="about-lead">
+              Biz sıradan bir soru-cevap forumu veya özel ders ilanı sitesi değiliz. Biz bir akademik ekosistemiz.
+            </p>
+            <ul class="about-highlights">
+              <li class="about-highlight-card">
+                <h3>Doğrulanmış Başarı</h3>
+                <p>
+                  Platformumuzdaki mentörler, akademik yetkinlikleri ve başarıları (dereceler, madalyalar, projeler)
+                  tarafımızca kontrol edilmiş gerçek liderlerden oluşur.
+                </p>
+              </li>
+              <li class="about-highlight-card">
+                <h3>Odaklanmış Rekabet</h3>
+                <p>
+                  Sadece akademik hedefleri olan, bilim ve teknoloji üretmek isteyen, sınırlarını zorlayan bir kitleye
+                  hitap ediyoruz.
+                </p>
+              </li>
+              <li class="about-highlight-card">
+                <h3>Deneyim Paylaşımı</h3>
+                <p>
+                  Öğrenciler burada sadece bir formülün cevabını öğrenmez; o formülü çözen zihnin çalışma disiplinini ve
+                  vizyonunu kazanır.
+                </p>
+              </li>
+            </ul>
+          </section>
+
+          <section class="about-block">
+            <h2 class="about-heading">Geleceğe Birlikte Yürüyelim</h2>
+            <p>
+              İster olimpiyat madalyası hedefleyen bir lise öğrencisi olun, ister deneyimlerini aktarmak isteyen bir
+              üniversiteli derece öğrencisi&hellip; rekabetli.com, potansiyelini en üst seviyeye çıkarmak isteyen
+              herkesin buluşma noktasıdır.
+            </p>
+            <p>
+              Her türlü soru, öneri ve iş birliği talepleriniz için bize her zaman
+              <a href="mailto:info@rekabetli.com">info@rekabetli.com</a> adresinden ulaşabilirsiniz.
+            </p>
+          </section>
+        </div>
+
+        <div class="about-actions">
+          <a class="nav-btn nav-btn-primary" href="index.html">Ana sayfaya dön</a>
+          <a class="nav-btn" href="register.html">Hesap oluştur</a>
+        </div>
+      </section>
+    </main>
+
+    <script src="nav-profile.js"></script>
+    <script src="notifications.js"></script>
+    <script src="nav-auth.js"></script>
+  </body>
+</html>

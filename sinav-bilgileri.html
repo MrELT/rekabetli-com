@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sınav Bilgileri | rekabetli.com</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png" />
+    <link rel="apple-touch-icon" href="assets/rekabetli_logo.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="security-utils.js"></script>
+  </head>
+  <body>
+    <nav class="top-menu">
+      <div class="menu-actions">
+        <a class="menu-btn" href="kimler-icin.html#ogrenciler">Öğrenciler</a>
+        <a class="menu-btn" href="kimler-icin.html#ogretmenler">Öğretmenler</a>
+        <a class="menu-btn" href="kimler-icin.html#mentorler">Mentörler</a>
+        <a class="menu-btn" href="kimler-icin.html#veliler">Veliler</a>
+        <a class="menu-btn menu-btn-about" href="hakkimizda.html">Hakkımızda</a>
+      </div>
+    </nav>
+
+    <nav class="top-nav">
+      <a class="brand" href="index.html">
+        <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
+      </a>
+      <button id="open-mobile-menu" class="menu-toggle" type="button" aria-label="Menüyü aç">☰</button>
+      <div class="nav-actions">
+        <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+        <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+        <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+        <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+        <div class="notifications-wrap">
+          <button id="notifications-btn" class="nav-btn notifications-btn" type="button" aria-label="Bildirimler" hidden>
+            🔔
+            <span id="notifications-badge" class="notifications-badge" hidden>0</span>
+          </button>
+          <div id="notifications-popup" class="notifications-popup" hidden>
+            <div class="notifications-popup-header">
+              <strong>Bildirimler</strong>
+              <button id="close-notifications" type="button" class="icon-btn" aria-label="Kapat">✕</button>
+            </div>
+            <ul id="notifications-list" class="notifications-list"></ul>
+            <p id="notifications-empty" class="empty notifications-empty">Bildirim yok.</p>
+          </div>
+        </div>
+        <a id="desktop-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+      </div>
+    </nav>
+
+    <div id="mobile-menu" class="mobile-menu-overlay" hidden>
+      <section class="mobile-menu-sheet" role="dialog" aria-modal="true" aria-label="Mobil menu">
+        <div class="mobile-menu-header">
+          <strong>Menü</strong>
+          <button id="close-mobile-menu" type="button" class="icon-btn" aria-label="Menüyü kapat">✕</button>
+        </div>
+        <div class="mobile-menu-actions">
+          <a class="nav-btn" href="kimler-icin.html#ogrenciler">Öğrenciler</a>
+          <a class="nav-btn" href="kimler-icin.html#ogretmenler">Öğretmenler</a>
+          <a class="nav-btn" href="kimler-icin.html#mentorler">Mentörler</a>
+          <a class="nav-btn" href="kimler-icin.html#veliler">Veliler</a>
+          <a class="nav-btn" href="hakkimizda.html">Hakkımızda</a>
+          <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+          <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+          <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+          <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+          <button id="mobile-notifications-btn" class="nav-btn notifications-btn" type="button" hidden>
+            🔔 Bildirimler
+          </button>
+          <a id="mobile-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+        </div>
+      </section>
+    </div>
+
+    <main class="layout about-page-layout">
+      <section class="panel about-panel audience-guide-panel">
+        <p class="eyebrow">Sınav rehberi</p>
+        <h1>Sınav Bilgileri</h1>
+        <p class="about-lead">
+          Platformda listelenen ulusal ve uluslararası sınavlar hakkında özet bilgi, hazırlık ipuçları ve rekabetli.com
+          üzerinden nasıl destek alabileceğinizi aşağıda bulabilirsiniz. Resmî tarih ve duyurular için ilgili kurumların
+          sitelerini takip edin.
+        </p>
+
+        <nav class="audience-jump-nav" aria-label="Sınav bölümlerine git">
+          <a href="#tubitak-olimpiyatlari">TÜBİTAK Olimpiyatları</a>
+          <a href="#yks">YKS</a>
+          <a href="#sat">SAT</a>
+        </nav>
+
+        <div class="audience-sections">
+          <article id="tubitak-olimpiyatlari" class="audience-section info-section-exam">
+            <header class="audience-section-head">
+              <span class="audience-badge">Bilim</span>
+              <h2>TÜBİTAK Bilim Olimpiyatları (1. Aşama)</h2>
+            </header>
+            <div class="audience-section-body">
+              <dl class="info-facts">
+                <div><dt>Düzenleyen</dt><dd>TÜBİTAK — Bilim Olimpiyatları</dd></div>
+                <div><dt>Hedef kitle</dt><dd>Lise öğrencileri (alan bazlı başvuru)</dd></div>
+                <div><dt>Örnek tarih</dt><dd>Mayıs 2026 (1. aşama)</dd></div>
+                <div><dt>Alanlar</dt><dd>Astronomi, Astrofizik, Matematik, Fizik ve diğer bilim dalları</dd></div>
+              </dl>
+              <p>
+                TÜBİTAK Bilim Olimpiyatları, lise öğrencilerinin seçtikleri bilim dalında derinlemesine problem çözme
+                becerilerini ölçen çok aşamalı bir süreçtir. 1. aşama, geniş katılımlı eleme niteliğindedir; başarılı
+                öğrenciler 2. aşama ve ulusal/uluslararası takım süreçlerine ilerler.
+              </p>
+              <ul class="audience-tips">
+                <li>
+                  <strong>Erken başlayın</strong> — seçtiğiniz dalda temel konuları bitirip geçmiş yıl sorularıyla tempo
+                  kazanın.
+                </li>
+                <li>
+                  <strong>Disiplinli tekrar</strong> — haftalık deneme + hata defteri; zayıf konuları mentör veya öğretmenle
+                  kapatın.
+                </li>
+                <li>
+                  <strong>Topluluk desteği</strong> — rekabetli.com topluluklarında aynı dalda hazırlanan öğrencilerle soru
+                  paylaşın.
+                </li>
+              </ul>
+              <p class="audience-cta-hint">
+                <a href="https://www.tubitak.gov.tr" target="_blank" rel="noopener noreferrer">TÜBİTAK resmî sitesi</a>
+                · <a href="exams.html">Sınavlar listesine dön</a>
+              </p>
+            </div>
+          </article>
+
+          <article id="yks" class="audience-section info-section-exam">
+            <header class="audience-section-head">
+              <span class="audience-badge">ÖSYM</span>
+              <h2>YKS (TYT · AYT · YDT)</h2>
+            </header>
+            <div class="audience-section-body">
+              <dl class="info-facts">
+                <div><dt>Düzenleyen</dt><dd>ÖSYM</dd></div>
+                <div><dt>Hedef kitle</dt><dd>Lise son sınıf ve mezun adaylar</dd></div>
+                <div><dt>Örnek tarih</dt><dd>Haziran 2026</dd></div>
+                <div><dt>Bileşenler</dt><dd>TYT (temel yeterlilik), AYT (alan), YDT (yabancı dil)</dd></div>
+              </dl>
+              <p>
+                Yükseköğretim Kurumları Sınavı (YKS), Türkiye&rsquo;deki üniversite yerleştirmesinin merkezi sistemidir.
+                TYT tüm adaylar için zorunlu temel oturumdur; AYT ve YDT ise tercih edeceğiniz bölüme göre puan türünüzü
+                belirler (Sayısal, Eşit Ağırlık, Sözel, Dil).
+              </p>
+              <ul class="audience-tips">
+                <li>
+                  <strong>Puan türünü netleştirin</strong> — hedef bölümünüze göre hangi testlere ağırlık vereceğinizi
+                  planlayın.
+                </li>
+                <li>
+                  <strong>TYT + AYT dengesi</strong> — TYT puanı birçok programda belirleyicidir; sadece alan testlerine
+                  odaklanmayın.
+                </li>
+                <li>
+                  <strong>Mentörlük</strong> — derece yapmış mentörlerden çalışma programı ve deneme analizi desteği alın
+                  (<a href="mentors.html">Mentörüm</a>).
+                </li>
+              </ul>
+              <p class="audience-cta-hint">
+                <a href="https://www.osym.gov.tr" target="_blank" rel="noopener noreferrer">ÖSYM resmî sitesi</a>
+                · <a href="exams.html">Sınavlar listesine dön</a>
+              </p>
+            </div>
+          </article>
+
+          <article id="sat" class="audience-section info-section-exam">
+            <header class="audience-section-head">
+              <span class="audience-badge">Uluslararası</span>
+              <h2>SAT (Scholastic Assessment Test)</h2>
+            </header>
+            <div class="audience-section-body">
+              <dl class="info-facts">
+                <div><dt>Düzenleyen</dt><dd>College Board</dd></div>
+                <div><dt>Hedef kitle</dt><dd>Yurt dışı lisans başvurusu yapan öğrenciler</dd></div>
+                <div><dt>Örnek tarih</dt><dd>Mart 2026 (test merkezine göre değişir)</dd></div>
+                <div><dt>İçerik</dt><dd>Okuma-yazma ve matematik bölümleri (dijital format)</dd></div>
+              </dl>
+              <p>
+                SAT, ABD ve birçok ülkedeki üniversitelerin lisans başvurularında kullanılan uluslararası bir
+                standartlaştırılmış sınavdır. Türkiye&rsquo;deki test merkezlerinde yılda birden fazla oturum açılır;
+                başvuru takvimi üniversite deadline&rsquo;larına göre geriye doğru planlanmalıdır.
+              </p>
+              <ul class="audience-tips">
+                <li>
+                  <strong>İngilizce hazırlık</strong> — okuma hızı ve akademik kelime dağarcığı uzun vadeli çalışma gerektirir.
+                </li>
+                <li>
+                  <strong>Resmî kaynaklar</strong> — College Board örnek testleri ve Khan Academy iş birliği materyallerini kullanın.
+                </li>
+                <li>
+                  <strong>Başvuru paketi</strong> — SAT yanında essay, referans mektupları ve aktivite listesi bir bütün olarak
+                  hazırlanır.
+                </li>
+              </ul>
+              <p class="audience-cta-hint">
+                <a href="https://satsuite.collegeboard.org" target="_blank" rel="noopener noreferrer">College Board — SAT</a>
+                · <a href="exams.html">Sınavlar listesine dön</a>
+              </p>
+            </div>
+          </article>
+        </div>
+
+        <div class="about-actions">
+          <a class="nav-btn nav-btn-primary" href="exams.html">Sınavlar sayfası</a>
+          <a class="nav-btn" href="yarisma-bilgileri.html">Yarışma bilgileri</a>
+          <a class="nav-btn" href="index.html">Ana sayfa</a>
+        </div>
+      </section>
+    </main>
+
+    <script src="nav-profile.js"></script>
+    <script src="notifications.js"></script>
+    <script src="nav-auth.js"></script>
+  </body>
+</html>

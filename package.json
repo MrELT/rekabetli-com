@@ -1,0 +1,8 @@
+{
+  "name": "rekabetli-com",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "env:build": "node scripts/inject-env.mjs"
+  }
+}

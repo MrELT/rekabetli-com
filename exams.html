@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sınavlar | rekabetli.com</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png"/>
+    <link rel="apple-touch-icon" href="assets/rekabetli_logo.png">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="security-utils.js"></script>
+  </head>
+  <body>
+    <nav class="top-menu">
+      <div class="menu-actions">
+        <a class="menu-btn" href="kimler-icin.html#ogrenciler">Öğrenciler</a>
+        <a class="menu-btn" href="kimler-icin.html#ogretmenler">Öğretmenler</a>
+        <a class="menu-btn" href="kimler-icin.html#mentorler">Mentörler</a>
+        <a class="menu-btn" href="kimler-icin.html#veliler">Veliler</a>
+        <a class="menu-btn menu-btn-about" href="hakkimizda.html">Hakkımızda</a>
+      </div>
+    </nav>
+
+    <nav class="top-nav">
+      <a class="brand" href="index.html">
+        <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo"/>
+      </a>
+      <button id="open-mobile-menu" class="menu-toggle" type="button" aria-label="Menüyü aç">☰</button>
+      <div class="nav-actions">
+        <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+        <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+        <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+        <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+        <div class="notifications-wrap">
+          <button id="notifications-btn" class="nav-btn notifications-btn" type="button" aria-label="Bildirimler" hidden>
+            🔔
+            <span id="notifications-badge" class="notifications-badge" hidden>0</span>
+          </button>
+          <div id="notifications-popup" class="notifications-popup" hidden>
+            <div class="notifications-popup-header">
+              <strong>Bildirimler</strong>
+              <button id="close-notifications" type="button" class="icon-btn" aria-label="Kapat">✕</button>
+            </div>
+            <ul id="notifications-list" class="notifications-list"></ul>
+            <p id="notifications-empty" class="empty notifications-empty">Bildirim yok.</p>
+          </div>
+        </div>
+        <a id="desktop-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+      </div>
+    </nav>
+
+    <div id="mobile-menu" class="mobile-menu-overlay" hidden>
+      <section class="mobile-menu-sheet" role="dialog" aria-modal="true" aria-label="Mobil menu">
+        <div class="mobile-menu-header">
+          <strong>Menü</strong>
+          <button id="close-mobile-menu" type="button" class="icon-btn" aria-label="Menüyü kapat">✕</button>
+        </div>
+        <div class="mobile-menu-actions">
+          <a class="nav-btn" href="hakkimizda.html">Hakkımızda</a>
+          <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+          <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+          <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+          <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+          <button id="mobile-notifications-btn" class="nav-btn notifications-btn" type="button" hidden>
+            🔔 Bildirimler
+          </button>
+          <a id="mobile-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+        </div>
+      </section>
+    </div>
+
+    <header class="site-header">
+      <p class="eyebrow">Hedeflerini Belirle, Sınırları Zorla</p>
+      <h1>Akademik Yolculuğunda Bir Adım Öne Geç.</h1>
+      <p>Ulusal ve uluslararası sınavlar hakkında bilgi al, kaynaklara ulaş ve tecrübeli mentörlerden strateji desteği iste.</p>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Güncel Sınavlar</h2>
+          <div class="panel-header-actions">
+            <a class="nav-btn" href="sinav-bilgileri.html">Sınav bilgileri</a>
+            <button type="button" class="nav-btn nav-btn-primary js-panel-add-btn" data-add-type="exam">
+              Sınav Ekle
+            </button>
+          </div>
+        </div>
+
+        <!-- Sınav Kartlarının Listelendiği Alan -->
+        <div id="exam-list" class="exam-list">
+          
+          <!-- Kart 1: TÜBİTAK Bilim Olimpiyatları -->
+          <div class="exam-card">
+            <div class="card-header">
+              <h3 class="exam-title">TÜBİTAK Bilim Olimpiyatları (1. Aşama)</h3>
+              <span class="badge badge-olympiad">Bilim</span>
+            </div>
+            <div class="exam-meta">
+              <span>📅 Sınav Tarihi: Mayıs 2026</span> | <span>📝 Seviye: Lise</span>
+            </div>
+            <p class="exam-desc">
+              Astronomi, Astrofizik, Matematik ve Fizik dallarında yeteneklerini kanıtlamak isteyen öğrenciler için ilk büyük adım.
+            </p>
+            <div class="card-actions">
+              <a href="sinav-bilgileri.html#tubitak-olimpiyatlari" class="details-btn">Sınav bilgileri</a>
+            </div>
+          </div>
+
+          <!-- Kart 2: YKS -->
+          <div class="exam-card">
+            <div class="card-header">
+              <h3 class="exam-title">YKS (TYT - AYT - YDT)</h3>
+              <span class="badge badge-osym">ÖSYM</span>
+            </div>
+            <div class="exam-meta">
+              <span>📅 Sınav Tarihi: Haziran 2026</span> | <span>📝 Seviye: Mezun/Lise</span>
+            </div>
+            <p class="exam-desc">
+              Türkiye'deki yükseköğretim kurumlarına giriş için temel teşkil eden merkezi sınav maratonu.
+            </p>
+            <div class="card-actions">
+              <a href="sinav-bilgileri.html#yks" class="details-btn">Sınav bilgileri</a>
+            </div>
+          </div>
+
+          <!-- Kart 3: SAT -->
+          <div class="exam-card">
+            <div class="card-header">
+              <h3 class="exam-title">SAT (Scholastic Aptitude Test)</h3>
+              <span class="badge badge-intl">Uluslararası</span>
+            </div>
+            <div class="exam-meta">
+              <span>📅 Sınav Tarihi: Mart 2026</span> | <span>📝 Seviye: Global</span>
+            </div>
+            <p class="exam-desc">
+              Yurt dışındaki prestijli üniversitelerde lisans eğitimi almak isteyen öğrenciler için uluslararası geçerliliği olan sınav.
+            </p>
+            <div class="card-actions">
+              <a href="sinav-bilgileri.html#sat" class="details-btn">Sınav bilgileri</a>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </main>
+
+    <script src="confirm-dialog.js"></script>
+    <script src="nav-profile.js"></script>
+    <script src="notifications.js"></script>
+    <script src="nav-auth.js"></script>
+  </body>
+</html>

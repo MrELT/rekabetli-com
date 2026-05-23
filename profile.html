@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Profil | rekabetli.com</title>
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png" />
+    <link rel="apple-touch-icon" href="assets/rekabetli_logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="security-utils.js"></script>
+    <script src="comment-ratings.js"></script>
+  </head>
+  <body class="profile-page">
+    <nav class="profile-page-nav">
+      <a class="brand" href="index.html">
+        <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
+      </a>
+      <div class="profile-page-nav-actions">
+        <a class="nav-btn" href="index.html">← Ana Sayfa</a>
+        <div class="notifications-wrap">
+        <button id="notifications-btn" class="nav-btn notifications-btn" type="button" aria-label="Bildirimler" hidden>
+          🔔
+          <span id="notifications-badge" class="notifications-badge" hidden>0</span>
+        </button>
+        <div id="notifications-popup" class="notifications-popup" hidden>
+          <div class="notifications-popup-header">
+            <strong>Bildirimler</strong>
+            <button id="close-notifications" type="button" class="icon-btn" aria-label="Kapat">✕</button>
+          </div>
+          <ul id="notifications-list" class="notifications-list"></ul>
+          <p id="notifications-empty" class="empty notifications-empty">Bildirim yok.</p>
+        </div>
+      </div>
+      </div>
+    </nav>
+
+    <main class="layout auth-layout profile-page-layout">
+      <section class="panel auth-panel profile-panel">
+        <h1>Profilim</h1>
+        <p id="profile-email" class="auth-subtitle"></p>
+        <p id="profile-answer-rating" class="profile-answer-rating" hidden></p>
+
+        <p class="profile-activity-hint">
+          Bölümleri açmak için başlığa tıklayın.
+        </p>
+
+        <div class="activity-accordion profile-page-accordion" id="profile-activity" aria-label="Profil ve aktiviteler">
+          <section class="activity-accordion-section" data-section="profile">
+            <button
+              type="button"
+              class="activity-accordion-trigger"
+              id="trigger-profile"
+              aria-expanded="false"
+              aria-controls="panel-profile"
+            >
+              <span class="activity-accordion-title">Profil Bilgileri</span>
+              <span class="activity-accordion-meta">
+                <span class="activity-accordion-chevron" aria-hidden="true"></span>
+              </span>
+            </button>
+            <div
+              id="panel-profile"
+              class="activity-accordion-panel profile-accordion-panel"
+              role="region"
+              aria-labelledby="trigger-profile"
+            >
+              <form id="profile-form" class="profile-form">
+                <div class="profile-avatar-block">
+                  <div class="profile-avatar-wrap">
+                    <img id="avatar-preview" class="profile-avatar-img" alt="Profil fotoğrafı" hidden />
+                    <span id="avatar-fallback" class="profile-avatar-fallback">?</span>
+                  </div>
+                  <div class="profile-avatar-actions">
+                    <label for="avatar-input" class="secondary avatar-upload-label">Fotoğraf Seç</label>
+                    <input id="avatar-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+                    <button id="remove-avatar-btn" class="secondary" type="button" hidden>Fotoğrafı Kaldır</button>
+                    <p class="profile-hint">JPG, PNG veya WebP · En fazla 2 MB</p>
+                  </div>
+                </div>
+
+                <label for="displayName">Görünen İsim</label>
+                <input id="displayName" name="displayName" type="text" maxlength="50" required />
+
+                <label for="bio">Kendini Tanıt</label>
+                <textarea
+                  id="bio"
+                  name="bio"
+                  rows="4"
+                  maxlength="500"
+                  placeholder="İlgi alanların, hedeflerin veya kendinden kısaca bahset..."
+                ></textarea>
+
+                <label for="userType">Kullanıcı Tipi</label>
+                <select id="userType" name="userType">
+                  <option value="">Seçiniz</option>
+                  <option value="Ogrenci">Öğrenci</option>
+                  <option value="Ogretmen">Öğretmen</option>
+                  <option value="Veli">Veli</option>
+                </select>
+
+                <label for="school">Okul / Kurum</label>
+                <input id="school" name="school" type="text" maxlength="120" placeholder="Örn: Ankara Fen Lisesi" />
+
+                <label for="city">Şehir</label>
+                <input id="city" name="city" type="text" maxlength="80" placeholder="Örn: İstanbul" />
+
+                <label for="phone">Telefon</label>
+                <input id="phone" name="phone" type="tel" maxlength="20" placeholder="05xx xxx xx xx" />
+
+                <button type="submit">Profili Kaydet</button>
+              </form>
+            </div>
+          </section>
+
+          <section class="activity-accordion-section" data-section="questions">
+            <button
+              type="button"
+              class="activity-accordion-trigger"
+              id="trigger-questions"
+              aria-expanded="false"
+              aria-controls="panel-questions"
+            >
+              <span class="activity-accordion-title">Sorularım</span>
+              <span class="activity-accordion-meta">
+                <span id="count-questions" class="activity-accordion-count">0</span>
+                <span class="activity-accordion-chevron" aria-hidden="true"></span>
+              </span>
+            </button>
+            <div id="panel-questions" class="activity-accordion-panel" role="region" aria-labelledby="trigger-questions"></div>
+          </section>
+
+          <section class="activity-accordion-section" data-section="answers">
+            <button
+              type="button"
+              class="activity-accordion-trigger"
+              id="trigger-answers"
+              aria-expanded="false"
+              aria-controls="panel-answers"
+            >
+              <span class="activity-accordion-title">Yanıtlarım</span>
+              <span class="activity-accordion-meta">
+                <span id="count-answers" class="activity-accordion-count">0</span>
+                <span class="activity-accordion-chevron" aria-hidden="true"></span>
+              </span>
+            </button>
+            <div id="panel-answers" class="activity-accordion-panel" role="region" aria-labelledby="trigger-answers"></div>
+          </section>
+
+          <section class="activity-accordion-section" data-section="saved">
+            <button
+              type="button"
+              class="activity-accordion-trigger"
+              id="trigger-saved"
+              aria-expanded="false"
+              aria-controls="panel-saved"
+            >
+              <span class="activity-accordion-title">Kaydettiklerim</span>
+              <span class="activity-accordion-meta">
+                <span id="count-saved" class="activity-accordion-count">0</span>
+                <span class="activity-accordion-chevron" aria-hidden="true"></span>
+              </span>
+            </button>
+            <div id="panel-saved" class="activity-accordion-panel" role="region" aria-labelledby="trigger-saved"></div>
+          </section>
+        </div>
+
+        <div class="auth-actions">
+          <button id="logout-btn" class="secondary full-width" type="button">Çıkış Yap</button>
+        </div>
+        <p id="profile-message" class="profile-message empty"></p>
+      </section>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js"></script>
+    <script src="image-upload-limit.js"></script>
+    <script src="quill-editor.js"></script>
+    <script src="confirm-dialog.js"></script>
+    <script src="notifications.js"></script>
+    <script src="profile.js"></script>
+  </body>
+</html>

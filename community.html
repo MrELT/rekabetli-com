@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Topluluk | rekabetli.com</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png" />
+    <link rel="apple-touch-icon" href="assets/rekabetli_logo.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="security-utils.js"></script>
+  </head>
+  <body class="community-page">
+    <nav class="top-menu">
+      <div class="menu-actions">
+        <a class="menu-btn" href="kimler-icin.html#ogrenciler">Öğrenciler</a>
+        <a class="menu-btn" href="kimler-icin.html#ogretmenler">Öğretmenler</a>
+        <a class="menu-btn" href="kimler-icin.html#mentorler">Mentörler</a>
+        <a class="menu-btn" href="kimler-icin.html#veliler">Veliler</a>
+        <a class="menu-btn menu-btn-about" href="hakkimizda.html">Hakkımızda</a>
+      </div>
+    </nav>
+
+    <nav class="top-nav">
+      <a class="brand" href="index.html">
+        <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
+      </a>
+      <button id="open-mobile-menu" class="menu-toggle" type="button" aria-label="Menüyü aç">☰</button>
+      <div class="nav-actions">
+        <button class="nav-btn nav-btn-primary js-open-question-modal" type="button" hidden id="nav-share-btn">
+          Paylaş
+        </button>
+        <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+        <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+        <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+        <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+        <div class="notifications-wrap">
+          <button id="notifications-btn" class="nav-btn notifications-btn" type="button" aria-label="Bildirimler" hidden>
+            🔔
+            <span id="notifications-badge" class="notifications-badge" hidden>0</span>
+          </button>
+          <div id="notifications-popup" class="notifications-popup" hidden>
+            <div class="notifications-popup-header">
+              <strong>Bildirimler</strong>
+              <button id="close-notifications" type="button" class="icon-btn" aria-label="Kapat">✕</button>
+            </div>
+            <ul id="notifications-list" class="notifications-list"></ul>
+            <p id="notifications-empty" class="empty notifications-empty">Bildirim yok.</p>
+          </div>
+        </div>
+        <a id="desktop-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+      </div>
+    </nav>
+
+    <div id="mobile-menu" class="mobile-menu-overlay" hidden>
+      <section class="mobile-menu-sheet" role="dialog" aria-modal="true" aria-label="Mobil menu">
+        <div class="mobile-menu-header">
+          <strong>Menü</strong>
+          <button id="close-mobile-menu" type="button" class="icon-btn" aria-label="Menüyü kapat">✕</button>
+        </div>
+        <div class="mobile-menu-actions">
+          <a class="nav-btn" href="hakkimizda.html">Hakkımızda</a>
+          <button class="nav-btn nav-btn-primary js-open-question-modal" type="button" hidden id="mobile-share-btn">
+            Paylaş
+          </button>
+          <button class="nav-btn" type="button" onclick="location.href='communities.html'">Topluluklar</button>
+          <button class="nav-btn" type="button" onclick="location.href='competitions.html'">Yarışmalar</button>
+          <button class="nav-btn" type="button" onclick="location.href='exams.html'">Sınavlar</button>
+          <button class="nav-btn" type="button" onclick="location.href='mentors.html'">Mentörüm</button>
+          <button id="mobile-notifications-btn" class="nav-btn notifications-btn" type="button" hidden>
+            🔔 Bildirimler
+          </button>
+          <a id="mobile-profile-btn" class="nav-btn profile-link" href="login.html">Giriş Yap</a>
+        </div>
+      </section>
+    </div>
+
+    <p id="community-page-error" class="community-page-error empty" hidden></p>
+
+    <main id="community-page-main" class="layout community-page-layout" hidden>
+      <section class="panel community-info-panel">
+        <a class="community-back-link" href="communities.html">← Tüm topluluklar</a>
+        <div class="community-info-head">
+          <div id="community-avatar" class="community-info-avatar" aria-hidden="true">
+            <img id="community-avatar-img" class="community-info-avatar-img" alt="" hidden />
+            <span id="community-avatar-fallback" class="community-info-avatar-fallback">?</span>
+          </div>
+          <div class="community-info-text">
+            <p id="community-visibility-badge" class="community-visibility-badge"></p>
+            <h1 id="community-name" class="community-info-title"></h1>
+            <p id="community-meta" class="community-info-meta"></p>
+          </div>
+        </div>
+        <p id="community-purpose" class="community-info-purpose"></p>
+        <p id="community-admin-note" class="community-admin-note" hidden>Kurucu olarak bu topluluğun yöneticisisin.</p>
+        <div id="community-join-actions" class="community-join-actions" hidden>
+          <button type="button" id="community-join-btn" class="details-btn" hidden>
+            Topluluğa Katıl
+          </button>
+        </div>
+      </section>
+
+      <section class="panel community-members-panel">
+        <div class="activity-accordion community-panel-accordion" id="community-panel-accordion">
+          <section class="activity-accordion-section is-open" data-section="members">
+            <button
+              type="button"
+              class="activity-accordion-trigger"
+              id="trigger-members"
+              aria-expanded="true"
+              aria-controls="panel-members"
+            >
+              <span class="activity-accordion-title">Üyeler</span>
+              <span class="activity-accordion-meta">
+                <span id="count-members" class="activity-accordion-count">0</span>
+                <span class="activity-accordion-chevron" aria-hidden="true"></span>
+              </span>
+            </button>
+            <div id="panel-members" class="activity-accordion-panel" role="region" aria-labelledby="trigger-members"></div>
+          </section>
+
+          <section
+            class="activity-accordion-section"
+            id="join-requests-section"
+            data-section="join-requests"
+            hidden
+          >
+            <button
+              type="button"
+              class="activity-accordion-trigger"
+              id="trigger-join-requests"
+              aria-expanded="false"
+              aria-controls="panel-join-requests"
+            >
+              <span class="activity-accordion-title">Katılma İstekleri</span>
+              <span class="activity-accordion-meta">
+                <span id="count-join-requests" class="activity-accordion-count">0</span>
+                <span class="activity-accordion-chevron" aria-hidden="true"></span>
+              </span>
+            </button>
+            <div
+              id="panel-join-requests"
+              class="activity-accordion-panel"
+              role="region"
+              aria-labelledby="trigger-join-requests"
+            ></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="forum-header">
+          <h2 id="community-feed-title">Topluluk Akışı</h2>
+          <button type="button" class="nav-btn nav-btn-primary js-open-question-modal" id="feed-share-btn" hidden>
+            Paylaş
+          </button>
+        </div>
+        <p id="community-feed-gate" class="empty community-feed-gate" hidden></p>
+        <div id="question-list" class="question-list"></div>
+      </section>
+    </main>
+
+    <div id="question-modal" class="modal-overlay" hidden>
+      <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-header">
+          <h2 id="modal-title">Toplulukta Paylaş</h2>
+          <button id="close-question-modal" type="button" class="icon-btn" aria-label="Pencereyi kapat">✕</button>
+        </div>
+        <form id="question-form">
+          <label for="title">Başlık</label>
+          <input
+            id="title"
+            name="title"
+            type="text"
+            maxlength="120"
+            placeholder="Örn: Haftalık çalışma grubu duyurusu"
+            required
+          />
+          <label for="question-content-editor">Detay</label>
+          <div id="question-content-editor" class="quill-editor-host" aria-label="Paylaşım detayı"></div>
+          <button type="submit">Yayınla</button>
+        </form>
+      </section>
+    </div>
+
+    <template id="question-template">
+      <article class="question-card">
+        <div class="question-head">
+          <div class="question-avatar" aria-hidden="true">
+            <img class="question-avatar-img" alt="" hidden />
+            <span class="question-avatar-fallback"></span>
+          </div>
+          <div class="question-body">
+            <h3 class="question-title"></h3>
+            <p class="question-meta"></p>
+            <div class="question-content rich-content"></div>
+            <div class="question-actions">
+              <button type="button" class="action-btn like-btn" aria-pressed="false">
+                <span aria-hidden="true">♥</span>
+                <span class="like-count">0</span>
+              </button>
+              <button type="button" class="action-btn save-btn" aria-pressed="false">Kaydet</button>
+              <button type="button" class="action-btn delete-btn danger" hidden>Sil</button>
+            </div>
+            <div class="answers"></div>
+            <button type="button" class="secondary answer-toggle-btn">Cevapla</button>
+            <form class="answer-form" hidden>
+              <label class="answer-editor-label">Yanıtın</label>
+              <div class="answer-editor-host quill-editor-host" aria-label="Yanıt metni"></div>
+              <button type="submit">Yanıtla</button>
+            </form>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <script src="image-upload-limit.js"></script>
+    <script src="quill-editor.js"></script>
+    <script src="comment-ratings.js"></script>
+    <script src="nav-profile.js"></script>
+    <script src="confirm-dialog.js"></script>
+    <script src="notifications.js"></script>
+    <script src="community-feed.js"></script>
+  </body>
+</html>
