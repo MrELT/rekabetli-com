@@ -654,6 +654,19 @@ a.menu-btn:hover {
   font-size: 0.92rem;
 }
 
+.bento-card-mentor p {
+  margin-bottom: 0.65rem;
+  line-height: 1.45;
+}
+
+.bento-card-mentor .nav-btn-primary {
+  margin-top: 0.15rem;
+  width: 100%;
+  justify-content: center;
+  font-size: 0.88rem;
+  padding: 0.5rem 0.75rem;
+}
+
 .leaderboard {
   list-style: none;
   margin: 0.45rem 0 0;

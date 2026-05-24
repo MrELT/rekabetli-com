@@ -219,14 +219,21 @@
     setFormMessage("");
   }
 
+  function getMentorAppReturnUrl() {
+    const path = window.location.pathname.replace(/\/index\.html$/i, "") || "/";
+    if (path === "/") {
+      return "/?openMentorApp=1";
+    }
+    return "/kimler-icin?openMentorApp=1#mentorler";
+  }
+
   async function handleApplyClick() {
     const {
       data: { session },
     } = await supabase.auth.getSession();
 
     if (!session) {
-      const returnUrl = "/kimler-icin?openMentorApp=1#mentorler";
-      window.location.href = `/login?redirect=${encodeURIComponent(returnUrl)}`;
+      window.location.href = `/login?redirect=${encodeURIComponent(getMentorAppReturnUrl())}`;
       return;
     }
 
@@ -262,7 +269,7 @@
     } = await supabase.auth.getSession();
 
     if (!session) {
-      window.location.href = `/login?redirect=${encodeURIComponent("/kimler-icin?openMentorApp=1#mentorler")}`;
+      window.location.href = `/login?redirect=${encodeURIComponent(getMentorAppReturnUrl())}`;
       return;
     }
 
@@ -336,12 +343,14 @@
       if (data.session) {
         openModal();
         params.delete("openMentorApp");
-        const hash = window.location.hash || "#mentorler";
+        const path = window.location.pathname.replace(/\/index\.html$/i, "") || "/";
+        const hash = path === "/" ? "" : window.location.hash || "#mentorler";
         const query = params.toString();
+        const base = path === "/" ? "/" : path;
         window.history.replaceState(
           {},
           "",
-          query ? `${window.location.pathname}?${query}${hash}` : `${window.location.pathname}${hash}`
+          query ? `${base}?${query}${hash}` : `${base}${hash}`
         );
       }
     });

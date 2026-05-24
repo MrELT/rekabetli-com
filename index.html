@@ -116,10 +116,11 @@
         </h3>
         <p>Sana en uygun arkadaşları bulmanın tam zamanı.</p>
       </article>
-      <article class="bento-card">
-        <p class="bento-label">Momentum</p>
-        <h3>%34 daha hızlı ilerleme</h3>
-        <p>Katılımcı ögrencilerin geri dönüşü.</p>
+      <article class="bento-card bento-card-mentor">
+        <p class="bento-label">Mentör adayı</p>
+        <h3>Başarınla yol göster</h3>
+        <p>Olimpiyat, YKS veya proje deneyimin varsa ön kayıt ol.</p>
+        <button type="button" class="nav-btn nav-btn-primary" id="mentor-apply-btn">Mentör adayı ol</button>
       </article>
       <article class="bento-card">
         <p class="bento-label">Revaçta Topluluklar</p>
@@ -197,6 +198,55 @@
       </article>
     </template>
 
+    <div id="mentor-application-modal" class="modal-overlay" hidden>
+      <section class="modal-card mentor-application-card" role="dialog" aria-modal="true" aria-labelledby="mentor-application-title">
+        <div class="modal-header">
+          <h2 id="mentor-application-title">Mentör adayı ön kayıt</h2>
+          <button id="close-mentor-application-modal" type="button" class="icon-btn" aria-label="Pencereyi kapat">✕</button>
+        </div>
+        <form id="mentor-application-form" class="modal-form mentor-application-form">
+          <p class="profile-hint">
+            Bilgileriniz profilinizden otomatik doldurulur; isterseniz düzenleyebilirsiniz.
+          </p>
+
+          <label for="mentor-first-name">Ad</label>
+          <input id="mentor-first-name" name="first_name" type="text" maxlength="80" required autocomplete="given-name" />
+
+          <label for="mentor-last-name">Soyad</label>
+          <input id="mentor-last-name" name="last_name" type="text" maxlength="80" required autocomplete="family-name" />
+
+          <label for="mentor-email">E-posta</label>
+          <input id="mentor-email" name="email" type="email" maxlength="120" required autocomplete="email" />
+
+          <label for="mentor-phone">Telefon</label>
+          <input id="mentor-phone" name="phone" type="tel" maxlength="20" autocomplete="tel" placeholder="05xx xxx xx xx" />
+
+          <span class="form-label-block">Mentörlük branşları</span>
+          <p class="profile-hint">En az iki branş girin. İsterseniz daha fazla alan ekleyebilirsiniz.</p>
+          <div id="mentor-branches-container" class="mentor-branches-container"></div>
+          <button type="button" class="secondary mentor-add-branch-btn" id="mentor-add-branch-btn">
+            + Alan ekle
+          </button>
+
+          <label for="mentor-weekly-sessions">Yaklaşık haftalık kaç oturum yapabilirsiniz?</label>
+          <input
+            id="mentor-weekly-sessions"
+            name="weekly_sessions"
+            type="number"
+            min="1"
+            max="60"
+            step="1"
+            required
+            placeholder="Örn: 3"
+          />
+          <p class="profile-hint">1 oturum = 1 saat</p>
+
+          <p id="mentor-application-message" class="form-message" role="status" hidden></p>
+          <button type="submit" id="mentor-application-submit">Ön kaydı gönder</button>
+        </form>
+      </section>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <script src="image-upload-limit.js"></script>
@@ -205,6 +255,7 @@
     <script src="nav-profile.js"></script>
     <script src="confirm-dialog.js"></script>
     <script src="notifications.js"></script>
+    <script src="mentor-application.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
