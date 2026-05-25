@@ -7,6 +7,21 @@
 (function initRekabetliEnv() {
   const ENV_KEYS = ["SUPABASE_URL", "SUPABASE_ANON_KEY"];
 
+  if (!window.__REKABETLI_RUNTIME_GUARDS__) {
+    window.__REKABETLI_RUNTIME_GUARDS__ = true;
+
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) {
+        window.location.reload();
+      }
+    });
+
+    window.addEventListener("unhandledrejection", (event) => {
+      console.error("[rekabetli] Yakalanamayan promise hatası:", event.reason);
+      event.preventDefault();
+    });
+  }
+
   const KEY_ALIASES = {
     SUPABASE_URL: ["SUPABASE_URL", "supabase_url", "supabaseUrl", "VITE_SUPABASE_URL"],
     SUPABASE_ANON_KEY: [

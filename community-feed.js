@@ -94,6 +94,7 @@ function setSafeImgSrc(img, url, options) {
 }
 
 function showEmptyListMessage(container, text) {
+  if (!container) return;
   container.replaceChildren();
   window.RekabetliSecurity?.appendEmptyMessage(container, text, "empty");
 }
@@ -492,18 +493,20 @@ function renderCommunityHeader() {
   if (!community) return;
 
   document.title = `${community.name} | rekabetli.com`;
-  communityNameEl.textContent = community.name;
-  communityPurposeEl.textContent = community.purpose;
+  if (communityNameEl) communityNameEl.textContent = community.name;
+  if (communityPurposeEl) communityPurposeEl.textContent = community.purpose;
   updateCommunityMetaLine();
 
   const isPrivate = community.visibility === "private";
-  communityVisibilityBadge.textContent = isPrivate ? "Gizli topluluk" : "Açık topluluk";
-  communityVisibilityBadge.className = `community-visibility-badge ${isPrivate ? "is-private" : "is-public"}`;
+  if (communityVisibilityBadge) {
+    communityVisibilityBadge.textContent = isPrivate ? "Gizli topluluk" : "Açık topluluk";
+    communityVisibilityBadge.className = `community-visibility-badge ${isPrivate ? "is-private" : "is-public"}`;
+  }
 
-  if (community.avatar_url && setSafeImgSrc(communityAvatarImg, community.avatar_url)) {
+  if (communityAvatarImg && communityAvatarFallback && community.avatar_url && setSafeImgSrc(communityAvatarImg, community.avatar_url)) {
     communityAvatarImg.hidden = false;
     communityAvatarFallback.hidden = true;
-  } else {
+  } else if (communityAvatarImg && communityAvatarFallback) {
     communityAvatarImg.hidden = true;
     communityAvatarFallback.hidden = false;
     communityAvatarFallback.textContent = getCommunityInitials(community.name);
@@ -931,43 +934,49 @@ async function loadCommunity() {
     return false;
   }
 
-  const { data, error } = await getSb()
-    .from("communities")
-    .select("id, owner_id, name, purpose, size_band, visibility, avatar_url, created_at")
-    .eq("id", communityId)
-    .maybeSingle();
-
-  if (error || !data) {
-    showPageError("Bu topluluk bulunamadı veya görüntüleme yetkiniz yok.");
-    return false;
-  }
-
-  community = data;
-
-  if (currentUserId) {
-    const { data: membership } = await getSb()
-      .from("community_members")
-      .select("user_id")
-      .eq("community_id", communityId)
-      .eq("user_id", currentUserId)
+  try {
+    const { data, error } = await getSb()
+      .from("communities")
+      .select("id, owner_id, name, purpose, size_band, visibility, avatar_url, created_at")
+      .eq("id", communityId)
       .maybeSingle();
 
-    isCommunityMember =
-      Boolean(membership) || sameUserId(community.owner_id, currentUserId);
-  }
+    if (error || !data) {
+      showPageError("Bu topluluk bulunamadı veya görüntüleme yetkiniz yok.");
+      return false;
+    }
 
-  await loadMyJoinRequestStatus();
-  updateAccessFlags();
-  renderCommunityHeader();
-  await loadMembers();
-  setupCommunityPanelAccordion();
-  updateJoinRequestsSectionVisibility();
-  if (isCommunityAdmin && community.visibility === "private") {
-    await loadJoinRequests();
-  }
+    community = data;
 
-  if (pageMain) pageMain.hidden = false;
-  return true;
+    if (currentUserId) {
+      const { data: membership } = await getSb()
+        .from("community_members")
+        .select("user_id")
+        .eq("community_id", communityId)
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+
+      isCommunityMember =
+        Boolean(membership) || sameUserId(community.owner_id, currentUserId);
+    }
+
+    await loadMyJoinRequestStatus();
+    updateAccessFlags();
+    renderCommunityHeader();
+    await loadMembers();
+    setupCommunityPanelAccordion();
+    updateJoinRequestsSectionVisibility();
+    if (isCommunityAdmin && community.visibility === "private") {
+      await loadJoinRequests();
+    }
+
+    if (pageMain) pageMain.hidden = false;
+    return true;
+  } catch (error) {
+    console.error("Community load failed:", error);
+    showPageError("Topluluk yüklenirken bir hata oluştu. Sayfayı yenileyin.");
+    return false;
+  }
 }
 
 function scrollToFeedTarget() {
@@ -999,8 +1008,9 @@ function scrollToFeedTarget() {
 
 // --- 6. VERİTABANI İŞLEMLERİ (Sorular ve Cevaplar) ---
 function renderAnswers(container, answers, postId) {
+  if (!container) return;
   container.replaceChildren();
-  if (!answers.length) {
+  if (!answers?.length) {
     const empty = document.createElement("p");
     empty.className = "empty";
     empty.textContent = "Henüz yanıt yok.";
@@ -1123,107 +1133,114 @@ async function loadPosts() {
     return;
   }
 
-  const { data: postRows, error: postsError } = await getSb()
-    .from("posts")
-    .select("id, user_id, author, title, content, created_at")
-    .eq("community_id", communityId)
-    .order("created_at", { ascending: false });
+  try {
+    const { data: postRows, error: postsError } = await getSb()
+      .from("posts")
+      .select("id, user_id, author, title, content, created_at")
+      .eq("community_id", communityId)
+      .order("created_at", { ascending: false });
 
-  if (postsError) {
-    console.error("Posts load error:", postsError.message);
+    if (postsError) {
+      console.error("Posts load error:", postsError.message);
+      if (questionList) {
+        showEmptyListMessage(
+          questionList,
+          "Veriler yüklenemedi. Supabase'de user_id sütunu ve tablolar için supabase-post-actions.sql dosyasını çalıştırın."
+        );
+      }
+      return;
+    }
+
+    const mappedPosts = (postRows ?? []).map(mapPostRow);
+    const postIds = mappedPosts.map((post) => post.id);
+
+    let commentRows = [];
+    let likeRows = [];
+    let saveRows = [];
+
+    if (postIds.length > 0) {
+      const [commentsResult, likesResult, savesResult] = await Promise.all([
+        getSb()
+          .from("comments")
+          .select("id, post_id, user_id, author, content, created_at")
+          .in("post_id", postIds)
+          .order("created_at", { ascending: false }),
+        getSb().from("post_likes").select("post_id, user_id").in("post_id", postIds),
+        getSb().from("post_saves").select("post_id, user_id").in("post_id", postIds),
+      ]);
+
+      if (commentsResult.error) {
+        console.error("Comments load error:", commentsResult.error.message);
+      } else {
+        commentRows = commentsResult.data ?? [];
+      }
+
+      if (likesResult.error) {
+        console.error("Likes load error:", likesResult.error.message);
+      } else {
+        likeRows = likesResult.data ?? [];
+      }
+
+      if (savesResult.error) {
+        console.error("Saves load error:", savesResult.error.message);
+      } else {
+        saveRows = savesResult.data ?? [];
+      }
+    }
+
+    const { countByPostId, likedByMe } = buildLikeStats(likeRows, currentUserId);
+    const savedByMe = buildSavedSet(saveRows, currentUserId);
+
+    const authorIds = [...new Set(mappedPosts.map((post) => post.userId).filter(Boolean))];
+    const profilesByUserId = new Map();
+
+    if (authorIds.length > 0) {
+      const { data: profileRows, error: profilesError } = await getSb()
+        .from("profiles")
+        .select("id, display_name, avatar_url")
+        .in("id", authorIds);
+
+      if (profilesError) {
+        console.error("Profiles load error:", profilesError.message);
+      } else {
+        (profileRows ?? []).forEach((row) => profilesByUserId.set(row.id, row));
+      }
+    }
+
+    const allComments = commentRows.map(mapCommentRow);
+    const commentIds = allComments.map((c) => c.id);
+    const ratingStats = await window.RekabetliCommentRatings?.loadStatsForCommentIds(commentIds, currentUserId);
+    if (ratingStats) {
+      window.RekabetliCommentRatings.enrichComments(allComments, ratingStats);
+    }
+
+    const commentsByPostId = new Map();
+    allComments.forEach((comment) => {
+      const list = commentsByPostId.get(comment.postId) ?? [];
+      list.push(comment);
+      commentsByPostId.set(comment.postId, list);
+    });
+
+    questions = mappedPosts.map((post) => {
+      const profile = post.userId ? profilesByUserId.get(post.userId) : null;
+      return {
+        ...post,
+        authorAvatarUrl: profile?.avatar_url?.trim() || null,
+        likeCount: countByPostId.get(post.id) ?? 0,
+        likedByMe: likedByMe.has(post.id),
+        savedByMe: savedByMe.has(post.id),
+        answers: commentsByPostId.get(post.id) ?? [],
+      };
+    });
+
+    renderQuestions();
+    scrollToFeedTarget();
+  } catch (error) {
+    console.error("Community posts load failed:", error);
     if (questionList) {
-      showEmptyListMessage(
-        questionList,
-        "Veriler yüklenemedi. Supabase'de user_id sütunu ve tablolar için supabase-post-actions.sql dosyasını çalıştırın."
-      );
-    }
-    return;
-  }
-
-  const mappedPosts = (postRows ?? []).map(mapPostRow);
-  const postIds = mappedPosts.map((post) => post.id);
-
-  let commentRows = [];
-  let likeRows = [];
-  let saveRows = [];
-
-  if (postIds.length > 0) {
-    const [commentsResult, likesResult, savesResult] = await Promise.all([
-      getSb()
-        .from("comments")
-        .select("id, post_id, user_id, author, content, created_at")
-        .in("post_id", postIds)
-        .order("created_at", { ascending: false }),
-      getSb().from("post_likes").select("post_id, user_id").in("post_id", postIds),
-      getSb().from("post_saves").select("post_id, user_id").in("post_id", postIds),
-    ]);
-
-    if (commentsResult.error) {
-      console.error("Comments load error:", commentsResult.error.message);
-    } else {
-      commentRows = commentsResult.data ?? [];
-    }
-
-    if (likesResult.error) {
-      console.error("Likes load error:", likesResult.error.message);
-    } else {
-      likeRows = likesResult.data ?? [];
-    }
-
-    if (savesResult.error) {
-      console.error("Saves load error:", savesResult.error.message);
-    } else {
-      saveRows = savesResult.data ?? [];
+      showEmptyListMessage(questionList, "Paylaşımlar yüklenirken bir hata oluştu. Sayfayı yenileyin.");
     }
   }
-
-  const { countByPostId, likedByMe } = buildLikeStats(likeRows, currentUserId);
-  const savedByMe = buildSavedSet(saveRows, currentUserId);
-
-  const authorIds = [...new Set(mappedPosts.map((post) => post.userId).filter(Boolean))];
-  const profilesByUserId = new Map();
-
-  if (authorIds.length > 0) {
-    const { data: profileRows, error: profilesError } = await getSb()
-      .from("profiles")
-      .select("id, display_name, avatar_url")
-      .in("id", authorIds);
-
-    if (profilesError) {
-      console.error("Profiles load error:", profilesError.message);
-    } else {
-      (profileRows ?? []).forEach((row) => profilesByUserId.set(row.id, row));
-    }
-  }
-
-  const allComments = commentRows.map(mapCommentRow);
-  const commentIds = allComments.map((c) => c.id);
-  const ratingStats = await window.RekabetliCommentRatings?.loadStatsForCommentIds(commentIds, currentUserId);
-  if (ratingStats) {
-    window.RekabetliCommentRatings.enrichComments(allComments, ratingStats);
-  }
-
-  const commentsByPostId = new Map();
-  allComments.forEach((comment) => {
-    const list = commentsByPostId.get(comment.postId) ?? [];
-    list.push(comment);
-    commentsByPostId.set(comment.postId, list);
-  });
-
-  questions = mappedPosts.map((post) => {
-    const profile = post.userId ? profilesByUserId.get(post.userId) : null;
-    return {
-      ...post,
-      authorAvatarUrl: profile?.avatar_url?.trim() || null,
-      likeCount: countByPostId.get(post.id) ?? 0,
-      likedByMe: likedByMe.has(post.id),
-      savedByMe: savedByMe.has(post.id),
-      answers: commentsByPostId.get(post.id) ?? [],
-    };
-  });
-
-  renderQuestions();
-  scrollToFeedTarget();
 }
 
 async function savePost({ author, title, content, userId }) {
@@ -1328,7 +1345,7 @@ async function saveComment({ postId, author, content, userId }) {
 }
 
 function renderQuestions() {
-  if (!questionList) return;
+  if (!questionList || !template?.content) return;
   
   questionList.replaceChildren();
   if (!questions.length) {
@@ -1341,18 +1358,38 @@ function renderQuestions() {
     const fragment = template.content.cloneNode(true);
 
     const cardEl = fragment.querySelector(".question-card");
-    cardEl.id = `post-${question.id}`;
-    applyQuestionAvatar(cardEl, question.authorAvatarUrl, question.author);
-
-    fragment.querySelector(".question-title").textContent = question.title;
-    fragment.querySelector(".question-meta").textContent = `${question.author} · ${formatDate(question.createdAt)}`;
+    const titleEl = fragment.querySelector(".question-title");
+    const metaEl = fragment.querySelector(".question-meta");
     const questionContentEl = fragment.querySelector(".question-content");
-    window.RekabetliQuill?.renderRichContent(questionContentEl, question.content);
-
     const likeBtn = fragment.querySelector(".like-btn");
     const likeCountEl = fragment.querySelector(".like-count");
     const saveBtn = fragment.querySelector(".save-btn");
     const deleteBtn = fragment.querySelector(".delete-btn");
+    const answersContainer = fragment.querySelector(".answers");
+    const answerToggleBtn = fragment.querySelector(".answer-toggle-btn");
+    const answerForm = fragment.querySelector(".answer-form");
+
+    if (
+      !cardEl ||
+      !titleEl ||
+      !metaEl ||
+      !likeBtn ||
+      !likeCountEl ||
+      !saveBtn ||
+      !deleteBtn ||
+      !answersContainer ||
+      !answerToggleBtn ||
+      !answerForm
+    ) {
+      return;
+    }
+
+    cardEl.id = `post-${question.id}`;
+    applyQuestionAvatar(cardEl, question.authorAvatarUrl, question.author);
+
+    titleEl.textContent = question.title;
+    metaEl.textContent = `${question.author} · ${formatDate(question.createdAt)}`;
+    window.RekabetliQuill?.renderRichContent(questionContentEl, question.content);
 
     likeCountEl.textContent = String(question.likeCount ?? 0);
     likeBtn.setAttribute("aria-pressed", question.likedByMe ? "true" : "false");
@@ -1430,12 +1467,8 @@ function renderQuestions() {
       });
     }
 
-    const answersContainer = fragment.querySelector(".answers");
     renderAnswers(answersContainer, question.answers, question.id);
 
-    const answerToggleBtn = fragment.querySelector(".answer-toggle-btn");
-    const answerForm = fragment.querySelector(".answer-form");
-    
     answerToggleBtn.addEventListener("click", () => {
       if (!requireLoginForAction()) return;
       if (!canPostInCommunity) {
@@ -1663,20 +1696,25 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   async function bootstrap() {
-    if (!getSb()) {
-      showPageError("Bağlantı kurulamadı.");
-      return;
-    }
+    try {
+      if (!getSb()) {
+        showPageError("Bağlantı kurulamadı.");
+        return;
+      }
 
-    await syncProfileNavState();
-    const ok = await loadCommunity();
-    if (!ok) return;
-    await loadPosts();
+      await syncProfileNavState();
+      const ok = await loadCommunity();
+      if (!ok) return;
+      await loadPosts();
+    } catch (error) {
+      console.error("Community bootstrap failed:", error);
+      showPageError("Sayfa yüklenirken bir hata oluştu. Lütfen yenileyin.");
+    }
   }
 
   getSb().auth.onAuthStateChange(() => {
-    bootstrap();
+    void bootstrap();
   });
 
-  bootstrap();
+  void bootstrap();
 });
