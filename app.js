@@ -36,6 +36,7 @@ let currentUserDisplayName = null;
 let currentUserAvatarUrl = null;
 let questionContentQuill = null;
 const GUEST_FEED_PREVIEW_LIMIT = 3;
+const POST_CONTENT_MAX_LENGTH = 1800;
 let guestFeedHasMore = false;
 
 // --- 4. YARDIMCI FONKSİYONLAR ---
@@ -213,7 +214,7 @@ function initQuestionContentEditor() {
 
   questionContentQuill = RekabetliQuill.create(host, {
     placeholder: "Sorunun detaylarını yaz...",
-    maxLength: 600,
+    maxLength: POST_CONTENT_MAX_LENGTH,
   });
 
   if (!questionContentQuill) {

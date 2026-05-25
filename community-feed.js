@@ -70,6 +70,7 @@ let isCommunityAdmin = false;
 let isCommunityMember = false;
 let canViewFeed = false;
 let canPostInCommunity = false;
+const POST_CONTENT_MAX_LENGTH = 1800;
 let membersLoadSeq = 0;
 let myJoinRequestStatus = null;
 
@@ -116,7 +117,7 @@ function initQuestionContentEditor() {
 
   questionContentQuill = RekabetliQuill.create(host, {
     placeholder: "Sorunun detaylarını yaz...",
-    maxLength: 600,
+    maxLength: POST_CONTENT_MAX_LENGTH,
   });
 
   if (!questionContentQuill) {

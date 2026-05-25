@@ -1,6 +1,7 @@
 (function initRekabetliQuill() {
   const FORUM_ATTACHMENTS_BUCKET = "forum-attachments";
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+  const ANSWER_CONTENT_MAX_LENGTH = 1200;
   const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
   const QUESTION_TOOLBAR = [
@@ -601,7 +602,7 @@
 
     const quill = create(host, {
       placeholder: "Yanıtını yaz...",
-      maxLength: 400,
+      maxLength: ANSWER_CONTENT_MAX_LENGTH,
       toolbar: ANSWER_TOOLBAR,
     });
 
