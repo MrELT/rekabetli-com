@@ -10,6 +10,7 @@ const LOGO_FALLBACK_URL =
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_EMAILS = 2;
 const DEFAULT_SITE_URL = "https://rekabetli.com";
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function getSiteUrl(): string {
   const siteUrl = Deno.env.get("SITE_URL")?.trim() || DEFAULT_SITE_URL;
@@ -20,7 +21,8 @@ type NotificationType =
   | "comment"
   | "like"
   | "community_join_request"
-  | "community_join_rejected";
+  | "community_join_rejected"
+  | "community_post";
 
 interface NotificationRecord {
   id: string;
@@ -93,6 +95,32 @@ function parseNotificationFromRequest(body: unknown): NotificationRecord | null 
   return null;
 }
 
+function parseNotificationsFromRequest(body: unknown): NotificationRecord[] {
+  if (Array.isArray(body)) {
+    return body
+      .map((item) => parseNotificationFromRequest(item))
+      .filter((record): record is NotificationRecord => Boolean(record));
+  }
+
+  if (body && typeof body === "object") {
+    const payload = body as {
+      records?: unknown[];
+      notifications?: unknown[];
+      data?: unknown[];
+    };
+
+    const batch = payload.records || payload.notifications || payload.data;
+    if (Array.isArray(batch)) {
+      return batch
+        .map((item) => parseNotificationFromRequest(item))
+        .filter((record): record is NotificationRecord => Boolean(record));
+    }
+  }
+
+  const single = parseNotificationFromRequest(body);
+  return single ? [single] : [];
+}
+
 function buildNotificationMessage(record: NotificationRecord): string {
   const name = record.actor_name?.trim() || "Biri";
 
@@ -103,6 +131,8 @@ function buildNotificationMessage(record: NotificationRecord): string {
       return `${name} topluluğunuza katılmak istiyor.`;
     case "community_join_rejected":
       return `${name} topluluğuna katılma isteğiniz reddedildi.`;
+    case "community_post":
+      return `${name} topluluğunuzda yeni bir paylaşım yaptı.`;
     case "like":
     default:
       return `${name} sorunuzu beğendi.`;
@@ -122,6 +152,15 @@ function buildNotificationLink(record: NotificationRecord, siteUrl: string): str
   if (record.type === "community_join_rejected") {
     if (record.community_id) {
       return `${base}//communities?community=${encodeURIComponent(record.community_id)}`;
+    }
+    return `${base}//communities`;
+  }
+
+  if (record.type === "community_post") {
+    if (record.community_id) {
+      const params = new URLSearchParams({ id: record.community_id });
+      if (record.post_id) params.set("post", record.post_id);
+      return `${base}//community?${params.toString()}`;
     }
     return `${base}//communities`;
   }
@@ -325,6 +364,69 @@ async function markNotificationEmailSent(
   }
 }
 
+async function processNotificationEmail(options: {
+  notification: NotificationRecord;
+  resendApiKey: string;
+  supabase: SupabaseClient;
+  siteUrl: string;
+}): Promise<Record<string, unknown>> {
+  const { notification, resendApiKey, supabase, siteUrl } = options;
+
+  if (notification.email_sent === true) {
+    console.log(`Bildirim ${notification.id} için e-posta zaten gönderilmiş, atlanıyor.`);
+    return { ok: true, skipped: true, reason: "already_sent", notificationId: notification.id };
+  }
+
+  console.log(
+    `Bildirim işleniyor: id=${notification.id}, user_id=${notification.user_id}, type=${notification.type}`,
+  );
+
+  const recentEmailCount = await countRecentEmailsSent(supabase, notification.user_id);
+  if (recentEmailCount >= RATE_LIMIT_MAX_EMAILS) {
+    console.log(
+      `Rate limit aşıldı: user_id=${notification.user_id}, son 1 saatte ${recentEmailCount} e-posta gönderildi.`,
+    );
+    return {
+      ok: true,
+      skipped: true,
+      reason: "rate_limit",
+      message: "Rate limit aşıldı",
+      recentEmailCount,
+      notificationId: notification.id,
+    };
+  }
+
+  const { email, displayName } = await getRecipientProfile(supabase, notification.user_id);
+  const message = buildNotificationMessage(notification);
+  const actionUrl = buildNotificationLink(notification, siteUrl);
+  console.log(`E-posta linkleri siteUrl=${siteUrl}, actionUrl=${actionUrl}`);
+
+  const html = buildEmailHtml({
+    recipientName: displayName,
+    message,
+    actionUrl,
+    siteUrl,
+  });
+
+  await sendEmailViaResend({
+    apiKey: resendApiKey,
+    to: email,
+    subject: "rekabetli.com — Yeni bildiriminiz var",
+    html,
+  });
+
+  await markNotificationEmailSent(supabase, notification.id);
+
+  console.log(`E-posta gönderildi: notification_id=${notification.id}, to=${email}`);
+
+  return {
+    ok: true,
+    sent: true,
+    notificationId: notification.id,
+    recipient: email,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return jsonResponse({ error: "Yalnızca POST istekleri kabul edilir." }, 405);
@@ -343,63 +445,48 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Geçersiz JSON gövdesi" }, 400);
     }
 
-    const notification = parseNotificationFromRequest(body);
-    if (!notification?.id || !notification.user_id || !notification.type) {
+    const notifications = parseNotificationsFromRequest(body);
+    if (!notifications.length) {
       console.error("Webhook payload geçersiz:", body);
       return jsonResponse({ error: "Bildirim kaydı payload içinde bulunamadı" }, 400);
     }
 
-    if (notification.email_sent === true) {
-      console.log(`Bildirim ${notification.id} için e-posta zaten gönderilmiş, atlanıyor.`);
-      return jsonResponse({ ok: true, skipped: true, reason: "already_sent" });
+    const results: Record<string, unknown>[] = [];
+
+    for (const notification of notifications) {
+      try {
+        const result = await processNotificationEmail({
+          notification,
+          resendApiKey,
+          supabase,
+          siteUrl,
+        });
+        results.push(result);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(
+          `E-posta gönderimi atlandı: notification_id=${notification.id}, user_id=${notification.user_id}, hata=${message}`,
+        );
+        results.push({
+          ok: false,
+          notificationId: notification.id,
+          userId: notification.user_id,
+          error: message,
+        });
+      }
+
+      await delay(250);
     }
 
-    console.log(
-      `Bildirim işleniyor: id=${notification.id}, user_id=${notification.user_id}, type=${notification.type}`,
-    );
-
-    const recentEmailCount = await countRecentEmailsSent(supabase, notification.user_id);
-    if (recentEmailCount >= RATE_LIMIT_MAX_EMAILS) {
-      console.log(
-        `Rate limit aşıldı: user_id=${notification.user_id}, son 1 saatte ${recentEmailCount} e-posta gönderildi.`,
-      );
-      return jsonResponse({
-        ok: true,
-        skipped: true,
-        reason: "rate_limit",
-        message: "Rate limit aşıldı",
-        recentEmailCount,
-      });
-    }
-
-    const { email, displayName } = await getRecipientProfile(supabase, notification.user_id);
-    const message = buildNotificationMessage(notification);
-    const actionUrl = buildNotificationLink(notification, siteUrl);
-    console.log(`E-posta linkleri siteUrl=${siteUrl}, actionUrl=${actionUrl}`);
-
-    const html = buildEmailHtml({
-      recipientName: displayName,
-      message,
-      actionUrl,
-      siteUrl,
-    });
-
-    await sendEmailViaResend({
-      apiKey: resendApiKey,
-      to: email,
-      subject: "rekabetli.com — Yeni bildiriminiz var",
-      html,
-    });
-
-    await markNotificationEmailSent(supabase, notification.id);
-
-    console.log(`E-posta gönderildi: notification_id=${notification.id}, to=${email}`);
+    const sentCount = results.filter((result) => result.sent === true).length;
+    const failedCount = results.filter((result) => result.ok === false).length;
 
     return jsonResponse({
-      ok: true,
-      sent: true,
-      notificationId: notification.id,
-      recipient: email,
+      ok: failedCount === 0,
+      processed: results.length,
+      sentCount,
+      failedCount,
+      results,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
