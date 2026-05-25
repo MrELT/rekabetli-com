@@ -38,6 +38,9 @@
       const communityName = row.actor_name || "Topluluk";
       return `${communityName} topluluğuna katılma isteğiniz reddedildi.`;
     }
+    if (row.type === "community_post") {
+      return `${name} topluluğunuzda yeni bir paylaşım yaptı.`;
+    }
     return `${name} sorunuzu beğendi.`;
   }
 
@@ -51,6 +54,12 @@
       return row.community_id
         ? `/communities?community=${encodeURIComponent(row.community_id)}`
         : "/communities";
+    }
+    if (row.type === "community_post") {
+      const params = new URLSearchParams();
+      if (row.community_id) params.set("id", row.community_id);
+      if (row.post_id) params.set("post", row.post_id);
+      return params.has("id") ? `/community?${params.toString()}` : "/communities";
     }
     const params = new URLSearchParams({ tab: "questions", post: row.post_id });
     if (row.type === "comment" && row.comment_id) {

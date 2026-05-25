@@ -10,7 +10,8 @@ CHECK (
     'comment',
     'like',
     'community_join_request',
-    'community_join_rejected'
+    'community_join_rejected',
+    'community_post'
   )
 );
 

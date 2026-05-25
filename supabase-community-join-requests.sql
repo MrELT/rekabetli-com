@@ -217,7 +217,7 @@ ALTER TABLE public.notifications DROP CONSTRAINT IF EXISTS notifications_type_ch
 
 ALTER TABLE public.notifications
 ADD CONSTRAINT notifications_type_check
-CHECK (type IN ('comment', 'like', 'community_join_request'));
+CHECK (type IN ('comment', 'like', 'community_join_request', 'community_join_rejected', 'community_post'));
 
 ALTER TABLE public.notifications
 ADD COLUMN IF NOT EXISTS community_id uuid REFERENCES public.communities (id) ON DELETE CASCADE;
