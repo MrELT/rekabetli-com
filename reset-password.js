@@ -28,7 +28,8 @@
       const initialSession = await supabaseClient.auth.getSession();
       if (initialSession.data.session) return true;
 
-      const code = new URLSearchParams(window.location.search).get("code");
+      const rawCode = new URLSearchParams(window.location.search).get("code") || "";
+      const code = /^[A-Za-z0-9._~\-]+$/.test(rawCode) ? rawCode : "";
       if (code) {
         const { error } = await supabaseClient.auth.exchangeCodeForSession(code);
         if (error) {

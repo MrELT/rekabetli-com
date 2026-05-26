@@ -1,5 +1,6 @@
 (function initForgotPassword() {
   const supabaseClient = window.getSupabase?.() || window.sb;
+  const sec = window.RekabetliSecurity;
   const form = document.getElementById("forgot-password-form");
   const messageEl = document.getElementById("forgot-password-message");
   const submitBtn = document.getElementById("forgot-password-submit");
@@ -22,9 +23,21 @@
     }
 
     const data = new FormData(form);
-    const email = String(data.get("email") || "").trim().toLowerCase();
+    const rawEmail = String(data.get("email") || "");
+    if (sec?.containsMarkupAttempt?.(rawEmail)) {
+      setMessage("Geçerli bir e-posta adresi girin.", true);
+      return;
+    }
+
+    const email = sec?.sanitizeEmail
+      ? sec.sanitizeEmail(rawEmail, 120)
+      : rawEmail.trim().toLowerCase();
     if (!email) {
       setMessage("E-posta adresini girin.", true);
+      return;
+    }
+    if (sec?.isValidEmail && !sec.isValidEmail(email)) {
+      setMessage("Geçerli bir e-posta adresi girin.", true);
       return;
     }
 
