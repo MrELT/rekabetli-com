@@ -2687,6 +2687,20 @@ body.question-modal-open {
   margin-top: 0.8rem;
 }
 
+.auth-text-link {
+  display: inline-block;
+  margin: -0.25rem 0 0.85rem;
+  color: #93c5fd;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-text-link:hover {
+  color: #bfdbfe;
+  text-decoration: underline;
+}
+
 .legal-layout {
   display: grid;
   place-items: center;
@@ -2917,6 +2931,7 @@ body.question-modal-open {
   margin: 0 0 1.2rem 0;
   line-height: 1.5;
   display: -webkit-box;
+  line-clamp: 3;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
