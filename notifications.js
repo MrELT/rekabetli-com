@@ -222,20 +222,40 @@
     if (event.key === "Escape" && notificationsOpen) closePopup();
   });
 
-  async function syncSession() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    currentUserId = session?.user?.id ?? null;
+  function applyAuthState(authState) {
+    if (!authState.ready) return;
+
+    currentUserId = authState.user?.id ?? null;
+
     setNavVisible(Boolean(currentUserId));
-    if (currentUserId) await refreshBadge();
+
+    if (!currentUserId) {
+      if (notificationsOpen) closePopup();
+      updateBadge(0);
+      return;
+    }
+
+    void refreshBadge();
   }
 
-  supabase.auth.onAuthStateChange(() => {
-    syncSession();
-  });
+  function initAuthBinding() {
+    const auth = window.RekabetliAuth;
+    if (!auth) {
+      setNavVisible(false);
+      return;
+    }
 
-  syncSession();
+    auth.subscribe(applyAuthState);
+
+    const initial = auth.getState();
+    if (initial.ready) {
+      applyAuthState(initial);
+    } else {
+      void auth.whenReady().then(applyAuthState);
+    }
+  }
+
+  initAuthBinding();
 
   window.rekabetliNotifications = {
     refresh: refreshBadge,
