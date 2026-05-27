@@ -84,3 +84,54 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.set_user_mentor_status (uuid, boolean) TO authenticated;
+
+-- 6) Admin: gizli topluluğa mentörü direkt ekle (onay beklemeden)
+CREATE OR REPLACE FUNCTION public.admin_add_mentor_to_private_community (
+  target_community_id uuid,
+  mentor_user_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  is_private boolean;
+  mentor_exists boolean;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'auth_required';
+  END IF;
+
+  IF NOT public.is_admin_user(auth.uid()) THEN
+    RAISE EXCEPTION 'admin_required';
+  END IF;
+
+  SELECT (c.visibility = 'private')
+  INTO is_private
+  FROM public.communities c
+  WHERE c.id = target_community_id;
+
+  IF is_private IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'private_community_required';
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.profiles p
+    WHERE p.id = mentor_user_id
+      AND p.is_mentor = true
+  )
+  INTO mentor_exists;
+
+  IF NOT mentor_exists THEN
+    RAISE EXCEPTION 'mentor_required';
+  END IF;
+
+  INSERT INTO public.community_members (community_id, user_id)
+  VALUES (target_community_id, mentor_user_id)
+  ON CONFLICT (community_id, user_id) DO NOTHING;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_add_mentor_to_private_community (uuid, uuid) TO authenticated;

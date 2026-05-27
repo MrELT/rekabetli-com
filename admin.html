@@ -158,9 +158,66 @@
               </div>
             </div>
           </section>
+
+          <section class="activity-accordion-section" data-section="communities">
+            <button
+              type="button"
+              class="activity-accordion-trigger"
+              id="trigger-admin-communities"
+              aria-expanded="false"
+              aria-controls="panel-admin-communities"
+            >
+              <span class="activity-accordion-title">Topluluklar</span>
+              <span class="activity-accordion-meta">
+                <span id="admin-count-communities" class="activity-accordion-count">0</span>
+                <span class="activity-accordion-chevron" aria-hidden="true"></span>
+              </span>
+            </button>
+            <div
+              id="panel-admin-communities"
+              class="activity-accordion-panel admin-accordion-panel"
+              role="region"
+              aria-labelledby="trigger-admin-communities"
+            >
+              <div class="admin-table-wrap">
+                <table class="admin-table" id="admin-communities-table">
+                  <thead>
+                    <tr>
+                      <th>Topluluk</th>
+                      <th>Görünürlük</th>
+                      <th>Kurucu</th>
+                      <th>Oluşturulma</th>
+                      <th>İşlem</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-communities-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
         </div>
       </section>
     </main>
+
+    <div id="admin-mentor-assign-modal" class="modal-overlay" hidden>
+      <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="admin-mentor-assign-title">
+        <div class="modal-header">
+          <h2 id="admin-mentor-assign-title">Gizli Topluluğa Mentör Ekle</h2>
+          <button id="close-admin-mentor-assign-modal" type="button" class="icon-btn" aria-label="Pencereyi kapat">
+            ✕
+          </button>
+        </div>
+        <form id="admin-mentor-assign-form" class="modal-form admin-mentor-assign-form">
+          <p id="admin-mentor-assign-community" class="profile-hint"></p>
+          <label for="admin-mentor-select">Mentör Seç</label>
+          <select id="admin-mentor-select" required>
+            <option value="" selected disabled>Mentör seçin</option>
+          </select>
+          <p id="admin-mentor-assign-message" class="form-message" role="status" hidden></p>
+          <button id="admin-mentor-assign-submit" type="submit">Topluluğa Ekle</button>
+        </form>
+      </section>
+    </div>
 
     <script src="admin.js"></script>
   </body>
