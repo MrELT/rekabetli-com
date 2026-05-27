@@ -73,6 +73,8 @@ let canPostInCommunity = false;
 const POST_CONTENT_MAX_LENGTH = 1800;
 let membersLoadSeq = 0;
 let myJoinRequestStatus = null;
+let communityFeedAuthBound = false;
+let skipInitialFeedAuthHydrate = true;
 
 function sameUserId(a, b) {
   return String(a ?? "").toLowerCase() === String(b ?? "").toLowerCase();
@@ -160,16 +162,10 @@ function applyQuestionAvatar(container, avatarUrl, authorName) {
   fallbackEl.hidden = false;
 }
 
-// --- 5. OTURUM KONTROLÜ (Giriş Yap -> Profil Değişimi) ---
-async function syncProfileNavState() {
-  const { data, error } = await getSb().auth.getSession();
-  if (error) {
-    console.error("Session check error:", error.message);
-  }
-  
-  const session = data?.session;
-  isUserLoggedIn = Boolean(session);
-  currentUserId = session?.user?.id ?? null;
+// --- 5. OTURUM KONTROLÜ (Merkezi Auth Store) ---
+async function syncFeedUserContext(user) {
+  isUserLoggedIn = Boolean(user?.id);
+  currentUserId = user?.id ?? null;
   currentUserDisplayName = null;
   currentUserAvatarUrl = null;
 
@@ -179,22 +175,9 @@ async function syncProfileNavState() {
       .select("display_name, avatar_url")
       .eq("id", currentUserId)
       .maybeSingle();
-    const emailName = session.user.email?.split("@")[0] ?? "";
+    const emailName = user?.email?.split("@")[0] ?? "";
     currentUserDisplayName = profile?.display_name?.trim() || emailName || "Kullanıcı";
     currentUserAvatarUrl = profile?.avatar_url?.trim() || null;
-  }
-
-  // Butonun ne yazacağını ve nereye gideceğini belirle
-  const label = isUserLoggedIn ? "Profil" : "Giriş Yap";
-  const targetHref = isUserLoggedIn ? "/profile" : "/login";
-
-  if (desktopProfileBtn) {
-    desktopProfileBtn.textContent = label;
-    desktopProfileBtn.setAttribute("href", targetHref);
-  }
-  if (mobileProfileBtn) {
-    mobileProfileBtn.textContent = label;
-    mobileProfileBtn.setAttribute("href", targetHref);
   }
 
   updateShareButtons();
@@ -980,6 +963,81 @@ async function loadCommunity() {
   }
 }
 
+async function applyAuthToCommunityAccess(user) {
+  await syncFeedUserContext(user);
+  if (!community) return;
+
+  isCommunityMember = false;
+  myJoinRequestStatus = null;
+
+  if (currentUserId) {
+    const { data: membership } = await getSb()
+      .from("community_members")
+      .select("user_id")
+      .eq("community_id", communityId)
+      .eq("user_id", currentUserId)
+      .maybeSingle();
+
+    isCommunityMember = Boolean(membership) || sameUserId(community.owner_id, currentUserId);
+  }
+
+  await loadMyJoinRequestStatus();
+  updateAccessFlags();
+  renderCommunityHeader();
+  await loadMembers();
+  setupCommunityPanelAccordion();
+  updateJoinRequestsSectionVisibility();
+
+  if (isCommunityAdmin && community.visibility === "private") {
+    await loadJoinRequests();
+  }
+}
+
+async function hydrateCommunityFeedAuth(user) {
+  try {
+    if (!community) return;
+    await applyAuthToCommunityAccess(user);
+    await loadPosts();
+  } catch (error) {
+    console.error("[rekabetli][community-feed-auth-hydrate-error]", error);
+  }
+}
+
+function bindCommunityFeedAuthListener() {
+  if (communityFeedAuthBound || !window.RekabetliAuth) return;
+  communityFeedAuthBound = true;
+
+  window.RekabetliAuth.subscribe((state) => {
+    if (!state.ready) return;
+    if (skipInitialFeedAuthHydrate) {
+      skipInitialFeedAuthHydrate = false;
+      return;
+    }
+    void hydrateCommunityFeedAuth(state.user);
+  });
+}
+
+async function bootstrapCommunityFeedPage() {
+  try {
+    if (!getSb()) {
+      showPageError("Bağlantı kurulamadı.");
+      return;
+    }
+
+    const auth = window.RekabetliAuth;
+    const state = auth ? await auth.whenReady() : { user: null };
+
+    await syncFeedUserContext(state.user);
+    const ok = await loadCommunity();
+    if (!ok) return;
+    await loadPosts();
+    bindCommunityFeedAuthListener();
+  } catch (error) {
+    console.error("Community bootstrap failed:", error);
+    showPageError("Sayfa yüklenirken bir hata oluştu. Lütfen yenileyin.");
+  }
+}
+
 function scrollToFeedTarget() {
   const params = new URLSearchParams(window.location.search);
   const postId = params.get("post");
@@ -1696,26 +1754,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  async function bootstrap() {
-    try {
-      if (!getSb()) {
-        showPageError("Bağlantı kurulamadı.");
-        return;
-      }
-
-      await syncProfileNavState();
-      const ok = await loadCommunity();
-      if (!ok) return;
-      await loadPosts();
-    } catch (error) {
-      console.error("Community bootstrap failed:", error);
-      showPageError("Sayfa yüklenirken bir hata oluştu. Lütfen yenileyin.");
-    }
-  }
-
-  getSb().auth.onAuthStateChange(() => {
-    void bootstrap();
-  });
-
-  void bootstrap();
+  void bootstrapCommunityFeedPage();
 });

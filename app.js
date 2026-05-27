@@ -257,16 +257,10 @@ function applyQuestionAvatar(container, avatarUrl, authorName) {
   fallbackEl.hidden = false;
 }
 
-// --- 5. OTURUM KONTROLÜ (Giriş Yap -> Profil Değişimi) ---
-async function syncProfileNavState() {
-  const { data, error } = await supabaseClient.auth.getSession();
-  if (error) {
-    console.error("Session check error:", error.message);
-  }
-  
-  const session = data?.session;
-  isUserLoggedIn = Boolean(session);
-  currentUserId = session?.user?.id ?? null;
+// --- 5. OTURUM KONTROLÜ (Merkezi Auth Store) ---
+async function syncAppUserContext(user) {
+  isUserLoggedIn = Boolean(user?.id);
+  currentUserId = user?.id ?? null;
   currentUserDisplayName = null;
   currentUserAvatarUrl = null;
 
@@ -276,22 +270,9 @@ async function syncProfileNavState() {
       .select("display_name, avatar_url")
       .eq("id", currentUserId)
       .maybeSingle();
-    const emailName = session.user.email?.split("@")[0] ?? "";
+    const emailName = user?.email?.split("@")[0] ?? "";
     currentUserDisplayName = profile?.display_name?.trim() || emailName || "Kullanıcı";
     currentUserAvatarUrl = profile?.avatar_url?.trim() || null;
-  }
-
-  // Butonun ne yazacağını ve nereye gideceğini belirle
-  const label = isUserLoggedIn ? "Profil" : "Giriş Yap";
-  const targetHref = isUserLoggedIn ? "/profile" : "/login";
-
-  if (desktopProfileBtn) {
-    desktopProfileBtn.textContent = label;
-    desktopProfileBtn.setAttribute("href", targetHref);
-  }
-  if (mobileProfileBtn) {
-    mobileProfileBtn.textContent = label;
-    mobileProfileBtn.setAttribute("href", targetHref);
   }
 
   if (heroJoinBtn) {
@@ -901,6 +882,35 @@ function renderQuestions() {
 
 // --- 7. EVENT LISTENERS (Tıklama Olayları) ---
 document.addEventListener("DOMContentLoaded", () => {
+  let homeAuthBound = false;
+  let skipInitialHomeAuthHydrate = true;
+
+  function bindHomeAuthListener() {
+    if (homeAuthBound || !window.RekabetliAuth) return;
+    homeAuthBound = true;
+
+    window.RekabetliAuth.subscribe((state) => {
+      if (!state.ready) return;
+      if (skipInitialHomeAuthHydrate) {
+        skipInitialHomeAuthHydrate = false;
+        return;
+      }
+      syncAppUserContext(state.user).then(loadPosts).catch((error) => {
+        console.error("Auth refresh failed:", error);
+      });
+    });
+  }
+
+  async function bootstrapHomePage() {
+    const auth = window.RekabetliAuth;
+    const state = auth ? await auth.whenReady() : { user: null };
+
+    await syncAppUserContext(state.user);
+    void loadBentoCommunityStats();
+    await loadPosts();
+    bindHomeAuthListener();
+  }
+
   
   // Başlangıç durumu
   closeQuestionModal();
@@ -1000,15 +1010,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // İlk Yüklemeler
-  supabaseClient.auth.onAuthStateChange(() => {
-    syncProfileNavState().then(loadPosts).catch((error) => {
-      console.error("Auth refresh failed:", error);
-    });
-  });
-
-  void loadBentoCommunityStats();
-
-  syncProfileNavState().then(loadPosts).catch((error) => {
+  bootstrapHomePage().catch((error) => {
     console.error("Initial load failed:", error);
     if (questionList) {
       showEmptyListMessage(questionList, "Sayfa yüklenirken bir hata oluştu. Lütfen yenileyin.");
