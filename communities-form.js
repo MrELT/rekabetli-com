@@ -552,7 +552,13 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   communityList?.addEventListener("click", (event) => {
-    const publicBtn = event.target.closest(".js-community-join-public");
+    let target = event.target;
+    if (target && target.nodeType === Node.TEXT_NODE) {
+      target = target.parentElement;
+    }
+    if (!target || typeof target.closest !== "function") return;
+
+    const publicBtn = target.closest(".js-community-join-public");
     if (publicBtn) {
       event.preventDefault();
       const communityId = publicBtn.dataset.communityId;
@@ -560,7 +566,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const requestBtn = event.target.closest(".js-community-join-request");
+    const requestBtn = target.closest(".js-community-join-request");
     if (!requestBtn) return;
     event.preventDefault();
     const communityId = requestBtn.dataset.communityId;

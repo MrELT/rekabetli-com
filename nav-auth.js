@@ -6,12 +6,17 @@
   document.addEventListener("click", (event) => {
     const mobileMenu = document.getElementById("mobile-menu");
     if (!mobileMenu) return;
+    let target = event.target;
+    if (target && target.nodeType === Node.TEXT_NODE) {
+      target = target.parentElement;
+    }
+    if (!target || typeof target.closest !== "function") return;
 
-    if (event.target.closest("#open-mobile-menu")) {
+    if (target.closest("#open-mobile-menu")) {
       mobileMenu.hidden = false;
     }
 
-    if (event.target.closest("#close-mobile-menu") || event.target.id === "mobile-menu") {
+    if (target.closest("#close-mobile-menu") || target.id === "mobile-menu") {
       mobileMenu.hidden = true;
     }
   });
