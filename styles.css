@@ -752,6 +752,7 @@ a.menu-btn:hover {
 .campaign-promo {
   position: relative;
   overflow: hidden;
+  margin-bottom: 1rem;
   border-color: rgba(255, 138, 30, 0.52);
   background:
     radial-gradient(circle at 12% 18%, rgba(255, 138, 30, 0.2), transparent 45%),
@@ -2892,6 +2893,15 @@ body.question-modal-open {
   color: var(--action);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.legal-document .nav-btn {
+  color: #d9e6ff;
+  text-decoration: none;
+}
+
+.legal-document .nav-btn.nav-btn-primary {
+  color: #fff7ef;
 }
 
 .legal-document a:hover {

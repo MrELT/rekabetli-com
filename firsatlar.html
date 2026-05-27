@@ -17,6 +17,10 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="auth-store.js"></script>
     <script>
       window.va =
         window.va ||
@@ -43,7 +47,7 @@
       </a>
       <div class="nav-actions">
         <a class="nav-btn" href="/communities">Topluluklar</a>
-        <a class="nav-btn nav-btn-primary" href="/login">Hemen Katıl</a>
+        <a id="firsatlar-cta-btn" class="nav-btn nav-btn-primary" href="/login">Hemen Katıl</a>
       </div>
     </nav>
 
@@ -84,5 +88,28 @@
         </div>
       </section>
     </main>
+
+    <script>
+      (async function syncFirsatlarTopCta() {
+        const ctaBtn = document.getElementById("firsatlar-cta-btn");
+        if (!ctaBtn) return;
+
+        const authStore = window.RekabetliAuth;
+        if (!authStore || typeof authStore.whenReady !== "function") return;
+
+        try {
+          const state = await authStore.whenReady();
+          if (state?.user) {
+            ctaBtn.href = "/communities";
+            ctaBtn.textContent = "Topluluklara Git";
+          } else {
+            ctaBtn.href = "/login";
+            ctaBtn.textContent = "Hemen Katıl";
+          }
+        } catch (error) {
+          console.warn("[rekabetli][firsatlar-cta-sync-error]", error);
+        }
+      })();
+    </script>
   </body>
 </html>
