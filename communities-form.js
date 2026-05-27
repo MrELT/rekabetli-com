@@ -310,10 +310,22 @@ document.addEventListener("DOMContentLoaded", () => {
     const sb = getSb();
     if (!sb) return;
 
-    const [requestsRes, membersRes] = await Promise.all([
-      sb.from("community_join_requests").select("community_id, status").eq("user_id", userId),
-      sb.from("community_members").select("community_id").eq("user_id", userId),
-    ]);
+    let requestsRes = { data: [] };
+    let membersRes = { data: [] };
+
+    try {
+      const [reqOut, memOut] = await Promise.all([
+        sb.from("community_join_requests").select("community_id, status").eq("user_id", userId),
+        sb.from("community_members").select("community_id").eq("user_id", userId),
+      ]);
+      requestsRes = reqOut;
+      membersRes = memOut;
+    } catch (promiseError) {
+      console.warn(
+        "[rekabetli][user-state-transient-error] Mobile query failed, falling back to empty arrays:",
+        promiseError
+      );
+    }
 
     if (!requestsRes.error) {
       (requestsRes.data ?? []).forEach((row) => {
