@@ -354,65 +354,69 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function loadCommunities() {
-    if (!communityList) return;
-
     try {
-    if (!isSupabaseConfigured()) {
-      showCommunityListMessage(
-        "Bağlantı ayarları yüklenemedi. Sayfayı yenileyin; sorun devam ederse site yöneticisine bildirin.",
-        true
-      );
-      return;
-    }
+      if (!communityList) return;
 
-    const sb = getSb();
-    if (!sb) {
-      showCommunityListMessage("Supabase istemcisi hazır değil. Lütfen sayfayı yenileyin.", true);
-      return;
-    }
-
-    await loadUserCommunityState(currentUser?.id ?? null);
-
-    const { data, error } = await sb
-      .from("communities")
-      .select("id, name, purpose, size_band, visibility, avatar_url, owner_id, created_at")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Communities load error:", error.message);
-      showCommunityListMessage(
-        "Topluluklar yüklenemedi. Giriş yaptığınızdan ve veritabanı tablolarının kurulu olduğundan emin olun.",
-        true
-      );
-      return;
-    }
-
-    communityList.querySelectorAll("[data-dynamic-community]").forEach((node) => node.remove());
-
-    const rows = data ?? [];
-    let emptyEl = communityList.querySelector("[data-communities-empty]");
-
-    if (!rows.length) {
-      if (!emptyEl) {
-        emptyEl = document.createElement("p");
-        emptyEl.className = "empty communities-empty";
-        emptyEl.dataset.communitiesEmpty = "true";
-        emptyEl.textContent = "Henüz topluluk yok. İlk topluluğu sen oluştur.";
-        communityList.appendChild(emptyEl);
+      if (!isSupabaseConfigured()) {
+        showCommunityListMessage(
+          "Bağlantı ayarları yüklenemedi. Sayfayı yenileyin; sorun devam ederse site yöneticisine bildirin.",
+          true
+        );
+        return;
       }
-      emptyEl.hidden = false;
-      return;
-    }
 
-    if (emptyEl) emptyEl.hidden = true;
+      const sb = getSb();
+      if (!sb) {
+        showCommunityListMessage("Supabase istemcisi hazır değil. Lütfen sayfayı yenileyin.", true);
+        return;
+      }
 
-    rows.forEach((row) => {
-      communityList.prepend(buildCommunityCard(row));
-    });
+      await loadUserCommunityState(currentUser?.id ?? null);
 
-    focusCommunityFromUrl();
+      const { data, error } = await sb
+        .from("communities")
+        .select("id, name, purpose, size_band, visibility, avatar_url, owner_id, created_at")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Communities load error:", error.message);
+        showCommunityListMessage(
+          "Topluluklar yüklenemedi. Giriş yaptığınızdan ve veritabanı tablolarının kurulu olduğundan emin olun.",
+          true
+        );
+        return;
+      }
+
+      communityList.querySelectorAll("[data-dynamic-community]").forEach((node) => node.remove());
+
+      const rows = data ?? [];
+      let emptyEl = communityList.querySelector("[data-communities-empty]");
+
+      if (!rows.length) {
+        if (!emptyEl) {
+          emptyEl = document.createElement("p");
+          emptyEl.className = "empty communities-empty";
+          emptyEl.dataset.communitiesEmpty = "true";
+          emptyEl.textContent = "Henüz topluluk yok. İlk topluluğu sen oluştur.";
+          communityList.appendChild(emptyEl);
+        }
+        emptyEl.hidden = false;
+        return;
+      }
+
+      if (emptyEl) emptyEl.hidden = true;
+
+      rows.forEach((row) => {
+        communityList.prepend(buildCommunityCard(row));
+      });
+
+      focusCommunityFromUrl();
     } catch (err) {
+      console.error("[rekabetli][critical-load-communities-error]", err);
       console.error("Communities load failed:", err);
+      if (communityList) {
+        communityList.querySelectorAll("[data-dynamic-community]").forEach((node) => node.remove());
+      }
       showCommunityListMessage("Topluluklar yüklenirken bir hata oluştu. Sayfayı yenileyin.", true);
     }
   }
@@ -692,14 +696,18 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!appStarted) {
       appStarted = true;
       sb.auth.onAuthStateChange(async (_event, session) => {
-        console.info(`${DEBUG_PREFIX} onAuthStateChange`, {
-          event: _event,
-          hasSession: Boolean(session?.user),
-          isStub: Boolean(sb._rekabetliStub),
-        });
-        currentUser = session?.user ?? null;
-        window.syncProfileNavState?.();
-        await loadCommunities();
+        try {
+          console.info(`${DEBUG_PREFIX} onAuthStateChange`, {
+            event: _event,
+            hasSession: Boolean(session?.user),
+            isStub: Boolean(sb._rekabetliStub),
+          });
+          currentUser = session?.user ?? null;
+          window.syncProfileNavState?.();
+          await loadCommunities();
+        } catch (error) {
+          console.error("[rekabetli][critical-auth-flow-error]", error);
+        }
       });
     }
 
