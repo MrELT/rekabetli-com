@@ -63,9 +63,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let pendingAvatarFile = null;
   let avatarObjectUrl = null;
-  let currentUser = null;
   let joinRequestByCommunityId = new Map();
   let memberCommunityIds = new Set();
+  let communitiesAuthBound = false;
+
+  function getCurrentUser() {
+    return window.RekabetliAuth?.getUser() ?? null;
+  }
+
+  async function requireAuthUser() {
+    const auth = window.RekabetliAuth;
+    if (!auth) return null;
+
+    let user = auth.getUser();
+    if (user) return user;
+
+    const state = await auth.whenReady();
+    user = state.user;
+    if (user) return user;
+
+    window.location.href = "/login";
+    return null;
+  }
 
   function getInitials(name) {
     const parts = String(name || "")
@@ -75,39 +94,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!parts.length) return "?";
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-
-  async function ensureSession() {
-    const sb = getSb();
-    if (!sb) return null;
-    try {
-      const { data: sessionData } = await sb.auth.getSession();
-      console.info(`${DEBUG_PREFIX} ensureSession:getSession`, {
-        hasSession: Boolean(sessionData?.session),
-        isStub: Boolean(sb._rekabetliStub),
-      });
-      if (sessionData?.session?.user) {
-        currentUser = sessionData.session.user;
-        return currentUser;
-      }
-
-      const { data: userData, error: userError } = await sb.auth.getUser();
-      if (userError) {
-        console.warn(`${DEBUG_PREFIX} ensureSession:getUser:error`, userError.message);
-        currentUser = null;
-        return null;
-      }
-      console.info(`${DEBUG_PREFIX} ensureSession:getUser`, {
-        hasUser: Boolean(userData?.user),
-        isStub: Boolean(sb._rekabetliStub),
-      });
-      currentUser = userData?.user ?? null;
-      return currentUser;
-    } catch (sessionErr) {
-      console.error(`${DEBUG_PREFIX} ensureSession:error`, sessionErr);
-      currentUser = null;
-      return null;
-    }
   }
 
   function openCommunityModal() {
@@ -132,11 +118,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.rekabetliOpenCommunityModal = async function rekabetliOpenCommunityModal(event) {
     if (event) event.preventDefault();
-    const user = await ensureSession();
-    if (!user) {
-      window.location.href = "/login";
-      return false;
-    }
+    const user = await requireAuthUser();
+    if (!user) return false;
     openCommunityModal();
     return false;
   };
@@ -191,7 +174,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function getCardContext(row) {
-    const isOwner = Boolean(currentUser && row.owner_id === currentUser.id);
+    const user = getCurrentUser();
+    const isOwner = Boolean(user && row.owner_id === user.id);
     const joinStatus = joinRequestByCommunityId.get(row.id) ?? null;
     const isMember = memberCommunityIds.has(row.id);
     return { isOwner, joinStatus, isMember };
@@ -377,67 +361,103 @@ document.addEventListener("DOMContentLoaded", () => {
     window.history.replaceState({}, "", query ? `${cleanUrl.pathname}?${query}` : cleanUrl.pathname);
   }
 
-  async function loadCommunities() {
+  async function fetchAndRenderCommunitiesList() {
+    if (!communityList) return;
+
+    if (!isSupabaseConfigured()) {
+      showCommunityListMessage(
+        "Bağlantı ayarları yüklenemedi. Sayfayı yenileyin; sorun devam ederse site yöneticisine bildirin.",
+        true
+      );
+      return;
+    }
+
+    const sb = getSb();
+    if (!sb) {
+      showCommunityListMessage("Supabase istemcisi hazır değil. Lütfen sayfayı yenileyin.", true);
+      return;
+    }
+
+    const { data, error } = await sb
+      .from("communities")
+      .select("id, name, purpose, size_band, visibility, avatar_url, owner_id, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Communities load error:", error.message);
+      showCommunityListMessage(
+        "Topluluklar yüklenemedi. Giriş yaptığınızdan ve veritabanı tablolarının kurulu olduğundan emin olun.",
+        true
+      );
+      return;
+    }
+
+    communityList.querySelectorAll("[data-dynamic-community]").forEach((node) => node.remove());
+
+    const rows = data ?? [];
+    let emptyEl = communityList.querySelector("[data-communities-empty]");
+
+    if (!rows.length) {
+      if (!emptyEl) {
+        emptyEl = document.createElement("p");
+        emptyEl.className = "empty communities-empty";
+        emptyEl.dataset.communitiesEmpty = "true";
+        emptyEl.textContent = "Henüz topluluk yok. İlk topluluğu sen oluştur.";
+        communityList.appendChild(emptyEl);
+      }
+      emptyEl.hidden = false;
+      return;
+    }
+
+    if (emptyEl) emptyEl.hidden = true;
+
+    rows.forEach((row) => {
+      communityList.prepend(buildCommunityCard(row));
+    });
+
+    focusCommunityFromUrl();
+  }
+
+  async function hydrateCommunityCardActions(user) {
+    joinRequestByCommunityId = new Map();
+    memberCommunityIds = new Set();
+
+    if (user?.id) {
+      await loadUserCommunityState(user.id);
+    }
+
+    if (!communityList) return;
+
+    communityList.querySelectorAll("[data-dynamic-community]").forEach((card) => {
+      refreshCardAction(card);
+    });
+  }
+
+  function bindCommunitiesAuthListener() {
+    if (communitiesAuthBound || !window.RekabetliAuth) return;
+    communitiesAuthBound = true;
+
+    window.RekabetliAuth.subscribe((authState) => {
+      if (!authState.ready) return;
+      void hydrateCommunityCardActions(authState.user);
+    });
+  }
+
+  async function bootstrapCommunitiesPage() {
     try {
-      if (!communityList) return;
+      await fetchAndRenderCommunitiesList();
+      bindCommunitiesAuthListener();
 
-      if (!isSupabaseConfigured()) {
-        showCommunityListMessage(
-          "Bağlantı ayarları yüklenemedi. Sayfayı yenileyin; sorun devam ederse site yöneticisine bildirin.",
-          true
-        );
-        return;
-      }
-
-      const sb = getSb();
-      if (!sb) {
-        showCommunityListMessage("Supabase istemcisi hazır değil. Lütfen sayfayı yenileyin.", true);
-        return;
-      }
-
-      await loadUserCommunityState(currentUser?.id ?? null);
-
-      const { data, error } = await sb
-        .from("communities")
-        .select("id, name, purpose, size_band, visibility, avatar_url, owner_id, created_at")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Communities load error:", error.message);
-        showCommunityListMessage(
-          "Topluluklar yüklenemedi. Giriş yaptığınızdan ve veritabanı tablolarının kurulu olduğundan emin olun.",
-          true
-        );
-        return;
-      }
-
-      communityList.querySelectorAll("[data-dynamic-community]").forEach((node) => node.remove());
-
-      const rows = data ?? [];
-      let emptyEl = communityList.querySelector("[data-communities-empty]");
-
-      if (!rows.length) {
-        if (!emptyEl) {
-          emptyEl = document.createElement("p");
-          emptyEl.className = "empty communities-empty";
-          emptyEl.dataset.communitiesEmpty = "true";
-          emptyEl.textContent = "Henüz topluluk yok. İlk topluluğu sen oluştur.";
-          communityList.appendChild(emptyEl);
+      const auth = window.RekabetliAuth;
+      if (auth) {
+        const initial = auth.getState();
+        if (initial.ready) {
+          await hydrateCommunityCardActions(initial.user);
         }
-        emptyEl.hidden = false;
-        return;
       }
-
-      if (emptyEl) emptyEl.hidden = true;
-
-      rows.forEach((row) => {
-        communityList.prepend(buildCommunityCard(row));
-      });
-
-      focusCommunityFromUrl();
     } catch (err) {
       console.error("[rekabetli][critical-load-communities-error]", err);
-      console.error("Communities load failed:", err);
+      console.error("Communities bootstrap failed:", err);
       if (communityList) {
         communityList.querySelectorAll("[data-dynamic-community]").forEach((node) => node.remove());
       }
@@ -446,11 +466,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function joinPublicCommunity(communityId, triggerBtn) {
-    const user = await ensureSession();
-    if (!user) {
-      window.location.href = "/login";
-      return;
-    }
+    const user = await requireAuthUser();
+    if (!user) return;
 
     if (triggerBtn) triggerBtn.disabled = true;
 
@@ -492,11 +509,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function sendJoinRequest(communityId, triggerBtn) {
-    const user = await ensureSession();
-    if (!user) {
-      window.location.href = "/login";
-      return;
-    }
+    const user = await requireAuthUser();
+    if (!user) return;
 
     if (triggerBtn) triggerBtn.disabled = true;
 
@@ -621,11 +635,8 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
     setFormMessage("");
 
-    const user = await ensureSession();
-    if (!user) {
-      window.location.href = "/login";
-      return;
-    }
+    const user = await requireAuthUser();
+    if (!user) return;
 
     const name = nameInput.value.trim();
     const purpose = purposeInput.value.trim();
@@ -691,7 +702,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  let appStarted = false;
+  let appBootstrapped = false;
   let appRetryTimer = null;
   let appRetryCount = 0;
 
@@ -700,6 +711,7 @@ document.addEventListener("DOMContentLoaded", () => {
       hasEnv: Boolean(window.__ENV__?.SUPABASE_URL && window.__ENV__?.SUPABASE_ANON_KEY),
       hasSb: Boolean(getSb()),
       isReady: isSupabaseReady(),
+      hasAuthStore: Boolean(window.RekabetliAuth),
     });
 
     if (!isSupabaseReady()) {
@@ -714,47 +726,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     appRetryCount = 0;
-    const sb = getSb();
-    if (!sb) return;
+    if (appBootstrapped) return;
+    appBootstrapped = true;
 
-    if (!appStarted) {
-      appStarted = true;
-      sb.auth.onAuthStateChange(async (_event, session) => {
-        try {
-          console.info(`${DEBUG_PREFIX} onAuthStateChange`, {
-            event: _event,
-            hasSession: Boolean(session?.user),
-            isStub: Boolean(sb._rekabetliStub),
-          });
-          if (_event === "SIGNED_IN") {
-            currentUser = session?.user ?? null;
-            if (typeof window.syncProfileNavState === "function") {
-              await window.syncProfileNavState(currentUser);
-            }
-            await loadCommunities();
-            return;
-          }
-
-          currentUser = session?.user ?? null;
-          window.syncProfileNavState?.();
-          await loadCommunities();
-        } catch (error) {
-          if (_event === "SIGNED_IN") {
-            console.error("[rekabetli][ios-auth-sequence-error]", error);
-          }
-          console.error("[rekabetli][critical-auth-flow-error]", error);
-        }
-      });
-    }
-
-    ensureSession()
-      .then(() => {
-        window.syncProfileNavState?.();
-        return loadCommunities();
-      })
-      .catch((error) => {
-        console.error("[rekabetli][communities-init-flow-error]", error);
-      });
+    bootstrapCommunitiesPage().catch((error) => {
+      console.error("[rekabetli][communities-init-flow-error]", error);
+    });
   }
 
   startApp();

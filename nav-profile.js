@@ -1,32 +1,17 @@
 (function initNavProfile() {
-  async function readSession(supabaseClient) {
-    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
-    if (sessionError) {
-      console.error("Session check error:", sessionError.message);
-    }
-
-    if (sessionData?.session) {
-      return sessionData.session;
-    }
-
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-    if (userError) {
-      console.error("User check error:", userError.message);
-      return null;
-    }
-
-    return userData?.user ? { user: userData.user } : null;
-  }
-
-  async function syncProfileNavState(passedUser = null) {
-    const supabaseClient = window.getSupabase?.() || window.sb;
-    if (!supabaseClient) return;
-
+  function syncProfileNavState(passedUser = null) {
     const desktopProfileBtn = document.getElementById("desktop-profile-btn");
     const mobileProfileBtn = document.getElementById("mobile-profile-btn");
     if (!desktopProfileBtn && !mobileProfileBtn) return;
 
-    const sessionUser = passedUser || (await readSession(supabaseClient))?.user || null;
+    let sessionUser = passedUser;
+
+    if (!sessionUser && window.RekabetliAuth) {
+      const { ready, user } = window.RekabetliAuth.getState();
+      if (!ready) return;
+      sessionUser = user;
+    }
+
     const isLoggedIn = Boolean(sessionUser?.id);
     const label = isLoggedIn ? "Profil" : "Giriş Yap";
     const targetHref = isLoggedIn ? "/profile" : "/login";
@@ -43,23 +28,27 @@
 
   window.syncProfileNavState = syncProfileNavState;
 
-  function bindAuthListener() {
-    const supabaseClient = window.getSupabase?.() || window.sb;
-    if (!supabaseClient) return false;
-
-    supabaseClient.auth.onAuthStateChange(() => {
+  function initFromAuthStore() {
+    const auth = window.RekabetliAuth;
+    if (!auth) {
       syncProfileNavState();
+      return;
+    }
+
+    auth.subscribe((authState) => {
+      if (!authState.ready) return;
+      syncProfileNavState(authState.user);
     });
 
-    syncProfileNavState();
-    return true;
+    const initial = auth.getState();
+    if (initial.ready) {
+      syncProfileNavState(initial.user);
+    }
   }
 
-  function tryBind() {
-    if (bindAuthListener()) return;
-    document.addEventListener("DOMContentLoaded", bindAuthListener);
-    window.addEventListener("load", bindAuthListener);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initFromAuthStore);
+  } else {
+    initFromAuthStore();
   }
-
-  tryBind();
 })();
