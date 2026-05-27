@@ -211,7 +211,10 @@
 
   document.addEventListener("click", (event) => {
     if (!notificationsOpen) return;
-    if (event.target.closest(".notifications-wrap")) return;
+    let target = event.target;
+    if (target && target.nodeType === Node.TEXT_NODE) target = target.parentElement;
+    if (!target || typeof target.closest !== "function") return;
+    if (target.closest(".notifications-wrap")) return;
     closePopup();
   });
 

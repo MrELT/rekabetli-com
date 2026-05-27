@@ -5,7 +5,7 @@
       console.error("Session check error:", sessionError.message);
     }
 
-    if (sessionData.session) {
+    if (sessionData?.session) {
       return sessionData.session;
     }
 

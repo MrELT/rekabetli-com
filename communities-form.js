@@ -83,9 +83,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const { data: sessionData } = await sb.auth.getSession();
     console.info(
       `${DEBUG_PREFIX} ensureSession:getSession`,
-      { hasSession: Boolean(sessionData.session), isStub: Boolean(sb._rekabetliStub) }
+      { hasSession: Boolean(sessionData?.session), isStub: Boolean(sb._rekabetliStub) }
     );
-    if (sessionData.session?.user) {
+    if (sessionData?.session?.user) {
       currentUser = sessionData.session.user;
       return currentUser;
     }
