@@ -32,10 +32,9 @@ const questionModal = document.getElementById("question-modal");
 const openQuestionModalButtons = document.querySelectorAll(".js-open-question-modal");
 const closeQuestionModalBtn = document.getElementById("close-question-modal");
 
-const desktopProfileBtn = document.getElementById("desktop-profile-btn");
-const mobileProfileBtn = document.getElementById("mobile-profile-btn");
-
 let questions = [];
+let competitionsAuthBound = false;
+let competitionsBootstrapped = false;
 
 // --- Modal Fonksiyonları ---
 function openQuestionModal() {
@@ -44,26 +43,6 @@ function openQuestionModal() {
 
 function closeQuestionModal() {
   if (questionModal) questionModal.hidden = true;
-}
-
-// --- Veritabanı ve Oturum İşlemleri ---
-async function syncProfileNavState() {
-  const { data, error } = await supabaseClient.auth.getSession();
-  if (error) {
-    console.error("Session check error:", error.message);
-  }
-  const isLoggedIn = Boolean(data?.session);
-  const label = isLoggedIn ? "Profil" : "Giriş Yap";
-  const targetHref = isLoggedIn ? "/profile" : "/login";
-
-  if (desktopProfileBtn) {
-    desktopProfileBtn.textContent = label;
-    desktopProfileBtn.setAttribute("href", targetHref);
-  }
-  if (mobileProfileBtn) {
-    mobileProfileBtn.textContent = label;
-    mobileProfileBtn.setAttribute("href", targetHref);
-  }
 }
 
 function renderAnswers(container, answers) {
@@ -252,6 +231,25 @@ function renderQuestions() {
   });
 }
 
+function bindCompetitionsAuthListener() {
+  if (competitionsAuthBound || !window.RekabetliAuth) return;
+  competitionsAuthBound = true;
+
+  window.RekabetliAuth.subscribe((authState) => {
+    if (!authState.ready) return;
+    // Nav: nav-profile.js (RekabetliAuth). Posts are not user-scoped — no reload on auth change.
+  });
+}
+
+async function bootstrapCompetitionsPage() {
+  const auth = window.RekabetliAuth;
+  if (auth) {
+    await auth.whenReady();
+  }
+  await loadPosts();
+  bindCompetitionsAuthListener();
+}
+
 // --- Event Listeners (Tıklama Olayları) ---
 document.addEventListener("DOMContentLoaded", () => {
   
@@ -311,14 +309,20 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   resetBtn?.addEventListener("click", () => {
-    loadPosts();
+    void loadPosts();
   });
 
-  // İlk Yüklemeler
-  supabaseClient.auth.onAuthStateChange(() => {
-    syncProfileNavState();
-  });
+  if (competitionsBootstrapped) return;
+  competitionsBootstrapped = true;
 
-  syncProfileNavState();
-  loadPosts();
+  bootstrapCompetitionsPage().catch((error) => {
+    console.error("[rekabetli][competitions-bootstrap-error]", error);
+    if (questionList) {
+      questionList.replaceChildren();
+      window.RekabetliSecurity?.appendEmptyMessage(
+        questionList,
+        "Sayfa yüklenirken bir hata oluştu. Lütfen yenileyin."
+      );
+    }
+  });
 });

@@ -73,7 +73,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function requireAuthUser() {
     const auth = window.RekabetliAuth;
-    if (!auth) return null;
+    if (!auth) {
+      console.error("[rekabetli][auth-store-missing]");
+      const message =
+        "Oturum sistemi yüklenemedi. Sayfayı yenileyin; sorun devam ederse bağlantınızı kontrol edin.";
+      if (typeof window.rekabetliAlert === "function") {
+        await window.rekabetliAlert({
+          title: "Bağlantı hatası",
+          message,
+          showCancel: false,
+          confirmLabel: "Tamam",
+        });
+      } else {
+        window.alert(message);
+      }
+      return null;
+    }
 
     let user = auth.getUser();
     if (user) return user;
@@ -447,14 +462,6 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       await fetchAndRenderCommunitiesList();
       bindCommunitiesAuthListener();
-
-      const auth = window.RekabetliAuth;
-      if (auth) {
-        const initial = auth.getState();
-        if (initial.ready) {
-          await hydrateCommunityCardActions(initial.user);
-        }
-      }
     } catch (err) {
       console.error("[rekabetli][critical-load-communities-error]", err);
       console.error("Communities bootstrap failed:", err);
