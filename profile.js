@@ -6,7 +6,7 @@
   }
 
   const AVATAR_BUCKET = "avatars";
-  const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+  const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
   const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
   const profileEmail = document.getElementById("profile-email");
@@ -655,7 +655,7 @@
     await loadAllActivity();
   }
 
-  avatarInput.addEventListener("change", () => {
+  avatarInput.addEventListener("change", async () => {
     const file = avatarInput.files?.[0];
     if (!file) return;
 
@@ -665,17 +665,32 @@
       return;
     }
 
-    if (file.size > MAX_AVATAR_BYTES) {
-      setMessage("Profil fotoğrafı en fazla 2 MB olabilir.", true);
+    let selectedFile = file;
+    if (selectedFile.size > MAX_AVATAR_BYTES && window.RekabetliImageCompression?.compressImageFile) {
+      try {
+        selectedFile = await window.RekabetliImageCompression.compressImageFile(selectedFile, {
+          maxBytes: MAX_AVATAR_BYTES,
+          outputName: "avatar-optimized.webp",
+        });
+        if (selectedFile.size <= MAX_AVATAR_BYTES) {
+          setMessage("Gorsel otomatik optimize edildi ve yuklemeye hazir.");
+        }
+      } catch (compressionError) {
+        console.warn("[rekabetli][avatar-compress-failed]", compressionError);
+      }
+    }
+
+    if (selectedFile.size > MAX_AVATAR_BYTES) {
+      setMessage("Profil fotoğrafı en fazla 5 MB olabilir. Lütfen görseli sıkıştırıp (tercihen WebP) tekrar yükleyin.", true);
       avatarInput.value = "";
       return;
     }
 
-    pendingAvatarFile = file;
+    pendingAvatarFile = selectedFile;
     removeAvatarOnSave = false;
-    updateAvatarPreview(URL.createObjectURL(file), displayNameInput.value);
+    updateAvatarPreview(URL.createObjectURL(selectedFile), displayNameInput.value);
     removeAvatarBtn.hidden = false;
-    setMessage("");
+    if (selectedFile === file) setMessage("");
   });
 
   removeAvatarBtn.addEventListener("click", () => {

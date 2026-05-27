@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const AVATAR_BUCKET = "avatars";
   const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
-  const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+  const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
   const SIZE_LABELS = {
     "0-10": "0–10 kişi",
@@ -616,7 +616,7 @@ document.addEventListener("DOMContentLoaded", () => {
     avatarFallback.textContent = getInitials(nameInput.value);
   });
 
-  avatarInput?.addEventListener("change", () => {
+  avatarInput?.addEventListener("change", async () => {
     const file = avatarInput.files?.[0];
     if (!file) return;
     if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
@@ -624,16 +624,33 @@ document.addEventListener("DOMContentLoaded", () => {
       avatarInput.value = "";
       return;
     }
-    if (file.size > MAX_AVATAR_BYTES) {
-      setFormMessage("Profil fotoğrafı en fazla 2 MB olabilir.", true);
+
+    let selectedFile = file;
+    if (selectedFile.size > MAX_AVATAR_BYTES && window.RekabetliImageCompression?.compressImageFile) {
+      try {
+        selectedFile = await window.RekabetliImageCompression.compressImageFile(selectedFile, {
+          maxBytes: MAX_AVATAR_BYTES,
+          outputName: "community-avatar-optimized.webp",
+        });
+        if (selectedFile.size <= MAX_AVATAR_BYTES) {
+          setFormMessage("Gorsel otomatik optimize edildi ve yuklemeye hazir.");
+        }
+      } catch (compressionError) {
+        console.warn("[rekabetli][community-avatar-compress-failed]", compressionError);
+      }
+    }
+
+    if (selectedFile.size > MAX_AVATAR_BYTES) {
+      setFormMessage("Profil fotoğrafı en fazla 5 MB olabilir. Lütfen görseli sıkıştırıp (tercihen WebP) tekrar yükleyin.", true);
       avatarInput.value = "";
       return;
     }
-    pendingAvatarFile = file;
+
+    pendingAvatarFile = selectedFile;
     if (avatarObjectUrl) URL.revokeObjectURL(avatarObjectUrl);
-    avatarObjectUrl = URL.createObjectURL(file);
+    avatarObjectUrl = URL.createObjectURL(selectedFile);
     updateAvatarPreview(avatarObjectUrl, nameInput.value);
-    setFormMessage("");
+    if (selectedFile === file) setFormMessage("");
   });
 
   removeAvatarBtn?.addEventListener("click", resetAvatarState);
