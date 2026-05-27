@@ -129,13 +129,6 @@
   /** Tüm sayfalarda anahtarların supabase-client'tan önce yüklenmesi (community.html vb.) */
   function tryLoadLocalEnvSync() {
     if (typeof XMLHttpRequest === "undefined" || typeof location === "undefined") return false;
-    const hostname = String(location.hostname || "").toLowerCase();
-    const isLocalHost =
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname === "::1" ||
-      hostname.endsWith(".local");
-    if (!isLocalHost) return false;
     try {
       const base =
         (typeof document !== "undefined" &&
