@@ -714,10 +714,22 @@ document.addEventListener("DOMContentLoaded", () => {
             hasSession: Boolean(session?.user),
             isStub: Boolean(sb._rekabetliStub),
           });
+          if (_event === "SIGNED_IN") {
+            currentUser = session?.user ?? null;
+            if (typeof window.syncProfileNavState === "function") {
+              await window.syncProfileNavState(currentUser);
+            }
+            await loadCommunities();
+            return;
+          }
+
           currentUser = session?.user ?? null;
           window.syncProfileNavState?.();
           await loadCommunities();
         } catch (error) {
+          if (_event === "SIGNED_IN") {
+            console.error("[rekabetli][ios-auth-sequence-error]", error);
+          }
           console.error("[rekabetli][critical-auth-flow-error]", error);
         }
       });

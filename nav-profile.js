@@ -18,7 +18,7 @@
     return userData.user ? { user: userData.user } : null;
   }
 
-  async function syncProfileNavState() {
+  async function syncProfileNavState(passedUser = null) {
     const supabaseClient = window.getSupabase?.() || window.sb;
     if (!supabaseClient) return;
 
@@ -26,8 +26,9 @@
     const mobileProfileBtn = document.getElementById("mobile-profile-btn");
     if (!desktopProfileBtn && !mobileProfileBtn) return;
 
-    const session = await readSession(supabaseClient);
-    const isLoggedIn = Boolean(session?.user);
+    const isLoggedIn = Boolean(
+      passedUser ? passedUser.id : (await readSession(supabaseClient))?.user
+    );
     const label = isLoggedIn ? "Profil" : "Giriş Yap";
     const targetHref = isLoggedIn ? "/profile" : "/login";
 
