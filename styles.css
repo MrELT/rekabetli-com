@@ -2389,6 +2389,18 @@ body.question-modal-open {
   border-bottom: none;
 }
 
+.admin-page-accordion {
+  margin-top: 1rem;
+}
+
+.admin-accordion-panel {
+  overflow: hidden;
+}
+
+.activity-accordion-section.is-open .admin-accordion-panel {
+  max-height: 2400px;
+}
+
 .profile-page {
   padding-top: 4.5rem;
 }

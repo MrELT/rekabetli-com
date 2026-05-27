@@ -13,6 +13,7 @@
   const countApplications = document.getElementById("admin-count-applications");
   const countRequests = document.getElementById("admin-count-requests");
   const countUsers = document.getElementById("admin-count-users");
+  const accordionSections = document.querySelectorAll(".activity-accordion-section");
 
   function setMessage(text, isError = false) {
     if (!messageEl) return;
@@ -32,6 +33,30 @@
     const td = document.createElement("td");
     td.textContent = text;
     return td;
+  }
+
+  function setAccordionOpen(sectionName, isOpen) {
+    const section = document.querySelector(`.activity-accordion-section[data-section="${sectionName}"]`);
+    if (!section) return;
+    section.classList.toggle("is-open", isOpen);
+    const trigger = section.querySelector(".activity-accordion-trigger");
+    if (trigger) trigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  }
+
+  function setupAccordions() {
+    accordionSections.forEach((section) => {
+      const trigger = section.querySelector(".activity-accordion-trigger");
+      if (!trigger) return;
+      trigger.addEventListener("click", () => {
+        const shouldOpen = !section.classList.contains("is-open");
+        accordionSections.forEach((sec) => {
+          const secName = sec.dataset.section;
+          if (secName) setAccordionOpen(secName, false);
+        });
+        const name = section.dataset.section;
+        if (name) setAccordionOpen(name, shouldOpen);
+      });
+    });
   }
 
   function clearTable(body, emptyMessage) {
@@ -201,5 +226,6 @@
     }
   }
 
+  setupAccordions();
   void bootstrapAdminPanel();
 })();

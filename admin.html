@@ -45,70 +45,120 @@
         </p>
         <p id="admin-message" class="profile-message empty"></p>
 
-        <section class="admin-section">
-          <div class="admin-section-head">
-            <h2>Mentör Başvuruları</h2>
-            <span id="admin-count-applications" class="activity-accordion-count">0</span>
-          </div>
-          <div class="admin-table-wrap">
-            <table class="admin-table" id="admin-mentor-applications-table">
-              <thead>
-                <tr>
-                  <th>Ad Soyad</th>
-                  <th>E-posta</th>
-                  <th>Branşlar</th>
-                  <th>Haftalık</th>
-                  <th>Durum</th>
-                  <th>Tarih</th>
-                </tr>
-              </thead>
-              <tbody id="admin-mentor-applications-body"></tbody>
-            </table>
-          </div>
-        </section>
+        <div class="activity-accordion profile-page-accordion admin-page-accordion" id="admin-accordion">
+          <section class="activity-accordion-section is-open" data-section="mentor-applications">
+            <button
+              type="button"
+              class="activity-accordion-trigger"
+              id="trigger-mentor-applications"
+              aria-expanded="true"
+              aria-controls="panel-mentor-applications"
+            >
+              <span class="activity-accordion-title">Mentör Başvuruları</span>
+              <span class="activity-accordion-meta">
+                <span id="admin-count-applications" class="activity-accordion-count">0</span>
+                <span class="activity-accordion-chevron" aria-hidden="true"></span>
+              </span>
+            </button>
+            <div
+              id="panel-mentor-applications"
+              class="activity-accordion-panel admin-accordion-panel"
+              role="region"
+              aria-labelledby="trigger-mentor-applications"
+            >
+              <div class="admin-table-wrap">
+                <table class="admin-table" id="admin-mentor-applications-table">
+                  <thead>
+                    <tr>
+                      <th>Ad Soyad</th>
+                      <th>E-posta</th>
+                      <th>Branşlar</th>
+                      <th>Haftalık</th>
+                      <th>Durum</th>
+                      <th>Tarih</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-mentor-applications-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
 
-        <section class="admin-section">
-          <div class="admin-section-head">
-            <h2>Mentörlük Talepleri</h2>
-            <span id="admin-count-requests" class="activity-accordion-count">0</span>
-          </div>
-          <div class="admin-table-wrap">
-            <table class="admin-table" id="admin-mentorship-requests-table">
-              <thead>
-                <tr>
-                  <th>Ad Soyad</th>
-                  <th>E-posta</th>
-                  <th>Branşlar</th>
-                  <th>Aylık</th>
-                  <th>Durum</th>
-                  <th>Tarih</th>
-                </tr>
-              </thead>
-              <tbody id="admin-mentorship-requests-body"></tbody>
-            </table>
-          </div>
-        </section>
+          <section class="activity-accordion-section" data-section="mentorship-requests">
+            <button
+              type="button"
+              class="activity-accordion-trigger"
+              id="trigger-mentorship-requests"
+              aria-expanded="false"
+              aria-controls="panel-mentorship-requests"
+            >
+              <span class="activity-accordion-title">Mentörlük Talepleri</span>
+              <span class="activity-accordion-meta">
+                <span id="admin-count-requests" class="activity-accordion-count">0</span>
+                <span class="activity-accordion-chevron" aria-hidden="true"></span>
+              </span>
+            </button>
+            <div
+              id="panel-mentorship-requests"
+              class="activity-accordion-panel admin-accordion-panel"
+              role="region"
+              aria-labelledby="trigger-mentorship-requests"
+            >
+              <div class="admin-table-wrap">
+                <table class="admin-table" id="admin-mentorship-requests-table">
+                  <thead>
+                    <tr>
+                      <th>Ad Soyad</th>
+                      <th>E-posta</th>
+                      <th>Branşlar</th>
+                      <th>Aylık</th>
+                      <th>Durum</th>
+                      <th>Tarih</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-mentorship-requests-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
 
-        <section class="admin-section">
-          <div class="admin-section-head">
-            <h2>Kullanıcılar</h2>
-            <span id="admin-count-users" class="activity-accordion-count">0</span>
-          </div>
-          <div class="admin-table-wrap">
-            <table class="admin-table" id="admin-users-table">
-              <thead>
-                <tr>
-                  <th>Kullanıcı</th>
-                  <th>E-posta</th>
-                  <th>Tür</th>
-                  <th>Mentör</th>
-                  <th>İşlem</th>
-                </tr>
-              </thead>
-              <tbody id="admin-users-body"></tbody>
-            </table>
-          </div>
-        </section>
+          <section class="activity-accordion-section" data-section="users">
+            <button
+              type="button"
+              class="activity-accordion-trigger"
+              id="trigger-admin-users"
+              aria-expanded="false"
+              aria-controls="panel-admin-users"
+            >
+              <span class="activity-accordion-title">Kullanıcılar</span>
+              <span class="activity-accordion-meta">
+                <span id="admin-count-users" class="activity-accordion-count">0</span>
+                <span class="activity-accordion-chevron" aria-hidden="true"></span>
+              </span>
+            </button>
+            <div
+              id="panel-admin-users"
+              class="activity-accordion-panel admin-accordion-panel"
+              role="region"
+              aria-labelledby="trigger-admin-users"
+            >
+              <div class="admin-table-wrap">
+                <table class="admin-table" id="admin-users-table">
+                  <thead>
+                    <tr>
+                      <th>Kullanıcı</th>
+                      <th>E-posta</th>
+                      <th>Tür</th>
+                      <th>Mentör</th>
+                      <th>İşlem</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-users-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </div>
       </section>
     </main>
 
