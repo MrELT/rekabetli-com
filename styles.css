@@ -2337,6 +2337,58 @@ body.question-modal-open {
   color: #ff9f9f;
 }
 
+.admin-panel {
+  max-width: 1200px;
+}
+
+.admin-section {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.admin-section-head h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.admin-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line-color);
+  border-radius: 14px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 0.65rem 0.7rem;
+  border-bottom: 1px solid var(--line-color);
+  vertical-align: top;
+  font-size: 0.92rem;
+}
+
+.admin-table th {
+  background: color-mix(in srgb, var(--surface) 88%, #1d4ed8 12%);
+  font-weight: 700;
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}
+
 .profile-page {
   padding-top: 4.5rem;
 }

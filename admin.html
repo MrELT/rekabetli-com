@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Paneli | rekabetli.com</title>
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png" />
+    <link rel="apple-touch-icon" href="assets/rekabetli_logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="auth-store.js"></script>
+    <script>
+      window.va =
+        window.va ||
+        function () {
+          (window.vaq = window.vaq || []).push(arguments);
+        };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+  </head>
+  <body class="profile-page">
+    <nav class="profile-page-nav">
+      <a class="brand" href="/">
+        <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
+      </a>
+      <div class="profile-page-nav-actions">
+        <a class="nav-btn" href="/">← Ana Sayfa</a>
+        <a class="nav-btn" href="/profile">Profilim</a>
+      </div>
+    </nav>
+
+    <main class="layout auth-layout profile-page-layout">
+      <section class="panel auth-panel profile-panel admin-panel">
+        <h1>Admin Paneli</h1>
+        <p class="auth-subtitle">
+          Mentör başvuruları, mentörlük talepleri ve kullanıcı listesi.
+        </p>
+        <p id="admin-message" class="profile-message empty"></p>
+
+        <section class="admin-section">
+          <div class="admin-section-head">
+            <h2>Mentör Başvuruları</h2>
+            <span id="admin-count-applications" class="activity-accordion-count">0</span>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="admin-table" id="admin-mentor-applications-table">
+              <thead>
+                <tr>
+                  <th>Ad Soyad</th>
+                  <th>E-posta</th>
+                  <th>Branşlar</th>
+                  <th>Haftalık</th>
+                  <th>Durum</th>
+                  <th>Tarih</th>
+                </tr>
+              </thead>
+              <tbody id="admin-mentor-applications-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="admin-section">
+          <div class="admin-section-head">
+            <h2>Mentörlük Talepleri</h2>
+            <span id="admin-count-requests" class="activity-accordion-count">0</span>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="admin-table" id="admin-mentorship-requests-table">
+              <thead>
+                <tr>
+                  <th>Ad Soyad</th>
+                  <th>E-posta</th>
+                  <th>Branşlar</th>
+                  <th>Aylık</th>
+                  <th>Durum</th>
+                  <th>Tarih</th>
+                </tr>
+              </thead>
+              <tbody id="admin-mentorship-requests-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="admin-section">
+          <div class="admin-section-head">
+            <h2>Kullanıcılar</h2>
+            <span id="admin-count-users" class="activity-accordion-count">0</span>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="admin-table" id="admin-users-table">
+              <thead>
+                <tr>
+                  <th>Kullanıcı</th>
+                  <th>E-posta</th>
+                  <th>Tür</th>
+                  <th>Mentör</th>
+                  <th>İşlem</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="admin.js"></script>
+  </body>
+</html>
