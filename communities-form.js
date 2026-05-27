@@ -694,16 +694,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (error) throw error;
 
-      await sb.from("community_members").upsert(
+      const { error: memberUpsertError } = await sb.from("community_members").upsert(
         [{ community_id: data.id, user_id: user.id }],
         { onConflict: "community_id,user_id" }
       );
 
+      if (memberUpsertError) {
+        console.warn("[rekabetli][community-owner-member-upsert-failed]", memberUpsertError);
+      }
+
       closeCommunityModal();
       window.location.href = `/community?id=${encodeURIComponent(data.id)}`;
     } catch (error) {
-      console.error("Community create error:", error.message);
-      setFormMessage("Topluluk kaydedilemedi. Supabase tablolarını kontrol edin.", true);
+      console.error("Community create error:", error);
+      const fallbackMessage = "Topluluk kaydedilemedi. Supabase tablolarını kontrol edin.";
+      const detailMessage =
+        typeof error?.message === "string" && error.message.trim()
+          ? `${fallbackMessage} (${error.message.trim()})`
+          : fallbackMessage;
+      setFormMessage(detailMessage, true);
     } finally {
       submitBtn.disabled = false;
     }
