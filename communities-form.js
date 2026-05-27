@@ -1,4 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const DEBUG_PREFIX = "[rekabetli][communities]";
+
   function getSb() {
     return window.getSupabase?.() || window.sb || null;
   }
@@ -9,6 +11,12 @@ document.addEventListener("DOMContentLoaded", () => {
       return true;
     }
     return false;
+  }
+
+  function isSupabaseReady() {
+    if (!isSupabaseConfigured()) return false;
+    const sb = getSb();
+    return Boolean(sb && !sb._rekabetliStub);
   }
 
   const AVATAR_BUCKET = "avatars";
@@ -73,11 +81,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const sb = getSb();
     if (!sb) return null;
     const { data: sessionData } = await sb.auth.getSession();
+    console.info(
+      `${DEBUG_PREFIX} ensureSession:getSession`,
+      { hasSession: Boolean(sessionData.session), isStub: Boolean(sb._rekabetliStub) }
+    );
     if (sessionData.session?.user) {
       currentUser = sessionData.session.user;
       return currentUser;
     }
     const { data: userData } = await sb.auth.getUser();
+    console.info(
+      `${DEBUG_PREFIX} ensureSession:getUser`,
+      { hasUser: Boolean(userData.user), isStub: Boolean(sb._rekabetliStub) }
+    );
     currentUser = userData.user ?? null;
     return currentUser;
   }
@@ -648,15 +664,39 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   let appStarted = false;
+  let appRetryTimer = null;
+  let appRetryCount = 0;
 
   function startApp() {
-    if (!isSupabaseConfigured()) return;
+    console.info(`${DEBUG_PREFIX} startApp`, {
+      hasEnv: Boolean(window.__ENV__?.SUPABASE_URL && window.__ENV__?.SUPABASE_ANON_KEY),
+      hasSb: Boolean(getSb()),
+      isReady: isSupabaseReady(),
+    });
+
+    if (!isSupabaseReady()) {
+      if (appRetryTimer || appRetryCount >= 12) return;
+      appRetryCount += 1;
+      console.warn(`${DEBUG_PREFIX} waiting for Supabase readiness`, { retry: appRetryCount });
+      appRetryTimer = window.setTimeout(() => {
+        appRetryTimer = null;
+        startApp();
+      }, 300);
+      return;
+    }
+
+    appRetryCount = 0;
     const sb = getSb();
     if (!sb) return;
 
     if (!appStarted) {
       appStarted = true;
       sb.auth.onAuthStateChange(async (_event, session) => {
+        console.info(`${DEBUG_PREFIX} onAuthStateChange`, {
+          event: _event,
+          hasSession: Boolean(session?.user),
+          isStub: Boolean(sb._rekabetliStub),
+        });
         currentUser = session?.user ?? null;
         window.syncProfileNavState?.();
         await loadCommunities();
