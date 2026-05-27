@@ -413,27 +413,19 @@ document.addEventListener("DOMContentLoaded", () => {
     communityList.querySelectorAll("[data-dynamic-community]").forEach((node) => node.remove());
 
     const rows = data ?? [];
-    const communityIds = rows.map((row) => row.id).filter(Boolean);
     const memberCountByCommunityId = new Map();
 
-    if (communityIds.length) {
-      try {
-        const { data: membershipRows, error: membershipError } = await sb
-          .from("community_members")
-          .select("community_id")
-          .in("community_id", communityIds);
-
-        if (!membershipError) {
-          (membershipRows ?? []).forEach((membershipRow) => {
-            const id = membershipRow.community_id;
-            memberCountByCommunityId.set(id, (memberCountByCommunityId.get(id) ?? 0) + 1);
-          });
-        } else {
-          console.warn("[rekabetli][community-member-count-load-error]", membershipError);
-        }
-      } catch (membershipCountError) {
-        console.warn("[rekabetli][community-member-count-load-failed]", membershipCountError);
+    try {
+      const { data: bentoStats, error: bentoStatsError } = await sb.rpc("get_communities_bento_stats");
+      if (!bentoStatsError) {
+        (bentoStats ?? []).forEach((statRow) => {
+          memberCountByCommunityId.set(statRow.id, Number(statRow.member_count) || 0);
+        });
+      } else {
+        console.warn("[rekabetli][community-member-count-rpc-error]", bentoStatsError);
       }
+    } catch (memberCountRpcError) {
+      console.warn("[rekabetli][community-member-count-rpc-failed]", memberCountRpcError);
     }
     let emptyEl = communityList.querySelector("[data-communities-empty]");
 
