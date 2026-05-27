@@ -749,6 +749,55 @@ a.menu-btn:hover {
   box-shadow: var(--shadow);
 }
 
+.campaign-promo {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(255, 138, 30, 0.52);
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 138, 30, 0.2), transparent 45%),
+    radial-gradient(circle at 88% 82%, rgba(45, 140, 255, 0.2), transparent 45%),
+    linear-gradient(145deg, rgba(36, 21, 8, 0.92), rgba(16, 32, 58, 0.92));
+}
+
+.campaign-promo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 42%);
+}
+
+.campaign-promo > * {
+  position: relative;
+  z-index: 1;
+}
+
+.campaign-promo-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #ffd6ac;
+}
+
+.campaign-promo h2 {
+  margin: 0 0 0.4rem;
+  font-size: clamp(1.05rem, 2.2vw, 1.45rem);
+}
+
+.campaign-promo p {
+  margin: 0;
+  color: #dbe7ff;
+  max-width: 62ch;
+}
+
+.campaign-promo-btn {
+  width: auto;
+  margin-top: 0.9rem;
+  text-decoration: none;
+}
+
 .panel h2 {
   margin-top: 0.15rem;
   margin-bottom: 0.7rem;
