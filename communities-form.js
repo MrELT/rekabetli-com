@@ -80,22 +80,34 @@ document.addEventListener("DOMContentLoaded", () => {
   async function ensureSession() {
     const sb = getSb();
     if (!sb) return null;
-    const { data: sessionData } = await sb.auth.getSession();
-    console.info(
-      `${DEBUG_PREFIX} ensureSession:getSession`,
-      { hasSession: Boolean(sessionData?.session), isStub: Boolean(sb._rekabetliStub) }
-    );
-    if (sessionData?.session?.user) {
-      currentUser = sessionData.session.user;
+    try {
+      const { data: sessionData } = await sb.auth.getSession();
+      console.info(`${DEBUG_PREFIX} ensureSession:getSession`, {
+        hasSession: Boolean(sessionData?.session),
+        isStub: Boolean(sb._rekabetliStub),
+      });
+      if (sessionData?.session?.user) {
+        currentUser = sessionData.session.user;
+        return currentUser;
+      }
+
+      const { data: userData, error: userError } = await sb.auth.getUser();
+      if (userError) {
+        console.warn(`${DEBUG_PREFIX} ensureSession:getUser:error`, userError.message);
+        currentUser = null;
+        return null;
+      }
+      console.info(`${DEBUG_PREFIX} ensureSession:getUser`, {
+        hasUser: Boolean(userData?.user),
+        isStub: Boolean(sb._rekabetliStub),
+      });
+      currentUser = userData?.user ?? null;
       return currentUser;
+    } catch (sessionErr) {
+      console.error(`${DEBUG_PREFIX} ensureSession:error`, sessionErr);
+      currentUser = null;
+      return null;
     }
-    const { data: userData } = await sb.auth.getUser();
-    console.info(
-      `${DEBUG_PREFIX} ensureSession:getUser`,
-      { hasUser: Boolean(userData.user), isStub: Boolean(sb._rekabetliStub) }
-    );
-    currentUser = userData.user ?? null;
-    return currentUser;
   }
 
   function openCommunityModal() {
@@ -735,10 +747,14 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    ensureSession().then(() => {
-      window.syncProfileNavState?.();
-      loadCommunities();
-    });
+    ensureSession()
+      .then(() => {
+        window.syncProfileNavState?.();
+        return loadCommunities();
+      })
+      .catch((error) => {
+        console.error("[rekabetli][communities-init-flow-error]", error);
+      });
   }
 
   startApp();
