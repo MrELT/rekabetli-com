@@ -215,9 +215,12 @@ ALTER COLUMN post_id DROP NOT NULL;
 
 ALTER TABLE public.notifications DROP CONSTRAINT IF EXISTS notifications_type_check;
 
+-- Legacy verilerde farklı type değerleri olabilir; migration kırılmasın.
+-- NOT VALID: Yeni/yeni güncellenen satırlarda kural uygulanır, mevcut satırlar validate aşamasına kadar korunur.
 ALTER TABLE public.notifications
 ADD CONSTRAINT notifications_type_check
-CHECK (type IN ('comment', 'like', 'community_join_request', 'community_join_rejected', 'community_post'));
+CHECK (type IN ('comment', 'like', 'community_join_request', 'community_join_rejected', 'community_post'))
+NOT VALID;
 
 ALTER TABLE public.notifications
 ADD COLUMN IF NOT EXISTS community_id uuid REFERENCES public.communities (id) ON DELETE CASCADE;

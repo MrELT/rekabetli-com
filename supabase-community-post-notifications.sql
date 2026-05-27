@@ -9,6 +9,8 @@ ADD COLUMN IF NOT EXISTS community_id uuid REFERENCES public.communities (id) ON
 
 ALTER TABLE public.notifications DROP CONSTRAINT IF EXISTS notifications_type_check;
 
+-- Legacy verilerde farklı type değerleri olabilir; migration kırılmasın.
+-- NOT VALID: Yeni/yeni güncellenen satırlarda kural uygulanır, mevcut satırlar validate aşamasına kadar korunur.
 ALTER TABLE public.notifications
 ADD CONSTRAINT notifications_type_check
 CHECK (
@@ -19,7 +21,7 @@ CHECK (
     'community_join_rejected',
     'community_post'
   )
-);
+) NOT VALID;
 
 CREATE OR REPLACE FUNCTION public.notify_community_post ()
 RETURNS trigger
