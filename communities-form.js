@@ -241,6 +241,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function buildCommunityCard(row) {
     const sizeLabel = SIZE_LABELS[row.size_band] || row.size_band;
+    const memberCount = Number.isFinite(row.member_count) ? row.member_count : 0;
 
     const card = document.createElement("article");
     card.className = "community-card";
@@ -282,9 +283,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const meta = document.createElement("div");
     meta.className = "community-meta";
-    const metaSpan = document.createElement("span");
-    metaSpan.textContent = `👥 ${sizeLabel}`;
-    meta.appendChild(metaSpan);
+    const sizeMeta = document.createElement("span");
+    sizeMeta.textContent = `👥 ${sizeLabel}`;
+    const memberMeta = document.createElement("span");
+    memberMeta.textContent = ` · Üye: ${memberCount}`;
+    meta.append(sizeMeta, memberMeta);
 
     const desc = document.createElement("p");
     desc.className = "community-desc";
@@ -410,6 +413,28 @@ document.addEventListener("DOMContentLoaded", () => {
     communityList.querySelectorAll("[data-dynamic-community]").forEach((node) => node.remove());
 
     const rows = data ?? [];
+    const communityIds = rows.map((row) => row.id).filter(Boolean);
+    const memberCountByCommunityId = new Map();
+
+    if (communityIds.length) {
+      try {
+        const { data: membershipRows, error: membershipError } = await sb
+          .from("community_members")
+          .select("community_id")
+          .in("community_id", communityIds);
+
+        if (!membershipError) {
+          (membershipRows ?? []).forEach((membershipRow) => {
+            const id = membershipRow.community_id;
+            memberCountByCommunityId.set(id, (memberCountByCommunityId.get(id) ?? 0) + 1);
+          });
+        } else {
+          console.warn("[rekabetli][community-member-count-load-error]", membershipError);
+        }
+      } catch (membershipCountError) {
+        console.warn("[rekabetli][community-member-count-load-failed]", membershipCountError);
+      }
+    }
     let emptyEl = communityList.querySelector("[data-communities-empty]");
 
     if (!rows.length) {
@@ -427,7 +452,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (emptyEl) emptyEl.hidden = true;
 
     rows.forEach((row) => {
-      communityList.prepend(buildCommunityCard(row));
+      const rowWithMemberCount = {
+        ...row,
+        member_count: memberCountByCommunityId.get(row.id) ?? 0,
+      };
+      communityList.prepend(buildCommunityCard(rowWithMemberCount));
     });
 
     focusCommunityFromUrl();
