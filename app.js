@@ -34,6 +34,7 @@ let isUserLoggedIn = false;
 let currentUserId = null;
 let currentUserDisplayName = null;
 let currentUserAvatarUrl = null;
+let currentUserIsMentor = false;
 let questionContentQuill = null;
 const GUEST_FEED_PREVIEW_LIMIT = 3;
 const POST_CONTENT_MAX_LENGTH = 1800;
@@ -53,6 +54,13 @@ function getCurrentAuthorName() {
 
 function setSafeImgSrc(img, url, options) {
   return window.RekabetliSecurity?.setImgSrc(img, url, options) ?? false;
+}
+
+function createMentorBadge() {
+  const badge = document.createElement("span");
+  badge.className = "mentor-badge";
+  badge.textContent = "Mentör";
+  return badge;
 }
 
 function showEmptyListMessage(container, text) {
@@ -263,16 +271,18 @@ async function syncAppUserContext(user) {
   currentUserId = user?.id ?? null;
   currentUserDisplayName = null;
   currentUserAvatarUrl = null;
+  currentUserIsMentor = false;
 
   if (currentUserId) {
     const { data: profile } = await supabaseClient
       .from("profiles")
-      .select("display_name, avatar_url")
+      .select("display_name, avatar_url, is_mentor")
       .eq("id", currentUserId)
       .maybeSingle();
     const emailName = user?.email?.split("@")[0] ?? "";
     currentUserDisplayName = profile?.display_name?.trim() || emailName || "Kullanıcı";
     currentUserAvatarUrl = profile?.avatar_url?.trim() || null;
+    currentUserIsMentor = Boolean(profile?.is_mentor);
   }
 
   if (heroJoinBtn) {
@@ -330,7 +340,11 @@ function renderAnswers(container, answers, postId) {
     header.className = "answer-header";
     const author = document.createElement("strong");
     author.textContent = answer.author;
-    header.append(author, document.createTextNode(` · ${formatDate(answer.createdAt)}`));
+    header.append(author);
+    if (answer.authorIsMentor) {
+      header.appendChild(createMentorBadge());
+    }
+    header.append(document.createTextNode(` · ${formatDate(answer.createdAt)}`));
 
     const content = document.createElement("div");
     content.className = "rich-content";
@@ -391,6 +405,7 @@ function mapPostRow(postRow) {
     title: postRow.title,
     content: postRow.content,
     createdAt: postRow.created_at,
+    authorIsMentor: false,
     likeCount: 0,
     likedByMe: false,
     savedByMe: false,
@@ -427,6 +442,7 @@ function mapCommentRow(commentRow) {
     author: commentRow.author,
     content: commentRow.content,
     createdAt: commentRow.created_at,
+    authorIsMentor: false,
   };
 }
 
@@ -502,14 +518,21 @@ async function loadPosts() {
 
     const { countByPostId, likedByMe } = buildLikeStats(likeRows, currentUserId);
     const savedByMe = buildSavedSet(saveRows, currentUserId);
+    const allComments = commentRows.map(mapCommentRow);
 
-    const authorIds = [...new Set(mappedPosts.map((post) => post.userId).filter(Boolean))];
+    const authorIds = [
+      ...new Set(
+        [...mappedPosts.map((post) => post.userId), ...allComments.map((comment) => comment.userId)].filter(
+          Boolean
+        )
+      ),
+    ];
     const profilesByUserId = new Map();
 
     if (authorIds.length > 0) {
       const { data: profileRows, error: profilesError } = await supabaseClient
         .from("profiles")
-        .select("id, display_name, avatar_url")
+        .select("id, display_name, avatar_url, is_mentor")
         .in("id", authorIds);
 
       if (profilesError) {
@@ -519,7 +542,6 @@ async function loadPosts() {
       }
     }
 
-    const allComments = commentRows.map(mapCommentRow);
     const commentIds = allComments.map((c) => c.id);
     const ratingStats = await window.RekabetliCommentRatings?.loadStatsForCommentIds(commentIds, currentUserId);
     if (ratingStats) {
@@ -538,10 +560,17 @@ async function loadPosts() {
       return {
         ...post,
         authorAvatarUrl: profile?.avatar_url?.trim() || null,
+        authorIsMentor: Boolean(profile?.is_mentor),
         likeCount: countByPostId.get(post.id) ?? 0,
         likedByMe: likedByMe.has(post.id),
         savedByMe: savedByMe.has(post.id),
-        answers: commentsByPostId.get(post.id) ?? [],
+        answers: (commentsByPostId.get(post.id) ?? []).map((answer) => {
+          const answerProfile = answer.userId ? profilesByUserId.get(answer.userId) : null;
+          return {
+            ...answer,
+            authorIsMentor: Boolean(answerProfile?.is_mentor),
+          };
+        }),
       };
     });
 
@@ -727,7 +756,14 @@ function renderQuestions() {
     applyQuestionAvatar(cardEl, question.authorAvatarUrl, question.author);
 
     titleEl.textContent = question.title;
-    metaEl.textContent = `${question.author} · ${formatDate(question.createdAt)}`;
+    metaEl.replaceChildren();
+    const authorText = document.createElement("span");
+    authorText.textContent = question.author;
+    metaEl.append(authorText);
+    if (question.authorIsMentor) {
+      metaEl.appendChild(createMentorBadge());
+    }
+    metaEl.append(document.createTextNode(` · ${formatDate(question.createdAt)}`));
     window.RekabetliQuill?.renderRichContent(questionContentEl, question.content);
 
     likeCountEl.textContent = String(question.likeCount ?? 0);
@@ -856,6 +892,7 @@ function renderQuestions() {
 
         const target = questions.find((q) => q.id === question.id);
         if (target) {
+          newComment.authorIsMentor = currentUserIsMentor;
           target.answers.unshift(newComment);
           renderQuestions();
         }
@@ -952,6 +989,7 @@ document.addEventListener("DOMContentLoaded", () => {
         questions.unshift({
           ...newPost,
           authorAvatarUrl: currentUserAvatarUrl,
+          authorIsMentor: currentUserIsMentor,
           likeCount: 0,
           likedByMe: false,
           savedByMe: false,

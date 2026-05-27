@@ -49,6 +49,13 @@
     profileMessage.classList.toggle("profile-message-error", isError);
   }
 
+  function createMentorBadge() {
+    const badge = document.createElement("span");
+    badge.className = "mentor-badge";
+    badge.textContent = "Mentör";
+    return badge;
+  }
+
   function getInitials(name) {
     const parts = String(name || "?")
       .trim()
@@ -622,13 +629,16 @@
     }
 
     currentUser = session.user;
-    profileEmail.textContent = `Hesap: ${currentUser.email}`;
+    profileEmail.replaceChildren();
+    profileEmail.append(document.createTextNode(`Hesap: ${currentUser.email}`));
 
     setupAccordions();
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("display_name, bio, avatar_url, city, school, user_type, phone, answer_rating_sum, answer_rating_count")
+      .select(
+        "display_name, bio, avatar_url, city, school, user_type, phone, is_mentor, answer_rating_sum, answer_rating_count"
+      )
       .eq("id", currentUser.id)
       .maybeSingle();
 
@@ -638,6 +648,10 @@
     }
 
     applyProfileToForm(data, currentUser.user_metadata ?? {});
+    if (data?.is_mentor) {
+      profileEmail.append(document.createTextNode(" "));
+      profileEmail.appendChild(createMentorBadge());
+    }
     await loadAllActivity();
   }
 

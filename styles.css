@@ -145,6 +145,23 @@ a.menu-btn:hover {
   text-underline-offset: 2px;
 }
 
+.mentor-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.4rem;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(45, 140, 255, 0.65);
+  background: rgba(45, 140, 255, 0.16);
+  color: #b9dcff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
 .about-founder-card {
   display: flex;
   flex-wrap: wrap;
