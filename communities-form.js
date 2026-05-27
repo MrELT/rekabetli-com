@@ -654,6 +654,10 @@ document.addEventListener("DOMContentLoaded", () => {
       setFormMessage("Lütfen tüm zorunlu alanları doldurun.", true);
       return;
     }
+    if (purpose.length < 10) {
+      setFormMessage("Amaç alanı en az 10 karakter olmalı. Biraz daha detay ekleyin.", true);
+      return;
+    }
 
     submitBtn.disabled = true;
 
