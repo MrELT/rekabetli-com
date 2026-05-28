@@ -267,6 +267,24 @@
                   required
                 ></textarea>
 
+                <div class="panel-header-actions">
+                  <button id="campaign-select-all-btn" type="button" class="secondary">Tüm Üyeleri Seç</button>
+                  <button id="campaign-clear-selection-btn" type="button" class="secondary">Seçimi Temizle</button>
+                </div>
+                <p id="campaign-selected-count" class="profile-hint">Seçilen üye: 0</p>
+                <div class="admin-table-wrap">
+                  <table class="admin-table" id="admin-campaign-recipients-table">
+                    <thead>
+                      <tr>
+                        <th>Seç</th>
+                        <th>Kullanıcı</th>
+                        <th>E-posta</th>
+                      </tr>
+                    </thead>
+                    <tbody id="admin-campaign-recipients-body"></tbody>
+                  </table>
+                </div>
+
                 <p id="admin-campaign-mail-message" class="form-message" role="status" hidden></p>
                 <button id="admin-campaign-mail-submit" type="submit">Toplu Maili Gönder</button>
               </form>

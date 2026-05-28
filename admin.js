@@ -21,6 +21,10 @@
   const campaignMailSubmitBtn = document.getElementById("admin-campaign-mail-submit");
   const campaignMailMessage = document.getElementById("admin-campaign-mail-message");
   const campaignJobsBody = document.getElementById("admin-campaign-jobs-body");
+  const campaignRecipientsBody = document.getElementById("admin-campaign-recipients-body");
+  const campaignSelectedCount = document.getElementById("campaign-selected-count");
+  const campaignSelectAllBtn = document.getElementById("campaign-select-all-btn");
+  const campaignClearSelectionBtn = document.getElementById("campaign-clear-selection-btn");
 
   const mentorAssignModal = document.getElementById("admin-mentor-assign-modal");
   const mentorAssignForm = document.getElementById("admin-mentor-assign-form");
@@ -32,6 +36,8 @@
 
   let mentorsCache = [];
   let selectedCommunityForMentorAssign = null;
+  let usersCache = [];
+  let selectedCampaignRecipientIds = new Set();
 
   function setMessage(text, isError = false) {
     if (!messageEl) return;
@@ -64,6 +70,45 @@
     campaignMailMessage.hidden = false;
     campaignMailMessage.textContent = text;
     campaignMailMessage.classList.toggle("is-error", Boolean(isError));
+  }
+
+  function updateCampaignSelectedCount() {
+    if (!campaignSelectedCount) return;
+    campaignSelectedCount.textContent = `Seçilen üye: ${selectedCampaignRecipientIds.size}`;
+  }
+
+  function renderCampaignRecipients() {
+    campaignRecipientsBody?.replaceChildren();
+    if (!campaignRecipientsBody || !usersCache.length) {
+      if (campaignRecipientsBody) clearTable(campaignRecipientsBody, "Üye listesi bulunamadı.", 3);
+      updateCampaignSelectedCount();
+      return;
+    }
+
+    usersCache.forEach((row) => {
+      const tr = document.createElement("tr");
+
+      const selectTd = document.createElement("td");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = selectedCampaignRecipientIds.has(row.id);
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) {
+          selectedCampaignRecipientIds.add(row.id);
+        } else {
+          selectedCampaignRecipientIds.delete(row.id);
+        }
+        updateCampaignSelectedCount();
+      });
+      selectTd.appendChild(checkbox);
+      tr.appendChild(selectTd);
+
+      tr.appendChild(createCell(row.display_name?.trim() || "Kullanıcı"));
+      tr.appendChild(createCell(row.email?.trim() || "-"));
+      campaignRecipientsBody.appendChild(tr);
+    });
+
+    updateCampaignSelectedCount();
   }
 
   function setMentorAssignMessage(text, isError = false) {
@@ -214,7 +259,8 @@
       .limit(500);
 
     if (error) throw error;
-    const rows = data ?? [];
+    const rows = (data ?? []).filter((row) => row?.id && row?.email);
+    usersCache = rows;
     if (countUsers) countUsers.textContent = String(rows.length);
 
     usersBody?.replaceChildren();
@@ -254,6 +300,8 @@
 
       usersBody.appendChild(tr);
     });
+
+    renderCampaignRecipients();
   }
 
   async function loadMentorsCache() {
@@ -507,6 +555,10 @@
       setCampaignMailMessage("Lütfen tüm alanları doldurun.", true);
       return;
     }
+    if (!selectedCampaignRecipientIds.size) {
+      setCampaignMailMessage("Lütfen en az bir üye seçin.", true);
+      return;
+    }
 
     if (campaignMailSubmitBtn) campaignMailSubmitBtn.disabled = true;
     try {
@@ -516,6 +568,7 @@
         buttonLabel,
         buttonUrl,
         plainMessage,
+        recipientUserIds: Array.from(selectedCampaignRecipientIds),
       });
       setCampaignMailMessage(
         `Gönderim tamamlandı. Başarılı: ${result.sentCount ?? 0}, Hata: ${result.failedCount ?? 0}`
@@ -527,6 +580,16 @@
     } finally {
       if (campaignMailSubmitBtn) campaignMailSubmitBtn.disabled = false;
     }
+  });
+
+  campaignSelectAllBtn?.addEventListener("click", () => {
+    selectedCampaignRecipientIds = new Set(usersCache.map((row) => row.id));
+    renderCampaignRecipients();
+  });
+
+  campaignClearSelectionBtn?.addEventListener("click", () => {
+    selectedCampaignRecipientIds.clear();
+    renderCampaignRecipients();
   });
 
   setupAccordions();

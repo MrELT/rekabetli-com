@@ -12,6 +12,7 @@ type CampaignPayload = {
   buttonLabel: string;
   buttonUrl: string;
   plainMessage: string;
+  recipientUserIds: string[];
 };
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -54,9 +55,15 @@ function sanitizePayload(payload: unknown): CampaignPayload {
   const buttonLabel = String(body.buttonLabel || "").trim();
   const buttonUrl = String(body.buttonUrl || "").trim();
   const plainMessage = String(body.plainMessage || "").trim();
+  const recipientUserIds = Array.isArray(body.recipientUserIds)
+    ? body.recipientUserIds.map((id) => String(id).trim()).filter(Boolean)
+    : [];
 
   if (!subject || !preview || !buttonLabel || !buttonUrl || !plainMessage) {
     throw new Error("Eksik alan: subject, preview, buttonLabel, buttonUrl, plainMessage.");
+  }
+  if (!recipientUserIds.length) {
+    throw new Error("En az bir alıcı seçilmelidir.");
   }
 
   if (subject.length > 120 || preview.length > 240 || buttonLabel.length > 40 || plainMessage.length > 1200) {
@@ -67,7 +74,7 @@ function sanitizePayload(payload: unknown): CampaignPayload {
     throw new Error("Buton linki http/https ile başlamalı.");
   }
 
-  return { subject, preview, buttonLabel, buttonUrl, plainMessage };
+  return { subject, preview, buttonLabel, buttonUrl, plainMessage, recipientUserIds };
 }
 
 function createAnonClient(authHeader: string): SupabaseClient {
@@ -188,7 +195,9 @@ Deno.serve(async (req) => {
     if (usersError) throw new Error(`Kullanıcı listesi alınamadı: ${usersError.message}`);
 
     const users = usersData.users || [];
+    const selectedSet = new Set(payload.recipientUserIds);
     const recipients = users
+      .filter((user) => selectedSet.has(user.id))
       .filter((user) => user.email && !user.banned_until)
       .map((user) => ({
         id: user.id,
@@ -199,6 +208,10 @@ Deno.serve(async (req) => {
           (user.email as string).split("@")[0] ||
           "Kullanıcı",
       }));
+
+    if (!recipients.length) {
+      throw new Error("Seçilen kullanıcılar için geçerli e-posta bulunamadı.");
+    }
 
     const { data: jobInsert, error: jobInsertError } = await serviceClient
       .from("campaign_mail_jobs")
