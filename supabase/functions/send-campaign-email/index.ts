@@ -114,7 +114,12 @@ async function ensureAdminUser(authHeader: string): Promise<string> {
   return authData.user.id;
 }
 
-function buildEmailHtml(options: { siteUrl: string; payload: CampaignPayload; displayName: string }): string {
+function buildEmailHtml(options: {
+  siteUrl: string;
+  payload: CampaignPayload;
+  displayName: string;
+  unsubscribeUrl: string;
+}): string {
   const safeName = escapeHtml(options.displayName || "Kullanıcı");
   const safeSubject = escapeHtml(options.payload.subject);
   const safePreview = escapeHtml(options.payload.preview);
@@ -122,6 +127,7 @@ function buildEmailHtml(options: { siteUrl: string; payload: CampaignPayload; di
   const safeButtonLabel = escapeHtml(options.payload.buttonLabel);
   const safeButtonUrl = escapeHtml(options.payload.buttonUrl);
   const safeSiteUrl = escapeHtml(options.siteUrl.replace(/\/$/, ""));
+  const safeUnsubscribeUrl = escapeHtml(options.unsubscribeUrl);
   const safeLogoUrl =
     "https://xtggaelcgimohftfupvo.supabase.co/storage/v1/object/public/logos/rekabetli.png";
   const safeLogoFallback =
@@ -204,6 +210,10 @@ function buildEmailHtml(options: { siteUrl: string; payload: CampaignPayload; di
                 Bu e-posta kampanya duyurusu için otomatik olarak gönderilmiştir.
                 <a href="${safeSiteUrl}" target="_blank" style="color: #60a5fa; text-decoration: underline;">${safeSiteUrl}</a>
               </p>
+              <p style="margin: 6px 0 0; color: #475569; font-size: 11px;">
+                Kampanya e-postalarından çıkmak için
+                <a href="${safeUnsubscribeUrl}" target="_blank" style="color: #60a5fa; text-decoration: underline;">abonelikten çık</a>.
+              </p>
             </td>
           </tr>
 
@@ -270,13 +280,37 @@ Deno.serve(async (req) => {
     if (usersError) throw new Error(`Kullanıcı listesi alınamadı: ${usersError.message}`);
 
     const users = usersData.users || [];
-    const selectedSet = new Set(payload.recipientUserIds);
+    const selectedUserIds = payload.recipientUserIds;
+    const selectedSet = new Set(selectedUserIds);
+    const { data: preferenceRows, error: preferenceError } = await serviceClient
+      .from("email_preferences")
+      .select("user_id, marketing_emails_enabled, unsubscribe_token")
+      .in("user_id", selectedUserIds);
+
+    if (preferenceError) {
+      throw new Error(`E-posta tercihleri alınamadı: ${preferenceError.message}`);
+    }
+
+    const preferenceByUserId = new Map(
+      (preferenceRows ?? []).map((row) => [
+        row.user_id,
+        {
+          marketingEmailsEnabled: row.marketing_emails_enabled !== false,
+          unsubscribeToken: row.unsubscribe_token ? String(row.unsubscribe_token) : null,
+        },
+      ])
+    );
+
     const recipients = users
       .filter((user) => selectedSet.has(user.id))
       .filter((user) => user.email && !user.banned_until)
       .map((user) => ({
         id: user.id,
         email: user.email as string,
+        preference: preferenceByUserId.get(user.id) ?? {
+          marketingEmailsEnabled: true,
+          unsubscribeToken: null,
+        },
         displayName:
           user.user_metadata?.display_name ||
           user.user_metadata?.first_name ||
@@ -310,7 +344,27 @@ Deno.serve(async (req) => {
 
     for (const recipient of recipients) {
       try {
-        const html = buildEmailHtml({ siteUrl, payload, displayName: recipient.displayName });
+        if (!recipient.preference.marketingEmailsEnabled) {
+          await serviceClient.from("campaign_mail_logs").insert({
+            job_id: jobInsert.id,
+            user_id: recipient.id,
+            email: recipient.email,
+            status: "skipped",
+            error_message: "marketing_opt_out",
+          });
+          continue;
+        }
+
+        const unsubscribeUrl = recipient.preference.unsubscribeToken
+          ? `${siteUrl}/unsubscribe?token=${encodeURIComponent(recipient.preference.unsubscribeToken)}`
+          : `${siteUrl}/unsubscribe`;
+
+        const html = buildEmailHtml({
+          siteUrl,
+          payload,
+          displayName: recipient.displayName,
+          unsubscribeUrl,
+        });
         await sendEmailViaResend({
           apiKey: resendApiKey,
           to: recipient.email,
