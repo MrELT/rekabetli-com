@@ -121,29 +121,95 @@ function buildEmailHtml(options: { siteUrl: string; payload: CampaignPayload; di
   const safeMessage = escapeHtml(options.payload.plainMessage).replace(/\n/g, "<br>");
   const safeButtonLabel = escapeHtml(options.payload.buttonLabel);
   const safeButtonUrl = escapeHtml(options.payload.buttonUrl);
-  const safeSiteUrl = escapeHtml(options.siteUrl);
+  const safeSiteUrl = escapeHtml(options.siteUrl.replace(/\/$/, ""));
+  const safeLogoUrl =
+    "https://xtggaelcgimohftfupvo.supabase.co/storage/v1/object/public/logos/rekabetli.png";
+  const safeLogoFallback =
+    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=160&q=80";
 
   return `<!DOCTYPE html>
 <html lang="tr">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#0f172a;font-family:Arial,sans-serif;">
-  <table width="100%" cellspacing="0" cellpadding="0" style="padding:32px 16px;background:#0f172a;">
-    <tr><td align="center">
-      <table width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#1e293b;border-radius:14px;padding:28px;border:1px solid #334155;">
-        <tr><td style="color:#e2e8f0;font-size:15px;line-height:1.6;">Merhaba ${safeName},</td></tr>
-        <tr><td style="padding-top:12px;color:#f8fafc;font-size:24px;font-weight:700;">${safeSubject}</td></tr>
-        <tr><td style="padding-top:10px;color:#94a3b8;font-size:14px;line-height:1.6;">${safePreview}</td></tr>
-        <tr><td style="padding-top:16px;color:#cbd5e1;font-size:15px;line-height:1.7;">${safeMessage}</td></tr>
-        <tr><td align="center" style="padding-top:24px;">
-          <a href="${safeButtonUrl}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">
-            ${safeButtonLabel}
-          </a>
-        </td></tr>
-        <tr><td style="padding-top:18px;color:#64748b;font-size:12px;text-align:center;">
-          rekabetli.com • <a href="${safeSiteUrl}" style="color:#60a5fa;">${safeSiteUrl}</a>
-        </td></tr>
-      </table>
-    </td></tr>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rekabetli.com — Kampanya Duyurusu</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0f172a; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0f172a; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 520px; background-color: #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3); border: 1px solid #334155;">
+
+          <tr>
+            <td align="center" style="padding: 36px 36px 18px 36px;">
+              <a href="${safeSiteUrl}" target="_blank" style="text-decoration: none;">
+                <img src="${safeLogoUrl}" alt="Rekabetli Logo" width="160" style="display: block; border: 0; outline: none; text-decoration: none; margin: 0 auto;" onerror="this.src='${safeLogoFallback}'">
+              </a>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 0 36px;">
+              <div style="height: 1px; background-color: #334155;"></div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 28px 36px 34px 36px;">
+              <p style="margin: 0 0 10px 0; color: #94a3b8; font-size: 14px; line-height: 1.6; text-align: center;">
+                Merhaba <strong style="color: #e2e8f0;">${safeName}</strong>,
+              </p>
+              <h2 style="margin: 0 0 12px 0; color: #f8fafc; font-size: 25px; font-weight: 700; text-align: center; letter-spacing: -0.5px;">
+                ${safeSubject}
+              </h2>
+              <p style="margin: 0 0 16px 0; color: #cbd5e1; font-size: 15px; line-height: 1.65; text-align: center;">
+                ${safePreview}
+              </p>
+
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
+                <tr>
+                  <td style="background-color: #0f172a; border: 1px solid #334155; border-left: 4px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 16px 18px;">
+                    <p style="margin: 0; color: #cbd5e1; font-size: 15px; line-height: 1.65;">
+                      ${safeMessage}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 18px;">
+                <tr>
+                  <td align="center" style="padding: 4px 0;">
+                    <a href="${safeButtonUrl}" target="_blank" style="display: inline-block; padding: 14px 30px; background-color: #2563eb; color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 8px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); letter-spacing: 0.2px;">
+                      ${safeButtonLabel}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0 0 6px 0; color: #64748b; font-size: 12px; line-height: 1.5; text-align: center;">
+                Buton çalışmıyorsa aşağıdaki bağlantıyı kopyalayabilirsin:
+              </p>
+              <p style="margin: 0; font-size: 12px; text-align: center; word-break: break-all;">
+                <a href="${safeButtonUrl}" target="_blank" style="color: #60a5fa; text-decoration: underline;">${safeButtonUrl}</a>
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 18px 36px; background-color: #0f172a; text-align: center; border-top: 1px solid #334155;">
+              <p style="margin: 0 0 4px 0; color: #475569; font-size: 12px; font-weight: 500;">
+                © 2026 rekabetli.com. Tüm hakları saklıdır.
+              </p>
+              <p style="margin: 0; color: #334155; font-size: 11px;">
+                Bu e-posta kampanya duyurusu için otomatik olarak gönderilmiştir.
+                <a href="${safeSiteUrl}" target="_blank" style="color: #60a5fa; text-decoration: underline;">${safeSiteUrl}</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
   </table>
 </body>
 </html>`;
