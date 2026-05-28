@@ -5,6 +5,11 @@ const RESEND_API_URL = "https://api.resend.com/emails";
 const FROM_EMAIL = "rekabetli.com <info@rekabetli.com>";
 const DEFAULT_SITE_URL = "https://rekabetli.com";
 const SEND_DELAY_MS = 250;
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 type CampaignPayload = {
   subject: string;
@@ -20,7 +25,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 function jsonResponse(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
   });
 }
 
@@ -171,6 +176,10 @@ async function sendEmailViaResend(options: {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS_HEADERS });
+  }
+
   if (req.method !== "POST") {
     return jsonResponse({ error: "Yalnızca POST istekleri kabul edilir." }, 405);
   }
