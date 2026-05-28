@@ -11,7 +11,11 @@
   };
 
   try {
-    const token = new URLSearchParams(window.location.search).get("token");
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    const type = (params.get("type") || "marketing").toLowerCase() === "notifications"
+      ? "notifications"
+      : "marketing";
     if (!token) {
       setMessage("Geçersiz abonelikten çıkış bağlantısı.", true);
       return;
@@ -23,8 +27,9 @@
       return;
     }
 
-    const { data, error } = await sb.rpc("unsubscribe_marketing_by_token", {
+    const { data, error } = await sb.rpc("unsubscribe_by_token", {
       p_token: token,
+      p_type: type,
     });
 
     if (error) {
@@ -38,7 +43,11 @@
       return;
     }
 
-    setMessage("Kampanya e-postalarından başarıyla çıktınız.");
+    setMessage(
+      type === "notifications"
+        ? "Bildirim e-postalarından başarıyla çıktınız."
+        : "Kampanya e-postalarından başarıyla çıktınız."
+    );
   } catch (err) {
     console.error("unsubscribe fatal error:", err);
     setMessage("Abonelikten çıkış sırasında beklenmeyen bir hata oluştu.", true);

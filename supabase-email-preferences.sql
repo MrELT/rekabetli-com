@@ -4,9 +4,13 @@
 CREATE TABLE IF NOT EXISTS public.email_preferences (
   user_id uuid PRIMARY KEY REFERENCES auth.users (id) ON DELETE CASCADE,
   marketing_emails_enabled boolean NOT NULL DEFAULT true,
+  notification_emails_enabled boolean NOT NULL DEFAULT true,
   unsubscribe_token uuid NOT NULL DEFAULT gen_random_uuid(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.email_preferences
+ADD COLUMN IF NOT EXISTS notification_emails_enabled boolean NOT NULL DEFAULT true;
 
 CREATE UNIQUE INDEX IF NOT EXISTS email_preferences_unsubscribe_token_uidx
 ON public.email_preferences (unsubscribe_token);
@@ -60,7 +64,7 @@ AFTER INSERT ON auth.users
 FOR EACH ROW
 EXECUTE FUNCTION public.handle_new_user_email_preferences();
 
-CREATE OR REPLACE FUNCTION public.unsubscribe_marketing_by_token(p_token uuid)
+CREATE OR REPLACE FUNCTION public.unsubscribe_by_token(p_token uuid, p_type text DEFAULT 'marketing')
 RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -81,15 +85,23 @@ BEGIN
     RETURN false;
   END IF;
 
-  UPDATE public.email_preferences
-  SET
-    marketing_emails_enabled = false,
-    updated_at = now()
-  WHERE user_id = v_user_id;
+  IF coalesce(lower(trim(p_type)), 'marketing') = 'notifications' THEN
+    UPDATE public.email_preferences
+    SET
+      notification_emails_enabled = false,
+      updated_at = now()
+    WHERE user_id = v_user_id;
+  ELSE
+    UPDATE public.email_preferences
+    SET
+      marketing_emails_enabled = false,
+      updated_at = now()
+    WHERE user_id = v_user_id;
+  END IF;
 
   RETURN true;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.unsubscribe_marketing_by_token(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.unsubscribe_marketing_by_token(uuid) TO anon, authenticated;
+REVOKE ALL ON FUNCTION public.unsubscribe_by_token(uuid, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.unsubscribe_by_token(uuid, text) TO anon, authenticated;

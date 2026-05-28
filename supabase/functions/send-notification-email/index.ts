@@ -39,6 +39,12 @@ interface NotificationRecord {
   email_sent?: boolean;
 }
 
+interface EmailPreferenceRow {
+  user_id: string;
+  notification_emails_enabled: boolean;
+  unsubscribe_token: string | null;
+}
+
 interface DatabaseWebhookPayload {
   type?: string;
   table?: string;
@@ -181,11 +187,13 @@ function buildEmailHtml(options: {
   message: string;
   actionUrl: string;
   siteUrl: string;
+  unsubscribeUrl: string;
 }): string {
   const kullaniciAdi = escapeHtml(options.recipientName || "Kullanıcı");
   const bildirimIcerigi = escapeHtml(options.message);
   const platformUrl = escapeHtml(options.actionUrl);
   const homeUrl = escapeHtml(options.siteUrl.replace(/\/$/, ""));
+  const unsubscribeUrl = escapeHtml(options.unsubscribeUrl);
   const safeLogoUrl = escapeHtml(LOGO_URL);
   const safeLogoFallback = escapeHtml(LOGO_FALLBACK_URL);
 
@@ -262,6 +270,10 @@ function buildEmailHtml(options: {
               <p style="margin: 0; color: #334155; font-size: 11px;">
                 Bu e-posta, rekabetli.com bildirim sisteminden otomatik olarak gönderilmiştir.
                 <a href="${homeUrl}" target="_blank" style="color: #3b82f6; text-decoration: underline;">${homeUrl}</a>
+              </p>
+              <p style="margin: 6px 0 0; color: #475569; font-size: 11px;">
+                Bildirim e-postalarını kapatmak için
+                <a href="${unsubscribeUrl}" target="_blank" style="color: #3b82f6; text-decoration: underline;">abonelikten çık</a>.
               </p>
             </td>
           </tr>
@@ -396,9 +408,31 @@ async function processNotificationEmail(options: {
     };
   }
 
+  const { data: prefRow, error: prefError } = await supabase
+    .from("email_preferences")
+    .select("user_id, notification_emails_enabled, unsubscribe_token")
+    .eq("user_id", notification.user_id)
+    .maybeSingle<EmailPreferenceRow>();
+
+  if (prefError) {
+    throw new Error(`E-posta tercihleri okunamadı: ${prefError.message}`);
+  }
+
+  if (prefRow && prefRow.notification_emails_enabled === false) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: "notification_opt_out",
+      notificationId: notification.id,
+    };
+  }
+
   const { email, displayName } = await getRecipientProfile(supabase, notification.user_id);
   const message = buildNotificationMessage(notification);
   const actionUrl = buildNotificationLink(notification, siteUrl);
+  const unsubscribeUrl = prefRow?.unsubscribe_token
+    ? `${siteUrl}/unsubscribe?token=${encodeURIComponent(prefRow.unsubscribe_token)}&type=notifications`
+    : `${siteUrl}/unsubscribe?type=notifications`;
   console.log(`E-posta linkleri siteUrl=${siteUrl}, actionUrl=${actionUrl}`);
 
   const html = buildEmailHtml({
@@ -406,6 +440,7 @@ async function processNotificationEmail(options: {
     message,
     actionUrl,
     siteUrl,
+    unsubscribeUrl,
   });
 
   await sendEmailViaResend({
