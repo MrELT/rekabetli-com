@@ -195,6 +195,98 @@
               </div>
             </div>
           </section>
+
+          <section class="activity-accordion-section" data-section="campaign-mails">
+            <button
+              type="button"
+              class="activity-accordion-trigger"
+              id="trigger-admin-campaign-mails"
+              aria-expanded="false"
+              aria-controls="panel-admin-campaign-mails"
+            >
+              <span class="activity-accordion-title">Fırsat Maili Gönderimi</span>
+              <span class="activity-accordion-meta">
+                <span id="admin-count-campaign-jobs" class="activity-accordion-count">0</span>
+                <span class="activity-accordion-chevron" aria-hidden="true"></span>
+              </span>
+            </button>
+            <div
+              id="panel-admin-campaign-mails"
+              class="activity-accordion-panel admin-accordion-panel"
+              role="region"
+              aria-labelledby="trigger-admin-campaign-mails"
+            >
+              <form id="admin-campaign-mail-form" class="modal-form">
+                <label for="campaign-subject">Mail Başlığı</label>
+                <input
+                  id="campaign-subject"
+                  name="subject"
+                  type="text"
+                  maxlength="120"
+                  placeholder="Örn: 5 Kişilik Gizli Topluluklara İlk Mentör Görüşmesi Hediye"
+                  required
+                />
+
+                <label for="campaign-preview">Kısa Özet</label>
+                <textarea
+                  id="campaign-preview"
+                  name="preview"
+                  rows="3"
+                  maxlength="240"
+                  placeholder="Mail başında görünecek kısa açıklama..."
+                  required
+                ></textarea>
+
+                <label for="campaign-button-label">Buton Metni</label>
+                <input
+                  id="campaign-button-label"
+                  name="buttonLabel"
+                  type="text"
+                  maxlength="40"
+                  value="Detayları Gör"
+                  required
+                />
+
+                <label for="campaign-button-url">Buton Linki</label>
+                <input
+                  id="campaign-button-url"
+                  name="buttonUrl"
+                  type="text"
+                  maxlength="500"
+                  value="https://rekabetli.com/firsatlar"
+                  required
+                />
+
+                <label for="campaign-plain-message">Mesaj İçeriği</label>
+                <textarea
+                  id="campaign-plain-message"
+                  name="plainMessage"
+                  rows="6"
+                  maxlength="1200"
+                  placeholder="Kampanya detay metni..."
+                  required
+                ></textarea>
+
+                <p id="admin-campaign-mail-message" class="form-message" role="status" hidden></p>
+                <button id="admin-campaign-mail-submit" type="submit">Toplu Maili Gönder</button>
+              </form>
+
+              <div class="admin-table-wrap" style="margin-top: 1rem;">
+                <table class="admin-table" id="admin-campaign-jobs-table">
+                  <thead>
+                    <tr>
+                      <th>Tarih</th>
+                      <th>Başlık</th>
+                      <th>Durum</th>
+                      <th>Başarılı</th>
+                      <th>Hata</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-campaign-jobs-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
         </div>
       </section>
     </main>

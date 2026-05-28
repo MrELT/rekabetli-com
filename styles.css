@@ -2404,6 +2404,18 @@ body.question-modal-open {
   color: #ff9f9f;
 }
 
+.profile-delete-btn {
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.14);
+  color: #fecaca;
+}
+
+.profile-delete-btn:hover {
+  background: rgba(248, 113, 113, 0.25);
+  border-color: rgba(248, 113, 113, 0.72);
+  color: #fff1f2;
+}
+
 .admin-panel {
   max-width: 1200px;
 }

@@ -15,7 +15,12 @@
   const countRequests = document.getElementById("admin-count-requests");
   const countUsers = document.getElementById("admin-count-users");
   const countCommunities = document.getElementById("admin-count-communities");
+  const countCampaignJobs = document.getElementById("admin-count-campaign-jobs");
   const accordionSections = document.querySelectorAll(".activity-accordion-section");
+  const campaignMailForm = document.getElementById("admin-campaign-mail-form");
+  const campaignMailSubmitBtn = document.getElementById("admin-campaign-mail-submit");
+  const campaignMailMessage = document.getElementById("admin-campaign-mail-message");
+  const campaignJobsBody = document.getElementById("admin-campaign-jobs-body");
 
   const mentorAssignModal = document.getElementById("admin-mentor-assign-modal");
   const mentorAssignForm = document.getElementById("admin-mentor-assign-form");
@@ -46,6 +51,19 @@
     const td = document.createElement("td");
     td.textContent = text;
     return td;
+  }
+
+  function setCampaignMailMessage(text, isError = false) {
+    if (!campaignMailMessage) return;
+    if (!text) {
+      campaignMailMessage.hidden = true;
+      campaignMailMessage.textContent = "";
+      campaignMailMessage.classList.remove("is-error");
+      return;
+    }
+    campaignMailMessage.hidden = false;
+    campaignMailMessage.textContent = text;
+    campaignMailMessage.classList.toggle("is-error", Boolean(isError));
   }
 
   function setMentorAssignMessage(text, isError = false) {
@@ -364,13 +382,73 @@
     });
   }
 
+  async function loadCampaignJobs() {
+    const { data, error } = await supabase
+      .from("campaign_mail_jobs")
+      .select("id, subject, status, sent_count, failed_count, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+    const rows = data ?? [];
+    if (countCampaignJobs) countCampaignJobs.textContent = String(rows.length);
+
+    campaignJobsBody?.replaceChildren();
+    if (!campaignJobsBody || !rows.length) {
+      if (campaignJobsBody) clearTable(campaignJobsBody, "Henüz kampanya gönderimi yok.", 5);
+      return;
+    }
+
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      tr.appendChild(createCell(formatDate(row.created_at)));
+      tr.appendChild(createCell(row.subject || "-"));
+      tr.appendChild(createCell(row.status || "-"));
+      tr.appendChild(createCell(String(row.sent_count ?? 0)));
+      tr.appendChild(createCell(String(row.failed_count ?? 0)));
+      campaignJobsBody.appendChild(tr);
+    });
+  }
+
+  async function sendCampaignMailFromPanel(payload) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+    }
+
+    const functionUrl = `${window.__ENV__?.SUPABASE_URL}/functions/v1/send-campaign-email`;
+    const response = await fetch(functionUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result?.ok === false) {
+      throw new Error(result?.error || "Kampanya gönderimi başarısız oldu.");
+    }
+    return result;
+  }
+
   async function bootstrapAdminPanel() {
     try {
       const adminUser = await ensureAdminAccess();
       if (!adminUser) return;
 
       setMessage("Yükleniyor...");
-      await Promise.all([loadMentorApplications(), loadMentorshipRequests(), loadUsers(), loadCommunities()]);
+      await Promise.all([
+        loadMentorApplications(),
+        loadMentorshipRequests(),
+        loadUsers(),
+        loadCommunities(),
+        loadCampaignJobs(),
+      ]);
       setMessage("");
     } catch (error) {
       console.error("Admin panel load error:", error);
@@ -410,6 +488,44 @@
       setMentorAssignMessage("Mentör topluluğa eklenemedi.", true);
     } finally {
       if (mentorAssignSubmitBtn) mentorAssignSubmitBtn.disabled = false;
+    }
+  });
+
+  campaignMailForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!campaignMailForm) return;
+    setCampaignMailMessage("");
+
+    const formData = new FormData(campaignMailForm);
+    const subject = String(formData.get("subject") || "").trim();
+    const preview = String(formData.get("preview") || "").trim();
+    const buttonLabel = String(formData.get("buttonLabel") || "").trim();
+    const buttonUrl = String(formData.get("buttonUrl") || "").trim();
+    const plainMessage = String(formData.get("plainMessage") || "").trim();
+
+    if (!subject || !preview || !buttonLabel || !buttonUrl || !plainMessage) {
+      setCampaignMailMessage("Lütfen tüm alanları doldurun.", true);
+      return;
+    }
+
+    if (campaignMailSubmitBtn) campaignMailSubmitBtn.disabled = true;
+    try {
+      const result = await sendCampaignMailFromPanel({
+        subject,
+        preview,
+        buttonLabel,
+        buttonUrl,
+        plainMessage,
+      });
+      setCampaignMailMessage(
+        `Gönderim tamamlandı. Başarılı: ${result.sentCount ?? 0}, Hata: ${result.failedCount ?? 0}`
+      );
+      await loadCampaignJobs();
+    } catch (error) {
+      console.error("Campaign send error:", error);
+      setCampaignMailMessage(error?.message || "Kampanya gönderimi başarısız.", true);
+    } finally {
+      if (campaignMailSubmitBtn) campaignMailSubmitBtn.disabled = false;
     }
   });
 

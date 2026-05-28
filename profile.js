@@ -20,6 +20,7 @@
   const phoneInput = document.getElementById("phone");
   const profileMessage = document.getElementById("profile-message");
   const logoutBtn = document.getElementById("logout-btn");
+  const deleteProfileBtn = document.getElementById("profile-delete-btn");
   const avatarInput = document.getElementById("avatar-input");
   const avatarPreview = document.getElementById("avatar-preview");
   const avatarFallback = document.getElementById("avatar-fallback");
@@ -801,6 +802,40 @@
     } catch (error) {
       console.error("Çıkış hatası:", error.message);
       setMessage("Çıkış yapılamadı.", true);
+    }
+  });
+
+  deleteProfileBtn?.addEventListener("click", async () => {
+    if (!currentUser) return;
+
+    const confirmed = await rekabetliConfirm({
+      title: "Profili sil",
+      message:
+        "Bu islem geri alinamaz. Profilin, paylasimlarin ve hesabina bagli tum veriler kalici olarak silinecek. Devam etmek istiyor musun?",
+      confirmLabel: "Evet, sil",
+      cancelLabel: "Vazgec",
+      danger: true,
+    });
+
+    if (!confirmed) return;
+
+    deleteProfileBtn.disabled = true;
+    try {
+      const { data, error } = await supabase.rpc("delete_my_account");
+      if (error) throw error;
+      if (!data) throw new Error("Hesap silme islemi tamamlanamadi.");
+
+      await supabase.auth.signOut();
+      window.location.href = "/?accountDeleted=1";
+    } catch (error) {
+      console.error("Account delete error:", error.message || error);
+      await rekabetliAlert({
+        title: "Silme basarisiz",
+        message:
+          "Hesap silinemedi. SQL fonksiyonunu calistirdigindan emin ol ve tekrar dene.",
+      });
+    } finally {
+      deleteProfileBtn.disabled = false;
     }
   });
 
