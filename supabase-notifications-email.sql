@@ -1,5 +1,6 @@
 -- E-posta bildirimleri (Edge Function: send-notification-email)
 -- Supabase SQL Editor'da çalıştırın.
+-- Kuyruk sistemi için ardından: supabase-notification-email-queue.sql
 
 ALTER TABLE public.notifications
 ADD COLUMN IF NOT EXISTS email_sent boolean NOT NULL DEFAULT false;
