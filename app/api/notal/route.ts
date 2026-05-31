@@ -17,11 +17,17 @@ import {
   resolveAuthenticatedIdentity,
 } from "@/lib/notal-request-identity";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import {
+  NOTAL_MAX_TOPIC_CHARS,
+  NOTAL_MAX_TOPIC_WORDS,
+  countNotalTopicWords,
+  notalTopicWordLimitError,
+} from "@/lib/notal-topic-limits";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const MAX_TOPIC_LENGTH = 200;
+const MAX_TOPIC_LENGTH = NOTAL_MAX_TOPIC_CHARS;
 const CHAT_MODEL = "gpt-5.4-mini";
 const CHAT_TEMPERATURE = 0.4;
 const CHAT_MAX_OUTPUT = 8192;
@@ -238,6 +244,13 @@ export async function POST(request: NextRequest) {
   if (topic.length > MAX_TOPIC_LENGTH) {
     return NextResponse.json(
       { error: `Konu en fazla ${MAX_TOPIC_LENGTH} karakter olabilir.` },
+      { status: 400 },
+    );
+  }
+
+  if (countNotalTopicWords(topic) > NOTAL_MAX_TOPIC_WORDS) {
+    return NextResponse.json(
+      { error: notalTopicWordLimitError() },
       { status: 400 },
     );
   }

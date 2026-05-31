@@ -12,6 +12,13 @@ import {
   type NotalDifficulty,
 } from "@/lib/notal-difficulty";
 import { ensureNotalVisitorCookie, notalFetch } from "@/lib/notal-visitor-id";
+import {
+  NOTAL_MAX_TOPIC_CHARS,
+  NOTAL_MAX_TOPIC_WORDS,
+  clampNotalTopicInput,
+  countNotalTopicWords,
+  notalTopicWordLimitError,
+} from "@/lib/notal-topic-limits";
 
 export default function NotAlGenerator() {
   const router = useRouter();
@@ -46,7 +53,13 @@ export default function NotAlGenerator() {
   }
 
   async function handleGenerate() {
-    if (!topic.trim() || isLoading) return;
+    const trimmed = topic.trim();
+    if (!trimmed || isLoading) return;
+
+    if (countNotalTopicWords(trimmed) > NOTAL_MAX_TOPIC_WORDS) {
+      setError(notalTopicWordLimitError());
+      return;
+    }
 
     if (credits && !credits.canGenerate) {
       goToDonation();
@@ -60,7 +73,7 @@ export default function NotAlGenerator() {
       const response = await notalFetch("/api/notal", {
         method: "POST",
         body: JSON.stringify({
-          topic: topic.trim(),
+          topic: trimmed,
           difficulty,
         }),
       });
@@ -111,6 +124,14 @@ export default function NotAlGenerator() {
 
   const noCredits =
     !creditsLoading && credits !== null && !credits.canGenerate;
+
+  const topicWordCount = countNotalTopicWords(topic);
+  const topicOverWordLimit = topicWordCount > NOTAL_MAX_TOPIC_WORDS;
+
+  function handleTopicChange(value: string) {
+    setTopic(clampNotalTopicInput(value));
+    if (error === notalTopicWordLimitError()) setError(null);
+  }
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col px-4 py-8 sm:px-6 sm:py-10">
@@ -198,7 +219,7 @@ export default function NotAlGenerator() {
             <input
               type="text"
               value={topic}
-              onChange={(e) => setTopic(e.target.value)}
+              onChange={(e) => handleTopicChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={
                 noCredits
@@ -206,15 +227,28 @@ export default function NotAlGenerator() {
                   : "Örn: Kepler Kanunları, Hücresel Solunum..."
               }
               disabled={isLoading || noCredits}
-              maxLength={200}
+              maxLength={NOTAL_MAX_TOPIC_CHARS}
+              aria-describedby="notal-topic-word-count"
               className="w-full rounded-xl border border-rekabetli-border bg-rekabetli-bg-soft px-4 py-3 text-sm text-rekabetli-text placeholder:text-rekabetli-muted/70 outline-none transition focus:border-rekabetli-primary/60 focus:ring-2 focus:ring-rekabetli-primary/20 disabled:opacity-60"
             />
+            <p
+              id="notal-topic-word-count"
+              className={`text-right text-xs tabular-nums ${
+                topicOverWordLimit
+                  ? "text-red-400"
+                  : "text-rekabetli-muted/80"
+              }`}
+            >
+              {topicWordCount}/{NOTAL_MAX_TOPIC_WORDS} kelime
+            </p>
           </div>
           <div className="flex flex-col items-stretch sm:items-center">
             <button
               type="button"
               onClick={noCredits ? goToDonation : handleGenerate}
-              disabled={isLoading || (!noCredits && !topic.trim())}
+              disabled={
+                isLoading || (!noCredits && (!topic.trim() || topicOverWordLimit))
+              }
               className="rounded-xl bg-rekabetli-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-rekabetli-primary/20 transition hover:bg-rekabetli-primary-strong disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[120px]"
             >
               {isLoading ? "..." : noCredits ? "PDF Bağışla" : "NotAl"}
