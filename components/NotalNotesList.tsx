@@ -9,7 +9,7 @@ import {
   type NotalDifficulty,
 } from "@/lib/notal-difficulty";
 import { NOTAL_SUBJECTS, type NotalNoteListItem } from "@/lib/notal-subjects";
-import { ensureNotalVisitorCookie, notalFetch } from "@/lib/notal-visitor-id";
+import { notalFetch } from "@/lib/notal-visitor-id";
 
 type SubjectFilter = "tumu" | (typeof NOTAL_SUBJECTS)[number];
 type DepthFilter = "tumu" | NotalDifficulty;
@@ -66,18 +66,28 @@ export default function NotalNotesList() {
   useEffect(() => {
     void (async () => {
       try {
-        await ensureNotalVisitorCookie();
         const res = await notalFetch("/api/notal/notes");
         const data = (await res.json()) as {
           notes?: NotalNoteListItem[];
           error?: string;
+          code?: string;
         };
         if (!res.ok) {
+          if (data.code === "auth_required") {
+            setError(
+              "Oturum doğrulanamadı. Sayfayı yenileyin veya çıkış yapıp tekrar giriş yapın.",
+            );
+            return;
+          }
           setError(data.error ?? "Notlar yüklenemedi.");
           return;
         }
         setNotes(data.notes ?? []);
-      } catch {
+      } catch (err) {
+        if (err instanceof Error && err.message === "AUTH_REQUIRED") {
+          setError("Oturum bulunamadı. Lütfen giriş yapın.");
+          return;
+        }
         setError("Bağlantı hatası.");
       } finally {
         setLoading(false);

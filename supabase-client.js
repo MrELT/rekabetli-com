@@ -76,7 +76,13 @@
   function createRealClient() {
     const env = getEnv();
     if (!window.supabase?.createClient) return null;
-    return window.supabase.createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
+    return window.supabase.createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
   }
 
   function createClientIfNeeded() {

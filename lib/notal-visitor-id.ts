@@ -1,4 +1,7 @@
-import { getNotalAuthSession } from "@/lib/supabase-auth-browser";
+import {
+  getNotalAuthSession,
+  refreshNotalAuthSession,
+} from "@/lib/supabase-auth-browser";
 
 const VISITOR_INIT_PATH = "/api/notal/visitor";
 
@@ -41,6 +44,7 @@ export function ensureNotalVisitorCookie(): Promise<void> {
 export async function notalFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
+  allowRetry = true,
 ): Promise<Response> {
   const session = await getNotalAuthSession();
   if (!session?.access_token) {
@@ -54,9 +58,18 @@ export async function notalFetch(
     ...(init?.headers as Record<string, string> | undefined),
   };
 
-  return fetch(input, {
+  const response = await fetch(input, {
     ...init,
     credentials: "include",
     headers,
   });
+
+  if (response.status === 401 && allowRetry) {
+    const refreshed = await refreshNotalAuthSession();
+    if (refreshed?.access_token) {
+      return notalFetch(input, init, false);
+    }
+  }
+
+  return response;
 }

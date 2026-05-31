@@ -33,6 +33,10 @@ function readEnvConfig(): { url: string; anonKey: string } {
   };
 }
 
+function isStubClient(client: SupabaseClient | null): boolean {
+  return Boolean((client as LegacySupabase | null)?._rekabetliStub);
+}
+
 function getLegacyClient(): SupabaseClient | null {
   if (typeof window === "undefined") return null;
   const legacy = window.getSupabase?.();
@@ -45,7 +49,10 @@ function getLegacyClient(): SupabaseClient | null {
 /** Statik site ile aynı oturumu kullan (localStorage / getSupabase) */
 export function createSupabaseAuthBrowserClient(): SupabaseClient | null {
   const legacy = getLegacyClient();
-  if (legacy) return legacy;
+  if (legacy) {
+    authClient = null;
+    return legacy;
+  }
 
   const { url, anonKey } = readEnvConfig();
   if (!url || !anonKey) return null;
@@ -65,41 +72,58 @@ export function createSupabaseAuthBrowserClient(): SupabaseClient | null {
   return authClient;
 }
 
-async function waitForSupabaseClient(maxMs = 4000): Promise<SupabaseClient | null> {
+async function waitForSupabaseClient(maxMs = 8000): Promise<SupabaseClient | null> {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
+    const { url, anonKey } = readEnvConfig();
     const client = createSupabaseAuthBrowserClient();
-    if (client) return client;
+    if (url && anonKey && client && !isStubClient(client)) {
+      return client;
+    }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  return createSupabaseAuthBrowserClient();
+
+  const client = createSupabaseAuthBrowserClient();
+  return client && !isStubClient(client) ? client : null;
 }
 
+async function readSessionFromClient(
+  supabase: SupabaseClient,
+): Promise<Session | null> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData.session;
+  return session?.access_token ? session : null;
+}
+
+/** Oturumu Auth sunucusunda doğrular; gerekirse yeniler (iOS stale session). */
 export async function getNotalAuthSession(): Promise<Session | null> {
   const supabase = await waitForSupabaseClient();
   if (!supabase) return null;
 
-  const { data, error } = await supabase.auth.getSession();
-  if (error) {
-    console.warn("notal auth session:", error.message);
-  }
-  if (data.session?.access_token) {
-    return data.session;
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userData.user) {
+    const session = await readSessionFromClient(supabase);
+    if (session) return session;
   }
 
-  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const { data: refreshData, error: refreshError } =
+    await supabase.auth.refreshSession();
+  if (refreshData.session?.access_token) {
+    return refreshData.session;
+  }
+
   if (userError) {
     console.warn("notal auth user:", userError.message);
-    return null;
   }
-  if (!userData.user) return null;
+  if (refreshError) {
+    console.warn("notal auth refresh:", refreshError.message);
+  }
 
-  const retry = await supabase.auth.getSession();
-  return retry.data.session ?? null;
+  return readSessionFromClient(supabase);
 }
 
 export async function waitForNotalAuthSession(
-  timeoutMs = 5000,
+  timeoutMs = 8000,
 ): Promise<Session | null> {
   const existing = await getNotalAuthSession();
   if (existing?.access_token) return existing;
@@ -125,8 +149,23 @@ export async function waitForNotalAuthSession(
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.access_token) {
-        finish(session);
+        void getNotalAuthSession().then(finish);
       }
     });
   });
+}
+
+export async function refreshNotalAuthSession(): Promise<Session | null> {
+  const supabase = await waitForSupabaseClient();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase.auth.refreshSession();
+  if (error) {
+    console.warn("notal auth manual refresh:", error.message);
+  }
+  if (data.session?.access_token) {
+    return data.session;
+  }
+
+  return getNotalAuthSession();
 }
