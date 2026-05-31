@@ -51,7 +51,7 @@ function getSafeRedirectAfterLogin() {
   return normalized;
 }
 
-// Eğer zaten giriş yapmış biriyse yönlendir (NotAl oturum döngüsünü önle)
+// Giriş yapmış kullanıcıyı hedef sayfaya yönlendir (NotAl oturum döngüsünü önle)
 async function ensureLoggedOutRedirect() {
   const { data } = await supabaseClient.auth.getSession();
   if (!data.session) return;
@@ -59,6 +59,16 @@ async function ensureLoggedOutRedirect() {
   const target = getSafeRedirectAfterLogin();
   const here = `${window.location.pathname}${window.location.search}`;
   if (target === here || target === window.location.pathname) return;
+
+  const pathOnly = target.split("?")[0].split("#")[0];
+  if (pathOnly.startsWith("/notal")) {
+    const bounceKey = "rekabetli_notal_auth_bounce";
+    const lastBounce = Number(sessionStorage.getItem(bounceKey) || "0");
+    if (Date.now() - lastBounce < 8000) {
+      return;
+    }
+    sessionStorage.setItem(bounceKey, String(Date.now()));
+  }
 
   window.location.replace(target);
 }

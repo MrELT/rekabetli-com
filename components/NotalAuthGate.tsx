@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { buildLoginRedirectUrl } from "@/lib/notal-auth-client";
 import {
   createSupabaseAuthBrowserClient,
-  getNotalAuthSession,
+  waitForNotalAuthSession,
 } from "@/lib/supabase-auth-browser";
 
 interface NotalAuthGateProps {
@@ -17,7 +17,6 @@ export default function NotalAuthGate({ children }: NotalAuthGateProps) {
 
   useEffect(() => {
     let cancelled = false;
-    let unsubscribe: (() => void) | undefined;
 
     void (async () => {
       const supabase = createSupabaseAuthBrowserClient();
@@ -30,33 +29,22 @@ export default function NotalAuthGate({ children }: NotalAuthGateProps) {
         return;
       }
 
-      const session = await getNotalAuthSession();
+      const session = await waitForNotalAuthSession();
       if (cancelled) return;
 
       if (session?.access_token) {
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("rekabetli_notal_auth_bounce");
+        }
         setReady(true);
         return;
       }
 
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange((event, nextSession) => {
-        if (cancelled) return;
-        if (nextSession?.access_token) {
-          setReady(true);
-          return;
-        }
-        if (event === "INITIAL_SESSION" && !nextSession) {
-          window.location.replace(buildLoginRedirectUrl());
-        }
-      });
-
-      unsubscribe = () => subscription.unsubscribe();
+      window.location.replace(buildLoginRedirectUrl());
     })();
 
     return () => {
       cancelled = true;
-      unsubscribe?.();
     };
   }, []);
 
