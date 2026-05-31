@@ -5,6 +5,7 @@ import {
 } from "@supabase/supabase-js";
 
 let authClient: SupabaseClient | null = null;
+let authClientKey = "";
 
 type LegacySupabase = SupabaseClient & { _rekabetliStub?: boolean };
 
@@ -32,19 +33,26 @@ function readEnvConfig(): { url: string; anonKey: string } {
   };
 }
 
+function getLegacyClient(): SupabaseClient | null {
+  if (typeof window === "undefined") return null;
+  const legacy = window.getSupabase?.();
+  if (legacy && !legacy._rekabetliStub) {
+    return legacy;
+  }
+  return null;
+}
+
 /** Statik site ile aynı oturumu kullan (localStorage / getSupabase) */
 export function createSupabaseAuthBrowserClient(): SupabaseClient | null {
-  if (typeof window !== "undefined") {
-    const legacy = window.getSupabase?.();
-    if (legacy && !legacy._rekabetliStub) {
-      return legacy;
-    }
-  }
+  const legacy = getLegacyClient();
+  if (legacy) return legacy;
 
   const { url, anonKey } = readEnvConfig();
   if (!url || !anonKey) return null;
 
-  if (!authClient) {
+  const cacheKey = `${url}|${anonKey.slice(0, 12)}`;
+  if (!authClient || authClientKey !== cacheKey) {
+    authClientKey = cacheKey;
     authClient = createClient(url, anonKey, {
       auth: {
         persistSession: true,
@@ -57,8 +65,18 @@ export function createSupabaseAuthBrowserClient(): SupabaseClient | null {
   return authClient;
 }
 
+async function waitForSupabaseClient(maxMs = 4000): Promise<SupabaseClient | null> {
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    const client = createSupabaseAuthBrowserClient();
+    if (client) return client;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return createSupabaseAuthBrowserClient();
+}
+
 export async function getNotalAuthSession(): Promise<Session | null> {
-  const supabase = createSupabaseAuthBrowserClient();
+  const supabase = await waitForSupabaseClient();
   if (!supabase) return null;
 
   const { data, error } = await supabase.auth.getSession();
@@ -81,13 +99,13 @@ export async function getNotalAuthSession(): Promise<Session | null> {
 }
 
 export async function waitForNotalAuthSession(
-  timeoutMs = 2500,
+  timeoutMs = 5000,
 ): Promise<Session | null> {
-  const supabase = createSupabaseAuthBrowserClient();
-  if (!supabase) return null;
-
   const existing = await getNotalAuthSession();
   if (existing?.access_token) return existing;
+
+  const supabase = await waitForSupabaseClient();
+  if (!supabase) return null;
 
   return new Promise((resolve) => {
     let settled = false;

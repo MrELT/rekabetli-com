@@ -1,4 +1,3 @@
-import { buildLoginRedirectUrl } from "@/lib/notal-auth-client";
 import { getNotalAuthSession } from "@/lib/supabase-auth-browser";
 
 const VISITOR_INIT_PATH = "/api/notal/visitor";
@@ -38,15 +37,13 @@ export function ensureNotalVisitorCookie(): Promise<void> {
   return visitorInitPromise;
 }
 
+/** API çağrısı — login'e yönlendirmez (döngüyü önler; AuthGate korur) */
 export async function notalFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
   const session = await getNotalAuthSession();
   if (!session?.access_token) {
-    if (typeof window !== "undefined") {
-      window.location.href = buildLoginRedirectUrl();
-    }
     throw new Error("AUTH_REQUIRED");
   }
 
@@ -57,21 +54,9 @@ export async function notalFetch(
     ...(init?.headers as Record<string, string> | undefined),
   };
 
-  const response = await fetch(input, {
+  return fetch(input, {
     ...init,
     credentials: "include",
     headers,
   });
-
-  if (response.status === 401) {
-    const data = (await response.json().catch(() => ({}))) as {
-      code?: string;
-    };
-    if (data.code === "auth_required" && typeof window !== "undefined") {
-      window.location.href = buildLoginRedirectUrl();
-    }
-    throw new Error("AUTH_REQUIRED");
-  }
-
-  return response;
 }
