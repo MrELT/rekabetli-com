@@ -16,6 +16,8 @@
   const countUsers = document.getElementById("admin-count-users");
   const countCommunities = document.getElementById("admin-count-communities");
   const countCampaignJobs = document.getElementById("admin-count-campaign-jobs");
+  const countNotalNotes = document.getElementById("admin-count-notal-notes");
+  const notalNotesList = document.getElementById("admin-notal-notes-list");
   const accordionSections = document.querySelectorAll(".activity-accordion-section");
   const campaignMailForm = document.getElementById("admin-campaign-mail-form");
   const campaignMailSubmitBtn = document.getElementById("admin-campaign-mail-submit");
@@ -484,6 +486,141 @@
     return result;
   }
 
+  function formatRatingAvg(avg) {
+    if (avg == null || Number.isNaN(avg)) return "—";
+    return (Math.round(avg * 10) / 10).toLocaleString("tr-TR", {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+  }
+
+  const NOTAL_DEPTH_LABELS = {
+    kolay: "Yüzeysel",
+    orta: "Orta",
+    zor: "Derin",
+  };
+
+  function notalDepthLabel(depth) {
+    return NOTAL_DEPTH_LABELS[depth] || depth || "-";
+  }
+
+  async function loadNotalNotes() {
+    const { data, error } = await supabase
+      .from("notal_saved_notes")
+      .select(
+        "id, title, subject, depth, created_at, notal_note_feedback(id, score, comment, created_at, user_id, visitor_id)"
+      )
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    const rows = data ?? [];
+    if (countNotalNotes) countNotalNotes.textContent = String(rows.length);
+    notalNotesList?.replaceChildren();
+
+    if (!notalNotesList || !rows.length) {
+      if (notalNotesList) {
+        const empty = document.createElement("p");
+        empty.className = "empty admin-notal-feedback-empty";
+        empty.textContent = "Henüz NotAl notu yok.";
+        notalNotesList.appendChild(empty);
+      }
+      return;
+    }
+
+    rows.forEach((note) => {
+      const feedbackRows = Array.isArray(note.notal_note_feedback)
+        ? note.notal_note_feedback
+        : [];
+      const scored = feedbackRows.filter((row) => typeof row.score === "number");
+      const ratingCount = scored.length;
+      const ratingAvg =
+        ratingCount > 0
+          ? scored.reduce((sum, row) => sum + Number(row.score || 0), 0) / ratingCount
+          : null;
+
+      const card = document.createElement("article");
+      card.className = "admin-notal-note-card";
+
+      const head = document.createElement("div");
+      head.className = "admin-notal-note-head";
+
+      const titleWrap = document.createElement("div");
+      const title = document.createElement("h3");
+      title.className = "admin-notal-note-title";
+      title.textContent = note.title || "Başlıksız not";
+      const meta = document.createElement("p");
+      meta.className = "admin-notal-note-meta";
+      meta.textContent = `${note.subject || "-"} · ${notalDepthLabel(note.depth)} · ${formatDate(note.created_at)}`;
+      titleWrap.append(title, meta);
+
+      const stats = document.createElement("p");
+      stats.className = "admin-notal-note-stats";
+      if (ratingCount === 0) {
+        stats.textContent = "Henüz puan yok";
+      } else {
+        const strong = document.createElement("strong");
+        strong.textContent = formatRatingAvg(ratingAvg);
+        stats.append("Ortalama ", strong, ` / 5 · ${ratingCount} puan · ${feedbackRows.length} geri bildirim`);
+      }
+
+      head.append(titleWrap, stats);
+      card.appendChild(head);
+
+      if (!feedbackRows.length) {
+        const emptyFb = document.createElement("p");
+        emptyFb.className = "admin-notal-feedback-empty";
+        emptyFb.textContent = "Bu not için henüz geri bildirim yok.";
+        card.appendChild(emptyFb);
+      } else {
+        const list = document.createElement("ul");
+        list.className = "admin-notal-feedback-list";
+
+        feedbackRows
+          .slice()
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .forEach((fb) => {
+            const li = document.createElement("li");
+            li.className = "admin-notal-feedback-item";
+
+            const parts = [];
+            if (typeof fb.score === "number") {
+              const score = document.createElement("span");
+              score.className = "admin-notal-feedback-score";
+              score.textContent = `${fb.score}/5`;
+              parts.push(score);
+            }
+
+            const who = fb.user_id
+              ? "Kayıtlı kullanıcı"
+              : fb.visitor_id
+                ? `Ziyaretçi ${String(fb.visitor_id).slice(0, 8)}…`
+                : "Anonim";
+            parts.push(document.createTextNode(` · ${who} · ${formatDate(fb.created_at)}`));
+
+            const line = document.createElement("div");
+            parts.forEach((part) => line.appendChild(part));
+            li.appendChild(line);
+
+            if (fb.comment?.trim()) {
+              const comment = document.createElement("p");
+              comment.style.margin = "0.35rem 0 0";
+              comment.style.color = "#94a3b8";
+              comment.textContent = fb.comment.trim();
+              li.appendChild(comment);
+            }
+
+            list.appendChild(li);
+          });
+
+        card.appendChild(list);
+      }
+
+      notalNotesList.appendChild(card);
+    });
+  }
+
   async function bootstrapAdminPanel() {
     try {
       const adminUser = await ensureAdminAccess();
@@ -496,6 +633,7 @@
         loadUsers(),
         loadCommunities(),
         loadCampaignJobs(),
+        loadNotalNotes(),
       ]);
       setMessage("");
     } catch (error) {

@@ -24,6 +24,7 @@ const ALLOWED_REDIRECT_PATHS = [
   "/login",
   "/sinav-bilgileri",
   "/yarisma-bilgileri",
+  "/notal",
 ];
 
 function normalizeRedirectPath(redirect) {

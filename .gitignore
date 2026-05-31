@@ -1,13 +1,15 @@
 # Ortam değişkenleri (gizli anahtarlar)
 .env
+.env.local
+.env.*.local
 env-config.local.js
 
 # Bağımlılıklar
 node_modules/
+.next/
 
 # OS / editör
 .DS_Store
 Thumbs.db
 *.log
 .vercel
-.env*
