@@ -3,7 +3,7 @@ import NotalAuthGate from "@/components/NotalAuthGate";
 
 export const metadata = {
   title: "Notlarım — Rekabetli NotAl",
-  description: "Oluşturduğunuz NotAl notları.",
+  description: "Topluluk tarafından oluşturulan NotAl notları.",
 };
 
 export default function NotalNotlarPage() {

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return notalAuthRequiredResponse();
   }
 
-  const note = await getNotalNoteById(supabase, identity, id);
+  const note = await getNotalNoteById(supabase, id);
   if (!note) {
     return NextResponse.json({ error: "Not bulunamadı." }, { status: 404 });
   }
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return notalAuthRequiredResponse();
   }
 
-  const note = await getNotalNoteById(supabase, identity, id);
+  const note = await getNotalNoteById(supabase, id);
   if (!note) {
     return NextResponse.json({ error: "Not bulunamadı." }, { status: 404 });
   }

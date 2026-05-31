@@ -107,7 +107,8 @@ export default function NotalNotesList() {
           Notlarım
         </h1>
         <p className="mt-3 text-sm text-rekabetli-muted sm:text-base">
-          Oluşturduğunuz notlar alan ve derinliğe göre listelenir.
+          Topluluk tarafından oluşturulan tüm notlar alan ve derinliğe göre
+          listelenir.
         </p>
       </header>
 

@@ -70,17 +70,9 @@ export async function saveNotalNote(
 
 export async function listNotalNotes(
   supabase: SupabaseClient,
-  identity: CreditIdentity,
 ): Promise<NotalNoteListItem[]> {
-  let query = notesTable(supabase).select("*");
-
-  if (identity.userId) {
-    query = query.eq("user_id", identity.userId);
-  } else {
-    query = query.eq("visitor_id", identity.visitorId!);
-  }
-
-  const { data, error } = await query
+  const { data, error } = await notesTable(supabase)
+    .select("*")
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -90,18 +82,12 @@ export async function listNotalNotes(
 
 export async function getNotalNoteById(
   supabase: SupabaseClient,
-  identity: CreditIdentity,
   noteId: string,
 ): Promise<SavedNotalNote | null> {
-  let query = notesTable(supabase).select("*").eq("id", noteId);
-
-  if (identity.userId) {
-    query = query.eq("user_id", identity.userId);
-  } else {
-    query = query.eq("visitor_id", identity.visitorId!);
-  }
-
-  const { data, error } = await query.maybeSingle();
+  const { data, error } = await notesTable(supabase)
+    .select("*")
+    .eq("id", noteId)
+    .maybeSingle();
 
   if (error) throw error;
   if (!data) return null;
