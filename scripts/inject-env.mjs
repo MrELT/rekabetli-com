@@ -76,15 +76,27 @@ const publicDir = path.join(root, "public");
 fs.mkdirSync(publicDir, { recursive: true });
 fs.writeFileSync(path.join(publicDir, "env-config.local.js"), output, "utf8");
 
-/** Next.js istemci bundle — statik site ile aynı Supabase oturumunu paylaşır */
-function upsertEnvLocal(supabaseUrl, anonKey) {
+/** Next.js — istemci + sunucu ortam değişkenleri (.env.local) */
+function upsertEnvLocal(supabaseUrl, anonKey, fileVars) {
   const envLocalPath = path.join(root, ".env.local");
+
+  const pick = (name) =>
+    process.env[name]?.trim() || fileVars[name]?.trim() || "";
+
   const inject = {
     NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: anonKey,
     SUPABASE_URL: supabaseUrl,
     SUPABASE_ANON_KEY: anonKey,
   };
+
+  const serviceRole = pick("SUPABASE_SERVICE_ROLE_KEY");
+  const openaiKey = pick("OPENAI_API_KEY");
+  const openaiModel = pick("OPENAI_MODEL");
+
+  if (serviceRole) inject.SUPABASE_SERVICE_ROLE_KEY = serviceRole;
+  if (openaiKey) inject.OPENAI_API_KEY = openaiKey;
+  if (openaiModel) inject.OPENAI_MODEL = openaiModel;
 
   const lines = fs.existsSync(envLocalPath)
     ? fs.readFileSync(envLocalPath, "utf8").split(/\r?\n/)
@@ -107,8 +119,16 @@ function upsertEnvLocal(supabaseUrl, anonKey) {
     `${kept.filter((line) => line !== "").join("\n")}\n`,
     "utf8",
   );
+
+  if (!openaiKey) {
+    console.warn(
+      "[rekabetli] OPENAI_API_KEY tanımlı değil — NotAl ve PDF işlemleri çalışmaz.\n" +
+        "  Yerel: .env dosyasına ekleyin\n" +
+        "  Vercel: Project Settings → Environment Variables",
+    );
+  }
 }
 
-upsertEnvLocal(url, key);
+upsertEnvLocal(url, key, fileVars);
 
 console.log("env-config.local.js oluşturuldu.");

@@ -1,13 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { buildLoginRedirectUrl } from "@/lib/notal-auth-client";
+import { createSupabaseAuthBrowserClient } from "@/lib/supabase-auth-browser";
 
 function go(href: string) {
   window.location.href = href;
 }
 
+type ProfileNav = {
+  label: string;
+  href: string;
+};
+
 export default function NotalNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileNav, setProfileNav] = useState<ProfileNav>({
+    label: "Giriş Yap",
+    href: "/login",
+  });
 
   const closeMobile = useCallback(() => setMobileOpen(false), []);
   const openMobile = useCallback(() => setMobileOpen(true), []);
@@ -20,6 +31,31 @@ export default function NotalNav() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [mobileOpen, closeMobile]);
+
+  useEffect(() => {
+    const supabase = createSupabaseAuthBrowserClient();
+    if (!supabase) return;
+
+    const syncProfileNav = (userId: string | undefined) => {
+      const loggedIn = Boolean(userId);
+      setProfileNav({
+        label: loggedIn ? "Profil" : "Giriş Yap",
+        href: loggedIn ? "/profile" : buildLoginRedirectUrl(),
+      });
+    };
+
+    void supabase.auth.getSession().then(({ data }) => {
+      syncProfileNav(data.session?.user?.id);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      syncProfileNav(session?.user?.id);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <>
@@ -132,9 +168,9 @@ export default function NotalNav() {
           <a
             id="desktop-profile-btn"
             className="nav-btn profile-link"
-            href="/login"
+            href={profileNav.href}
           >
-            Giriş Yap
+            {profileNav.label}
           </a>
         </div>
       </nav>
@@ -221,9 +257,9 @@ export default function NotalNav() {
             <a
               id="mobile-profile-btn"
               className="nav-btn profile-link"
-              href="/login"
+              href={profileNav.href}
             >
-              Giriş Yap
+              {profileNav.label}
             </a>
           </div>
         </section>
