@@ -153,6 +153,17 @@ function verifyServiceRole(req: Request): boolean {
   return auth === `Bearer ${serviceRoleKey}`;
 }
 
+function verifySupabaseAnonKey(req: Request): boolean {
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")?.trim();
+  if (!anonKey) return false;
+
+  const apikey = req.headers.get("apikey")?.trim();
+  if (apikey === anonKey) return true;
+
+  const auth = req.headers.get("Authorization")?.trim();
+  return auth === `Bearer ${anonKey}`;
+}
+
 /** Dashboard Cron / pg_cron — service role yerine CRON_SECRET secret kullanın */
 function verifyCronSecret(req: Request, body: unknown): boolean {
   const expected = Deno.env.get("CRON_SECRET")?.trim();
@@ -170,7 +181,11 @@ function verifyCronSecret(req: Request, body: unknown): boolean {
 }
 
 function canProcessQueue(req: Request, body: unknown): boolean {
-  return verifyServiceRole(req) || verifyCronSecret(req, body);
+  return (
+    verifyServiceRole(req) ||
+    verifySupabaseAnonKey(req) ||
+    verifyCronSecret(req, body)
+  );
 }
 
 function parseNotificationFromRequest(body: unknown): NotificationRecord | null {
@@ -638,118 +653,158 @@ async function processEmailQueue(options: {
   resendApiKey: string;
   siteUrl: string;
   batchSize?: number;
+  /** Webhook'tan çağrıldığında kilit meşgulse atla (cron devralır) */
+  skipIfLocked?: boolean;
 }): Promise<Record<string, unknown>> {
   const sendDelayMs = getSendDelayMs();
   const batchSize = options.batchSize ?? getQueueBatchSize();
-  const { supabase, resendApiKey, siteUrl } = options;
+  const { supabase, resendApiKey, siteUrl, skipIfLocked = false } = options;
 
-  const { data: claimed, error: claimError } = await supabase.rpc(
-    "claim_notification_email_queue",
-    { p_limit: batchSize },
+  await supabase.rpc("reset_stale_notification_email_queue").then(({ error }) => {
+    if (error) {
+      console.warn("reset_stale_notification_email_queue:", error.message);
+    }
+  });
+
+  const { data: gotLock, error: lockError } = await supabase.rpc(
+    "try_notification_email_worker_lock",
   );
-
-  if (claimError) {
-    throw new Error(`Kuyruk alınamadı: ${claimError.message}`);
-  }
-
-  const queueItems = (claimed ?? []) as QueueRow[];
-  if (!queueItems.length) {
+  if (lockError) {
+    console.warn("Worker lock RPC yok veya hata (fix SQL çalıştırın):", lockError.message);
+  } else if (gotLock !== true) {
+    if (skipIfLocked) {
+      return {
+        ok: true,
+        mode: "process_queue",
+        skipped: true,
+        reason: "worker_busy",
+      };
+    }
+    console.log("Başka bir worker kuyruğu işliyor, atlanıyor.");
     return {
       ok: true,
       mode: "process_queue",
-      claimed: 0,
-      sentCount: 0,
-      sendDelayMs,
-      batchSize,
-      resendMaxPerSecond: getResendMaxPerSecond(),
-      results: [],
+      skipped: true,
+      reason: "worker_busy",
     };
   }
 
-  const results: Record<string, unknown>[] = [];
+  try {
+    const { data: claimed, error: claimError } = await supabase.rpc(
+      "claim_notification_email_queue",
+      { p_limit: batchSize },
+    );
 
-  for (const item of queueItems) {
-    try {
-      const notification = await fetchNotificationById(supabase, item.notification_id);
-      if (!notification) {
-        await finalizeQueueItem(supabase, item.id, "failed", {
-          lastError: "Bildirim kaydı bulunamadı.",
+    if (claimError) {
+      throw new Error(`Kuyruk alınamadı: ${claimError.message}`);
+    }
+
+    const queueItems = (claimed ?? []) as QueueRow[];
+    if (!queueItems.length) {
+      return {
+        ok: true,
+        mode: "process_queue",
+        claimed: 0,
+        sentCount: 0,
+        sendDelayMs,
+        batchSize,
+        resendMaxPerSecond: getResendMaxPerSecond(),
+        results: [],
+      };
+    }
+
+    const results: Record<string, unknown>[] = [];
+
+    for (const item of queueItems) {
+      try {
+        const notification = await fetchNotificationById(supabase, item.notification_id);
+        if (!notification) {
+          await finalizeQueueItem(supabase, item.id, "failed", {
+            lastError: "Bildirim kaydı bulunamadı.",
+          });
+          results.push({
+            ok: false,
+            queueId: item.id,
+            notificationId: item.notification_id,
+            error: "Bildirim kaydı bulunamadı.",
+          });
+          continue;
+        }
+
+        const result = await processNotificationEmail({
+          notification,
+          resendApiKey,
+          supabase,
+          siteUrl,
         });
+
+        if ("sent" in result && result.sent) {
+          await finalizeQueueItem(supabase, item.id, "sent");
+          results.push({ ...result, queueId: item.id });
+        } else if ("skipped" in result && result.skipped) {
+          if (result.reason === "rate_limit") {
+            const retryAt = new Date(Date.now() + RATE_LIMIT_RETRY_MS).toISOString();
+            await finalizeQueueItem(supabase, item.id, "pending", { retryAt });
+            results.push({ ...result, queueId: item.id, retryAt });
+          } else {
+            await finalizeQueueItem(supabase, item.id, "skipped");
+            results.push({ ...result, queueId: item.id });
+          }
+        }
+      } catch (error) {
+        if (error instanceof ResendRateLimitError) {
+          const retryAt = new Date(
+            Date.now() + error.retryAfterSec * 1000,
+          ).toISOString();
+          await finalizeQueueItem(supabase, item.id, "pending", { retryAt });
+          results.push({
+            ok: true,
+            rateLimited: true,
+            queueId: item.id,
+            retryAfterSec: error.retryAfterSec,
+          });
+          await delay(error.retryAfterSec * 1000);
+          break;
+        }
+
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(
+          `Kuyruk öğesi işlenemedi: queue_id=${item.id}, notification_id=${item.notification_id}, hata=${message}`,
+        );
+        await finalizeQueueItem(supabase, item.id, "failed", { lastError: message });
         results.push({
           ok: false,
           queueId: item.id,
           notificationId: item.notification_id,
-          error: "Bildirim kaydı bulunamadı.",
+          error: message,
         });
-        continue;
       }
 
-      const result = await processNotificationEmail({
-        notification,
-        resendApiKey,
-        supabase,
-        siteUrl,
-      });
-
-      if ("sent" in result && result.sent) {
-        await finalizeQueueItem(supabase, item.id, "sent");
-        results.push({ ...result, queueId: item.id });
-      } else if ("skipped" in result && result.skipped) {
-        if (result.reason === "rate_limit") {
-          const retryAt = new Date(Date.now() + RATE_LIMIT_RETRY_MS).toISOString();
-          await finalizeQueueItem(supabase, item.id, "pending", { retryAt });
-          results.push({ ...result, queueId: item.id, retryAt });
-        } else {
-          await finalizeQueueItem(supabase, item.id, "skipped");
-          results.push({ ...result, queueId: item.id });
-        }
-      }
-    } catch (error) {
-      if (error instanceof ResendRateLimitError) {
-        const retryAt = new Date(
-          Date.now() + error.retryAfterSec * 1000,
-        ).toISOString();
-        await finalizeQueueItem(supabase, item.id, "pending", { retryAt });
-        results.push({
-          ok: true,
-          rateLimited: true,
-          queueId: item.id,
-          retryAfterSec: error.retryAfterSec,
-        });
-        await delay(error.retryAfterSec * 1000);
-        break;
-      }
-
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(
-        `Kuyruk öğesi işlenemedi: queue_id=${item.id}, notification_id=${item.notification_id}, hata=${message}`,
-      );
-      await finalizeQueueItem(supabase, item.id, "failed", { lastError: message });
-      results.push({
-        ok: false,
-        queueId: item.id,
-        notificationId: item.notification_id,
-        error: message,
-      });
+      await delay(sendDelayMs);
     }
 
-    await delay(sendDelayMs);
+    const sentCount = results.filter((result) => result.sent === true).length;
+    const failedCount = results.filter((result) => result.ok === false).length;
+
+    return {
+      ok: failedCount === 0,
+      mode: "process_queue",
+      claimed: queueItems.length,
+      sentCount,
+      failedCount,
+      sendDelayMs,
+      batchSize,
+      resendMaxPerSecond: getResendMaxPerSecond(),
+      results,
+    };
+  } finally {
+    const { error: unlockError } = await supabase.rpc(
+      "release_notification_email_worker_lock",
+    );
+    if (unlockError) {
+      console.warn("Worker lock bırakılamadı:", unlockError.message);
+    }
   }
-
-  const sentCount = results.filter((result) => result.sent === true).length;
-  const failedCount = results.filter((result) => result.ok === false).length;
-
-  return {
-    ok: failedCount === 0,
-    mode: "process_queue",
-    claimed: queueItems.length,
-    sentCount,
-    failedCount,
-    sendDelayMs,
-    batchSize,
-    resendMaxPerSecond: getResendMaxPerSecond(),
-    results,
-  };
 }
 
 Deno.serve(async (req) => {
@@ -775,7 +830,7 @@ Deno.serve(async (req) => {
         return jsonResponse(
           {
             error:
-              "process_queue için service role Authorization veya CRON_SECRET (x-cron-secret) gerekli.",
+              "process_queue için Authorization (service role / anon), apikey veya CRON_SECRET gerekli.",
           },
           401,
         );
@@ -800,17 +855,21 @@ Deno.serve(async (req) => {
       notifications.map((notification) => notification.id),
     );
 
-    console.log(
-      `${notifications.length} bildirim kuyruğa alındı (upsert). Cron process_queue ile gönderilecek.`,
-    );
+    console.log(`${notifications.length} bildirim kuyruğa alındı, kuyruk işleniyor…`);
+
+    const processResult = await processEmailQueue({
+      supabase,
+      resendApiKey,
+      siteUrl,
+      skipIfLocked: true,
+    });
 
     return jsonResponse({
       ok: true,
-      mode: "enqueue",
+      mode: "enqueue_and_process",
       queued,
       notificationIds: notifications.map((notification) => notification.id),
-      message:
-        "E-postalar kuyruğa alındı. Gönderim için send-notification-email cron (process_queue) çalışmalı.",
+      process: processResult,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

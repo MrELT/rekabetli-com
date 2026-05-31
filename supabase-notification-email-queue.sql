@@ -83,9 +83,14 @@ SET search_path = public
 AS $$
 BEGIN
   IF NEW.email_sent IS DISTINCT FROM true THEN
-    INSERT INTO public.notification_email_queue (notification_id)
-    VALUES (NEW.id)
-    ON CONFLICT (notification_id) DO NOTHING;
+    BEGIN
+      INSERT INTO public.notification_email_queue (notification_id)
+      VALUES (NEW.id)
+      ON CONFLICT (notification_id) DO NOTHING;
+    EXCEPTION
+      WHEN OTHERS THEN
+        RAISE WARNING 'notification_email_queue insert failed for %: %', NEW.id, SQLERRM;
+    END;
   END IF;
   RETURN NEW;
 END;
