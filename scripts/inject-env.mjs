@@ -76,4 +76,39 @@ const publicDir = path.join(root, "public");
 fs.mkdirSync(publicDir, { recursive: true });
 fs.writeFileSync(path.join(publicDir, "env-config.local.js"), output, "utf8");
 
+/** Next.js istemci bundle — statik site ile aynı Supabase oturumunu paylaşır */
+function upsertEnvLocal(supabaseUrl, anonKey) {
+  const envLocalPath = path.join(root, ".env.local");
+  const inject = {
+    NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: anonKey,
+    SUPABASE_URL: supabaseUrl,
+    SUPABASE_ANON_KEY: anonKey,
+  };
+
+  const lines = fs.existsSync(envLocalPath)
+    ? fs.readFileSync(envLocalPath, "utf8").split(/\r?\n/)
+    : [];
+
+  const keys = new Set(Object.keys(inject));
+  const kept = lines.filter((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) return true;
+    const key = trimmed.slice(0, trimmed.indexOf("=")).trim();
+    return !keys.has(key);
+  });
+
+  for (const [key, value] of Object.entries(inject)) {
+    kept.push(`${key}=${value}`);
+  }
+
+  fs.writeFileSync(
+    envLocalPath,
+    `${kept.filter((line) => line !== "").join("\n")}\n`,
+    "utf8",
+  );
+}
+
+upsertEnvLocal(url, key);
+
 console.log("env-config.local.js oluşturuldu.");

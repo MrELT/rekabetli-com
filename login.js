@@ -51,12 +51,16 @@ function getSafeRedirectAfterLogin() {
   return normalized;
 }
 
-// Eğer zaten giriş yapmış biriyse yönlendir
+// Eğer zaten giriş yapmış biriyse yönlendir (NotAl oturum döngüsünü önle)
 async function ensureLoggedOutRedirect() {
   const { data } = await supabaseClient.auth.getSession();
-  if (data.session) {
-    window.location.href = getSafeRedirectAfterLogin();
-  }
+  if (!data.session) return;
+
+  const target = getSafeRedirectAfterLogin();
+  const here = `${window.location.pathname}${window.location.search}`;
+  if (target === here || target === window.location.pathname) return;
+
+  window.location.replace(target);
 }
 
 if (loginForm && supabaseClient) {
