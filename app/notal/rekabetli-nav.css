@@ -124,13 +124,17 @@ a.menu-btn:hover {
   box-shadow: none;
   text-decoration: none;
   font: inherit;
+  font-weight: 600;
+  line-height: 1.25;
+  box-sizing: border-box;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .nav-btn-primary {
   background: linear-gradient(130deg, var(--action), var(--action-strong));
   color: #fff7ef;
-  border: none;
+  border: 1px solid transparent;
 }
 
 .nav-btn-notal {
@@ -138,11 +142,14 @@ a.menu-btn:hover {
 }
 
 .notal-mark {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0;
+  display: inline;
   font: inherit;
-  line-height: 1;
+  line-height: inherit;
+}
+
+.notal-word-not,
+.notal-word-al {
+  display: inline;
 }
 
 .notal-word-not {
