@@ -3,8 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/inject-env.mjs && node scripts/sync-static-to-public.mjs && next dev",
     "build": "next build",
+    "vercel-build": "node scripts/inject-env.mjs && node scripts/sync-static-to-public.mjs && next build",
     "start": "next start",
     "env:build": "node scripts/inject-env.mjs",
     "build:static": "node scripts/inject-env.mjs"

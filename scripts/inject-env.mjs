@@ -71,4 +71,9 @@ const output = `// Otomatik üretildi — npm run env:build (yerel .env veya Ver
 `;
 
 fs.writeFileSync(outPath, output, "utf8");
+
+const publicDir = path.join(root, "public");
+fs.mkdirSync(publicDir, { recursive: true });
+fs.writeFileSync(path.join(publicDir, "env-config.local.js"), output, "utf8");
+
 console.log("env-config.local.js oluşturuldu.");

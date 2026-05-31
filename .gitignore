@@ -8,6 +8,14 @@ env-config.local.js
 node_modules/
 .next/
 
+# public/ — build sırasında kök statik dosyalardan üretilir
+public/*.html
+public/*.js
+public/*.css
+public/assets/
+public/env-config.local.js
+!public/.gitkeep
+
 # OS / editör
 .DS_Store
 Thumbs.db
