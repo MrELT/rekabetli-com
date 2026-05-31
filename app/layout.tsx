@@ -8,9 +8,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "NotAl — Rekabetli",
+  title: "rekabetli.com",
   description:
-    "Olimpiyat çıkmış sorularından ve arşiv notlarından konu bazlı özet notlar üret.",
+    "Soru sor, topluluğunu bul, projeler geliştir ve liderlik yolunda aksiyona geç.",
 };
 
 export default function RootLayout({
