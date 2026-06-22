@@ -148,6 +148,61 @@ export default function NotAlGenerator() {
         <p className="mt-3 text-sm text-rekabetli-muted sm:text-base">
           Olimpiyat arşivinden konu bazlı özet notlar — çıkmış sorularla destekli.
         </p>
+
+        <details className="group mt-5 mx-auto max-w-xl text-left rounded-xl border border-rekabetli-border bg-rekabetli-surface/50 shadow-sm open:bg-rekabetli-surface/70">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-rekabetli-text transition hover:text-rekabetli-primary [&::-webkit-details-marker]:hidden">
+            <span>Nasıl kullanılır?</span>
+            <span
+              className="shrink-0 text-rekabetli-muted transition group-open:rotate-180"
+              aria-hidden
+            >
+              ▾
+            </span>
+          </summary>
+          <div className="border-t border-rekabetli-border/80 px-4 py-4">
+            <ol className="list-decimal space-y-3 pl-5 text-sm leading-relaxed text-rekabetli-muted">
+              <li>
+                Olimpiyat alanınızla ilgili hazırlandığınız aşamanın müfredatını bulun{" "}
+                <span className="text-rekabetli-muted/80">
+                  (ör.{" "}
+                  <Link
+                    href="/sinav-bilgileri#tubitak-olimpiyatlari"
+                    className="font-medium text-rekabetli-primary underline decoration-rekabetli-primary/40 underline-offset-2 hover:text-rekabetli-primary-strong"
+                  >
+                    TÜBİTAK sınav bilgileri
+                  </Link>
+                  ).
+                </span>
+              </li>
+              <li>
+                Kütüphaneye olimpiyat ile alakalı kaynak, soru veya konu anlatımı bağışlayarak
+                kredi kazanın.{" "}
+                <Link
+                  href="/notal/bagis"
+                  className="font-medium text-rekabetli-primary underline decoration-rekabetli-primary/40 underline-offset-2 hover:text-rekabetli-primary-strong"
+                >
+                  PDF bağışla →
+                </Link>
+              </li>
+              <li>
+                Kazandığınız kredi ile ilgili müfredattan çalışmak istediğiniz konunun başlığını
+                NotAl&apos;a kopyalayın.
+              </li>
+              <li>
+                Birinci aşama hazırlığındaysanız{" "}
+                <strong className="font-medium text-rekabetli-text">Yüzeysel</strong> anlatımı
+                seçin; ikinci aşama için{" "}
+                <strong className="font-medium text-rekabetli-text">Orta</strong> tavsiye edilir.
+              </li>
+            </ol>
+            <p className="mt-4 rounded-lg border border-rekabetli-border/60 bg-rekabetli-bg-soft/60 px-3 py-2.5 text-xs leading-relaxed text-rekabetli-muted">
+              <strong className="font-medium text-rekabetli-text">Not:</strong> NotAl geliştirme
+              aşamasında olup geri bildirimler kapsamında düzeltmelere tabi tutulur. Yüzeysel ve
+              orta düzeyde, doğru konu başlığı ile oluşturulan notlar madalyalı mentörler
+              tarafından onaylanmıştır.
+            </p>
+          </div>
+        </details>
       </header>
 
       <section className="rounded-2xl border border-rekabetli-border bg-rekabetli-surface/80 p-5 shadow-[0_12px_30px_rgba(2,8,18,0.4)] backdrop-blur-sm sm:p-6">
