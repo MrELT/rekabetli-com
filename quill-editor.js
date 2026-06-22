@@ -588,6 +588,12 @@
     quill.setText("");
   }
 
+  function setHtml(quill, html) {
+    if (!quill || !html) return;
+    quill.setContents([]);
+    quill.clipboard.dangerouslyPasteHTML(0, html);
+  }
+
   function isEmpty(quill) {
     if (!quill) return true;
     return !hasMeaningfulContent(quill);
@@ -606,13 +612,18 @@
       toolbar: ANSWER_TOOLBAR,
     });
 
-    if (quill) form._rekabetliQuill = quill;
+    if (quill) {
+      form._rekabetliQuill = quill;
+      const draftKey = form.dataset.draftKey;
+      if (draftKey) window.RekabetliFeedDrafts?.bindQuill(quill, draftKey);
+    }
     return quill;
   }
 
   window.RekabetliQuill = {
     create,
     getHtml,
+    setHtml,
     clear,
     isEmpty,
     renderRichContent,

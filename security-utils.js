@@ -55,6 +55,35 @@
     return String(value ?? "").replace(/<[^>]*>/g, "");
   }
 
+  function isValidUuid(value) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      String(value ?? "").trim(),
+    );
+  }
+
+  /** Vitrin paket/branş öğe kimlikleri (UUID veya güvenli kısa id). */
+  function sanitizePackageId(value) {
+    const id = String(value ?? "").trim();
+    if (!id || id.length > 64) return "";
+    if (isValidUuid(id)) return id;
+    if (/^[a-zA-Z0-9_-]+$/.test(id)) return id;
+    return "";
+  }
+
+  function sanitizeMultilinePlainText(value, maxLength = 3000) {
+    let text = stripControlChars(stripHtmlTags(value));
+    text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    text = text
+      .split("\n")
+      .map((line) => line.replace(/[ \t]+/g, " ").trimEnd())
+      .join("\n")
+      .trim();
+    if (maxLength > 0 && text.length > maxLength) {
+      text = text.slice(0, maxLength);
+    }
+    return text;
+  }
+
   /** Düz metin alanları: HTML etiketleri ve kontrol karakterleri temizlenir. */
   function sanitizePlainText(value, maxLength = 500) {
     let text = stripControlChars(stripHtmlTags(value));
@@ -123,14 +152,17 @@
   window.RekabetliSecurity = {
     escapeHtml,
     isSafeHttpUrl,
+    isValidUuid,
     setImgSrc,
     appendEmptyMessage,
     sanitizePlainText,
+    sanitizeMultilinePlainText,
     sanitizePersonName,
     sanitizeEmail,
     sanitizePhone,
     sanitizeBranchText,
     sanitizeBranchList,
+    sanitizePackageId,
     isValidEmail,
     containsMarkupAttempt,
   };

@@ -31,6 +31,7 @@
   const countQuestions = document.getElementById("count-questions");
   const countAnswers = document.getElementById("count-answers");
   const countSaved = document.getElementById("count-saved");
+  const mentorPageAction = document.getElementById("mentor-page-action");
   const accordionSections = document.querySelectorAll(".activity-accordion-section");
 
   let currentUser = null;
@@ -652,6 +653,9 @@
     if (data?.is_mentor) {
       profileEmail.append(document.createTextNode(" "));
       profileEmail.appendChild(createMentorBadge());
+      if (mentorPageAction) mentorPageAction.hidden = false;
+    } else if (mentorPageAction) {
+      mentorPageAction.hidden = true;
     }
     await loadAllActivity();
   }

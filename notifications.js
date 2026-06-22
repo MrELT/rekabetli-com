@@ -13,6 +13,75 @@
   if (!supabase) return;
   let currentUserId = null;
   let notificationsOpen = false;
+  let backdropEl = null;
+
+  function isMobileNotificationsLayout() {
+    return window.matchMedia("(max-width: 1000px)").matches;
+  }
+
+  function ensurePopupPortal() {
+    if (popup.parentElement !== document.body) {
+      document.body.appendChild(popup);
+    }
+  }
+
+  function ensureBackdrop() {
+    if (backdropEl) return backdropEl;
+    backdropEl = document.createElement("div");
+    backdropEl.id = "notifications-backdrop";
+    backdropEl.className = "notifications-backdrop";
+    backdropEl.hidden = true;
+    backdropEl.addEventListener("click", () => closePopup());
+    document.body.appendChild(backdropEl);
+    return backdropEl;
+  }
+
+  function showBackdropIfMobile() {
+    if (!isMobileNotificationsLayout()) return;
+    ensureBackdrop().hidden = false;
+  }
+
+  function hideBackdrop() {
+    if (backdropEl) backdropEl.hidden = true;
+  }
+
+  function clearPopupInlinePosition() {
+    popup.style.position = "";
+    popup.style.top = "";
+    popup.style.right = "";
+    popup.style.left = "";
+    popup.style.bottom = "";
+    popup.style.width = "";
+  }
+
+  function setBodyScrollLocked(locked) {
+    document.body.classList.toggle("notifications-open", locked);
+  }
+
+  function positionPopup(anchorEl) {
+    const isMobile = isMobileNotificationsLayout();
+    popup.classList.toggle("notifications-popup--mobile", isMobile);
+
+    if (isMobile) {
+      clearPopupInlinePosition();
+      return;
+    }
+
+    const anchor = anchorEl && !anchorEl.hidden ? anchorEl : btn;
+    if (!anchor || anchor.hidden) {
+      popup.style.position = "fixed";
+      popup.style.top = "4.5rem";
+      popup.style.right = "0.9rem";
+      popup.style.left = "auto";
+      return;
+    }
+
+    const rect = anchor.getBoundingClientRect();
+    popup.style.position = "fixed";
+    popup.style.top = `${rect.bottom + 8}px`;
+    popup.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
+    popup.style.left = "auto";
+  }
 
   function formatRelativeDate(isoDate) {
     const diff = Date.now() - new Date(isoDate).getTime();
@@ -31,6 +100,9 @@
     if (row.type === "comment") {
       return `${name} sorunuza yanıt verdi.`;
     }
+    if (row.type === "answer_reply") {
+      return `${name} yanıtınıza yorum yaptı.`;
+    }
     if (row.type === "community_join_request") {
       return `${name} topluluğunuza katılmak istiyor.`;
     }
@@ -41,10 +113,53 @@
     if (row.type === "community_post") {
       return `${name} topluluğunuzda yeni bir paylaşım yaptı.`;
     }
+    if (row.type === "mentor_package_request") {
+      return `${name} paketiniz için ön talep oluşturdu.`;
+    }
+    if (row.type === "mentor_student_message") {
+      return `${name} size bir soru sordu.`;
+    }
+    if (row.type === "mentor_mentor_reply") {
+      return `${name} sorunuza yanıt verdi.`;
+    }
     return `${name} sorunuzu beğendi.`;
   }
 
+  function isSafeUuid(value) {
+    return window.RekabetliSecurity?.isValidUuid?.(value) || false;
+  }
+
   function notificationHref(row) {
+    if (row.type === "mentor_package_request") {
+      const params = new URLSearchParams({ inbox: "requests" });
+      if (isSafeUuid(row.package_request_id)) {
+        params.set("request", row.package_request_id);
+      }
+      return `/mentor-sayfam?${params.toString()}`;
+    }
+    if (row.type === "mentor_student_message") {
+      const params = new URLSearchParams({ inbox: "messages" });
+      if (isSafeUuid(row.conversation_id)) {
+        params.set("conversation", row.conversation_id);
+      }
+      if (isSafeUuid(row.message_id)) {
+        params.set("message", row.message_id);
+      }
+      return `/mentor-sayfam?${params.toString()}`;
+    }
+    if (row.type === "mentor_mentor_reply") {
+      const params = new URLSearchParams({ openMessaging: "1" });
+      if (isSafeUuid(row.mentor_id)) {
+        params.set("id", row.mentor_id);
+      }
+      if (isSafeUuid(row.conversation_id)) {
+        params.set("conversation", row.conversation_id);
+      }
+      if (isSafeUuid(row.message_id)) {
+        params.set("message", row.message_id);
+      }
+      return params.has("id") ? `/mentor?${params.toString()}` : "/mentors";
+    }
     if (row.type === "community_join_request") {
       return row.community_id
         ? `/community?id=${encodeURIComponent(row.community_id)}`
@@ -60,6 +175,20 @@
       if (row.community_id) params.set("id", row.community_id);
       if (row.post_id) params.set("post", row.post_id);
       return params.has("id") ? `/community?${params.toString()}` : "/communities";
+    }
+    if (row.type === "answer_reply") {
+      if (row.community_id) {
+        const params = new URLSearchParams();
+        params.set("id", row.community_id);
+        if (row.post_id) params.set("post", row.post_id);
+        if (row.comment_id) params.set("comment", row.comment_id);
+        return `/community?${params.toString()}`;
+      }
+      const params = new URLSearchParams();
+      if (row.post_id) params.set("post", row.post_id);
+      if (row.comment_id) params.set("comment", row.comment_id);
+      const query = params.toString();
+      return query ? `/?${query}` : "/";
     }
     const params = new URLSearchParams({ tab: "questions", post: row.post_id });
     if (row.type === "comment" && row.comment_id) {
@@ -152,7 +281,9 @@
 
     const { data, error } = await supabase
       .from("notifications")
-      .select("id, actor_name, type, post_id, comment_id, community_id, join_request_id, read_at, created_at")
+      .select(
+        "id, actor_name, type, post_id, comment_id, community_id, join_request_id, mentor_id, package_request_id, conversation_id, message_id, read_at, created_at",
+      )
       .eq("user_id", currentUserId)
       .order("created_at", { ascending: false })
       .limit(40);
@@ -169,20 +300,26 @@
     await refreshBadge();
   }
 
-  function openPopup() {
+  function openPopup(anchorEl) {
+    ensurePopupPortal();
     notificationsOpen = true;
     popup.hidden = false;
+    positionPopup(anchorEl);
+    showBackdropIfMobile();
+    setBodyScrollLocked(true);
     loadNotificationsList();
   }
 
   function closePopup() {
     notificationsOpen = false;
     popup.hidden = true;
+    hideBackdrop();
+    setBodyScrollLocked(false);
   }
 
-  function togglePopup() {
+  function togglePopup(anchorEl) {
     if (notificationsOpen) closePopup();
-    else openPopup();
+    else openPopup(anchorEl);
   }
 
   btn.addEventListener("click", (event) => {
@@ -191,17 +328,18 @@
       window.location.href = "/login";
       return;
     }
-    togglePopup();
+    togglePopup(btn);
   });
 
-  mobileBtn?.addEventListener("click", () => {
+  mobileBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
     const mobileMenu = document.getElementById("mobile-menu");
     if (mobileMenu) mobileMenu.hidden = true;
     if (!currentUserId) {
       window.location.href = "/login";
       return;
     }
-    openPopup();
+    togglePopup(mobileBtn);
   });
 
   closeBtn?.addEventListener("click", (event) => {
@@ -214,8 +352,15 @@
     let target = event.target;
     if (target && target.nodeType === Node.TEXT_NODE) target = target.parentElement;
     if (!target || typeof target.closest !== "function") return;
-    if (target.closest(".notifications-wrap")) return;
+    if (target.closest(".notifications-popup")) return;
+    if (target.closest("#notifications-btn")) return;
+    if (target.closest("#mobile-notifications-btn")) return;
     closePopup();
+  });
+
+  window.addEventListener("resize", () => {
+    if (!notificationsOpen || isMobileNotificationsLayout()) return;
+    positionPopup(btn.hidden ? mobileBtn : btn);
   });
 
   document.addEventListener("keydown", (event) => {
@@ -256,6 +401,8 @@
   }
 
   initAuthBinding();
+
+  ensurePopupPortal();
 
   window.rekabetliNotifications = {
     refresh: refreshBadge,

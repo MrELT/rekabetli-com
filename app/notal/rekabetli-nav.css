@@ -271,7 +271,33 @@ a.menu-btn:hover {
 }
 
 .notifications-popup[hidden] {
-  display: none;
+  display: none !important;
+}
+
+.notifications-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 195;
+  background: rgba(6, 12, 23, 0.52);
+}
+
+.notifications-backdrop[hidden] {
+  display: none !important;
+}
+
+.notifications-popup.notifications-popup--mobile {
+  position: fixed;
+  inset: auto 0 0 0;
+  width: auto;
+  max-width: none;
+  max-height: min(72vh, 520px);
+  margin: 0;
+  border-radius: 16px 16px 0 0;
+  z-index: 200;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .notifications-popup-header {

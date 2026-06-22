@@ -16,6 +16,8 @@ const ALLOWED_REDIRECT_PATHS = [
   "/hakkimizda",
   "/profile",
   "/mentors",
+  "/mentor-sayfam",
+  "/mentor",
   "/communities",
   "/community",
   "/competitions",

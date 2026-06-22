@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mentör Profili | rekabetli.com</title>
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png" />
+    <link rel="apple-touch-icon" href="assets/rekabetli_logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="env-config.local.js"></script>
+    <script src="supabase-client.js"></script>
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+  </head>
+  <body class="mentor-public-page">
+    <nav class="profile-page-nav">
+      <a class="brand" href="/">
+        <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
+      </a>
+      <div class="profile-page-nav-actions">
+        <div class="notifications-wrap">
+          <button id="notifications-btn" class="nav-btn notifications-btn" type="button" aria-label="Bildirimler" hidden>
+            🔔
+            <span id="notifications-badge" class="notifications-badge" hidden>0</span>
+          </button>
+          <div id="notifications-popup" class="notifications-popup" hidden>
+            <div class="notifications-popup-header">
+              <strong>Bildirimler</strong>
+              <button id="close-notifications" type="button" class="icon-btn" aria-label="Kapat">✕</button>
+            </div>
+            <ul id="notifications-list" class="notifications-list"></ul>
+            <p id="notifications-empty" class="empty notifications-empty">Bildirim yok.</p>
+          </div>
+        </div>
+        <a class="nav-btn" href="/mentors">← Mentörler</a>
+      </div>
+    </nav>
+
+    <main class="mentor-showcase-layout">
+      <p id="mentor-public-status" class="mentor-showcase-status">Yükleniyor…</p>
+
+      <article id="mentor-public-showcase" class="mentor-showcase mentor-vitrin-shell" hidden>
+        <div class="mentor-intro-block">
+          <div class="mentor-intro-head">
+            <p class="eyebrow">Mentör</p>
+            <h1 id="mentor-display-name" class="mentor-display-name">Mentör</h1>
+          </div>
+
+          <div class="mentor-intro-split">
+            <div class="mentor-summary-row">
+              <div class="mentor-summary-card mentor-summary-card--branches">
+                <h3 class="mentor-summary-title">Mentörlük</h3>
+                <ul id="mentor-summary-branches" class="mentor-summary-list">
+                  <li class="mentor-summary-empty">Branş bilgisi yok</li>
+                </ul>
+              </div>
+              <div class="mentor-summary-card mentor-summary-card--lessons">
+                <h3 class="mentor-summary-title">Özel Ders</h3>
+                <ul id="mentor-summary-lessons" class="mentor-summary-list">
+                  <li class="mentor-summary-empty">Ders bilgisi yok</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="mentor-photo-card">
+              <div class="mentor-photo-wrap" aria-label="Mentör fotoğrafı">
+                <img id="mentor-photo-img" class="mentor-photo-img" alt="" hidden />
+                <span id="mentor-photo-fallback" class="mentor-photo-fallback">?</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <section class="mentor-about-section mentor-about-section--about" aria-labelledby="mentor-about-title">
+          <div class="mentor-section-head">
+            <h2 id="mentor-about-title">Hakkında</h2>
+          </div>
+          <div id="mentor-about-content" class="mentor-about-content"></div>
+        </section>
+
+        <section class="mentor-about-section mentor-about-section--branches" aria-labelledby="mentor-branches-title">
+          <div class="mentor-section-head">
+            <h2 id="mentor-branches-title">Mentörlük Branşları</h2>
+          </div>
+          <div id="mentor-public-branches" class="mentor-vitrin-grid mentor-vitrin-grid--branches"></div>
+        </section>
+
+        <section class="mentor-about-section mentor-about-section--lessons" aria-labelledby="mentor-lessons-title">
+          <div class="mentor-section-head">
+            <h2 id="mentor-lessons-title">Özel Ders</h2>
+          </div>
+          <div id="mentor-public-lessons" class="mentor-vitrin-grid mentor-vitrin-grid--lessons"></div>
+        </section>
+
+        <section class="mentor-about-section mentor-about-section--packages" aria-labelledby="mentor-packages-title">
+          <div class="mentor-section-head">
+            <h2 id="mentor-packages-title">Paketler</h2>
+          </div>
+          <div id="mentor-public-packages" class="mentor-vitrin-grid mentor-vitrin-grid--packages"></div>
+        </section>
+
+        <section class="mentor-about-section mentor-about-section--messages" aria-labelledby="mentor-messages-title">
+          <div class="mentor-section-head">
+            <h2 id="mentor-messages-title">Soru sor</h2>
+          </div>
+          <div id="mentor-student-messaging" class="mentor-student-messaging-root"></div>
+        </section>
+      </article>
+    </main>
+
+    <script src="security-utils.js"></script>
+    <script src="auth-store.js"></script>
+    <script src="confirm-dialog.js"></script>
+    <script src="notifications.js"></script>
+    <script src="package-request.js"></script>
+    <script src="mentor-vitrin-utils.js"></script>
+    <script src="mentor-messaging.js"></script>
+    <script src="mentor-public.js"></script>
+  </body>
+</html>

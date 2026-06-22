@@ -5,6 +5,7 @@
   let messageEl = null;
   let confirmBtn = null;
   let cancelBtn = null;
+  let secondaryBtn = null;
   let cardEl = null;
 
   function ensureDialog() {
@@ -42,7 +43,13 @@
     confirm.className = "confirm-dialog-confirm";
     confirm.textContent = "Onayla";
 
-    actions.append(cancel, confirm);
+    const secondary = document.createElement("button");
+    secondary.type = "button";
+    secondary.className = "confirm-dialog-secondary";
+    secondary.textContent = "İkincil";
+    secondary.hidden = true;
+
+    actions.append(cancel, secondary, confirm);
     card.append(title, message, actions);
     dialogEl.appendChild(card);
     document.body.appendChild(dialogEl);
@@ -52,9 +59,11 @@
     messageEl = message;
     confirmBtn = confirm;
     cancelBtn = cancel;
+    secondaryBtn = secondary;
 
-    confirmBtn.addEventListener("click", () => closeDialog(true));
+    confirmBtn.addEventListener("click", () => closeDialog("confirm"));
     cancelBtn.addEventListener("click", () => closeDialog(false));
+    secondaryBtn.addEventListener("click", () => closeDialog("secondary"));
 
     dialogEl.addEventListener("click", (event) => {
       if (event.target === dialogEl) closeDialog(false);
@@ -71,9 +80,10 @@
     dialogEl.hidden = true;
     cardEl?.classList.remove("is-danger");
     confirmBtn?.classList.remove("danger");
+    if (secondaryBtn) secondaryBtn.hidden = true;
     const resolve = pendingResolve;
     pendingResolve = null;
-    resolve?.(Boolean(result));
+    resolve?.(result);
   }
 
   function normalizeOptions(input, defaults) {
@@ -94,13 +104,21 @@
       confirmBtn.textContent = options.confirmLabel;
       cancelBtn.textContent = options.cancelLabel;
       cancelBtn.hidden = !options.showCancel;
+      if (secondaryBtn) {
+        secondaryBtn.hidden = !options.secondaryLabel;
+        if (options.secondaryLabel) secondaryBtn.textContent = options.secondaryLabel;
+      }
 
       const isDanger = Boolean(options.danger);
       cardEl.classList.toggle("is-danger", isDanger);
       confirmBtn.classList.toggle("danger", isDanger);
 
       dialogEl.hidden = false;
-      (options.showCancel ? cancelBtn : confirmBtn).focus();
+      if (options.secondaryLabel && secondaryBtn) {
+        secondaryBtn.focus();
+      } else {
+        (options.showCancel ? cancelBtn : confirmBtn).focus();
+      }
     });
   }
 
@@ -114,7 +132,7 @@
       danger: false,
     });
 
-    return openDialog(options);
+    return openDialog(options).then((result) => result === "confirm");
   };
 
   window.rekabetliAlert = function rekabetliAlert(input) {
@@ -125,8 +143,12 @@
       cancelLabel: "Vazgeç",
       showCancel: false,
       danger: false,
+      secondaryLabel: null,
     });
 
-    return openDialog(options);
+    return openDialog(options).then((result) => {
+      if (result === "secondary") return "secondary";
+      return result === "confirm";
+    });
   };
 })();

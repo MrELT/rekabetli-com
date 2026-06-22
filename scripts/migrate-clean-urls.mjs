@@ -20,6 +20,8 @@ const REPLACEMENTS = [
   ["register.html", "/register"],
   ["profile.html", "/profile"],
   ["mentors.html", "/mentors"],
+  ["mentor.html", "/mentor"],
+  ["mentor-sayfam.html", "/mentor-sayfam"],
   ["acik-riza.html", "/acik-riza"],
   ["login.html", "/login"],
   ["exams.html", "/exams"],

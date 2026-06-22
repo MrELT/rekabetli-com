@@ -76,6 +76,7 @@ let membersLoadSeq = 0;
 let myJoinRequestStatus = null;
 let communityFeedAuthBound = false;
 let skipInitialFeedAuthHydrate = true;
+let lastKnownFeedUserId = null;
 
 function sameUserId(a, b) {
   return String(a ?? "").toLowerCase() === String(b ?? "").toLowerCase();
@@ -118,7 +119,6 @@ function openQuestionModal() {
 function closeQuestionModal() {
   if (questionModal) questionModal.hidden = true;
   document.body.classList.remove("question-modal-open");
-  if (questionContentQuill) window.RekabetliQuill?.clear(questionContentQuill);
 }
 
 function initQuestionContentEditor() {
@@ -132,6 +132,20 @@ function initQuestionContentEditor() {
 
   if (!questionContentQuill) {
     console.error("Soru detay editörü başlatılamadı.");
+    return;
+  }
+
+  if (communityId) {
+    const draftKey = window.RekabetliFeedDrafts?.buildKey({
+      page: "community",
+      communityId,
+      kind: "question",
+    });
+    if (draftKey) {
+      window.RekabetliFeedDrafts.bindQuill(questionContentQuill, draftKey);
+      const titleInput = form?.querySelector('[name="title"]');
+      window.RekabetliFeedDrafts.bindField(titleInput, draftKey, "title");
+    }
   }
 }
 
@@ -1025,10 +1039,14 @@ function bindCommunityFeedAuthListener() {
 
   window.RekabetliAuth.subscribe((state) => {
     if (!state.ready) return;
+    const nextUserId = state.user?.id ?? null;
     if (skipInitialFeedAuthHydrate) {
       skipInitialFeedAuthHydrate = false;
+      lastKnownFeedUserId = nextUserId;
       return;
     }
+    if (nextUserId === lastKnownFeedUserId) return;
+    lastKnownFeedUserId = nextUserId;
     void hydrateCommunityFeedAuth(state.user);
   });
 }
@@ -1043,6 +1061,7 @@ async function bootstrapCommunityFeedPage() {
     const auth = window.RekabetliAuth;
     const state = auth ? await auth.whenReady() : { user: null };
 
+    lastKnownFeedUserId = state.user?.id ?? null;
     await syncFeedUserContext(state.user);
     const ok = await loadCommunity();
     if (!ok) return;
@@ -1082,81 +1101,97 @@ function scrollToFeedTarget() {
 }
 
 // --- 6. VERİTABANI İŞLEMLERİ (Sorular ve Cevaplar) ---
-function renderAnswers(container, answers, postId) {
-  if (!container) return;
-  container.replaceChildren();
-  if (!answers?.length) {
-    const empty = document.createElement("p");
-    empty.className = "empty";
-    empty.textContent = "Henüz yanıt yok.";
-    container.appendChild(empty);
-    return;
-  }
-
-  answers.forEach((answer) => {
-    const answerEl = document.createElement("div");
-    answerEl.className = "answer";
-    answerEl.id = `comment-${answer.id}`;
-
-    const header = document.createElement("div");
-    header.className = "answer-header";
-    const author = document.createElement("strong");
-    author.textContent = answer.author;
-    header.append(author);
-    if (answer.authorIsMentor) {
-      header.appendChild(createMentorBadge());
-    }
-    header.append(document.createTextNode(` · ${formatDate(answer.createdAt)}`));
-
-    const content = document.createElement("div");
-    content.className = "rich-content";
-    window.RekabetliQuill?.renderRichContent(content, answer.content);
-
-    answerEl.append(header, content);
-
-    window.RekabetliCommentRatings?.renderRatingBlock(answerEl, answer, {
-      currentUserId,
-      isLoggedIn: isUserLoggedIn,
-      onRequireLogin: () => {
-        window.location.href = "/login";
-      },
-    });
-
-    const isCommentOwner = Boolean(currentUserId && answer.userId && answer.userId === currentUserId);
-    if (isCommentOwner) {
-      const deleteBtn = document.createElement("button");
-      deleteBtn.type = "button";
-      deleteBtn.className = "secondary danger answer-delete-btn";
-      deleteBtn.textContent = "Sil";
-      deleteBtn.addEventListener("click", async () => {
-        if (
-          !(await rekabetliConfirm({
-            title: "Yanıtı sil",
-            message: "Bu yanıtı kalıcı olarak silmek istediğine emin misin?",
-            confirmLabel: "Sil",
-            cancelLabel: "Vazgeç",
-            danger: true,
-          }))
-        )
-          return;
-        try {
-          await deleteComment(answer.id);
-          const target = questions.find((q) => q.id === postId);
-          if (target) {
-            target.answers = target.answers.filter((a) => a.id !== answer.id);
-            renderQuestions();
-          }
-          window.rekabetliNotifications?.refresh();
-        } catch (error) {
-          console.error("Comment delete error:", error.message);
-          await rekabetliAlert({ title: "Silinemedi", message: "Yanıt silinemedi." });
+function buildAnswerRenderContext() {
+  return {
+    formatDate,
+    createMentorBadge,
+    currentUserId,
+    isLoggedIn: isUserLoggedIn,
+    draftScope: communityId ? { page: "community", communityId } : null,
+    onRequireLogin: () => {
+      window.location.href = "/login";
+    },
+    requireLogin: requireLoginForAction,
+    alertDialog: rekabetliAlert,
+    onDeleteAnswer: async (answer, postId) => {
+      if (
+        !(await rekabetliConfirm({
+          title: "Yanıtı sil",
+          message: "Bu yanıtı kalıcı olarak silmek istediğine emin misin?",
+          confirmLabel: "Sil",
+          cancelLabel: "Vazgeç",
+          danger: true,
+        }))
+      ) {
+        return;
+      }
+      try {
+        await deleteComment(answer.id);
+        const target = questions.find((q) => q.id === postId);
+        if (target) {
+          target.answers = target.answers.filter((a) => a.id !== answer.id);
+          renderQuestions();
         }
+        window.rekabetliNotifications?.refresh();
+      } catch (error) {
+        console.error("Comment delete error:", error.message);
+        await rekabetliAlert({ title: "Silinemedi", message: "Yanıt silinemedi." });
+      }
+    },
+    onDeleteReply: async (reply, answer, postId) => {
+      if (
+        !(await rekabetliConfirm({
+          title: "Yorumu sil",
+          message: "Bu yorumu kalıcı olarak silmek istediğine emin misin?",
+          confirmLabel: "Sil",
+          cancelLabel: "Vazgeç",
+          danger: true,
+        }))
+      ) {
+        return;
+      }
+      try {
+        await deleteComment(reply.id);
+        const target = questions.find((q) => q.id === postId);
+        const parent = target?.answers.find((a) => a.id === answer.id);
+        if (parent) {
+          parent.replies = (parent.replies ?? []).filter((r) => r.id !== reply.id);
+          renderQuestions();
+        }
+        window.rekabetliNotifications?.refresh();
+      } catch (error) {
+        console.error("Reply delete error:", error.message);
+        await rekabetliAlert({ title: "Silinemedi", message: "Yorum silinemedi." });
+      }
+    },
+    onSubmitReply: async ({ postId, parentCommentId, content }) => {
+      const newReply = await saveComment({
+        postId,
+        parentCommentId,
+        author: getCurrentAuthorName(),
+        content,
+        userId: currentUserId,
       });
-      answerEl.appendChild(deleteBtn);
-    }
+      newReply.authorIsMentor = currentUserIsMentor;
+      const target = questions.find((q) => q.id === postId);
+      const parent = target?.answers.find((a) => a.id === parentCommentId);
+      if (parent) {
+        parent.replies = parent.replies ?? [];
+        parent.replies.push(newReply);
+        renderQuestions();
+      }
+      window.rekabetliNotifications?.refresh();
+    },
+  };
+}
 
-    container.appendChild(answerEl);
-  });
+function renderAnswers(container, answers, postId) {
+  window.RekabetliCommentReplies?.renderAnswers(
+    container,
+    answers,
+    postId,
+    buildAnswerRenderContext(),
+  );
 }
 
 function mapPostRow(postRow) {
@@ -1200,11 +1235,13 @@ function mapCommentRow(commentRow) {
   return {
     id: commentRow.id,
     postId: commentRow.post_id,
+    parentCommentId: commentRow.parent_comment_id ?? null,
     userId: commentRow.user_id ?? null,
     author: commentRow.author,
     content: commentRow.content,
     createdAt: commentRow.created_at,
     authorIsMentor: false,
+    replies: [],
   };
 }
 
@@ -1243,7 +1280,7 @@ async function loadPosts() {
       const [commentsResult, likesResult, savesResult] = await Promise.all([
         getSb()
           .from("comments")
-          .select("id, post_id, user_id, author, content, created_at")
+          .select("id, post_id, parent_comment_id, user_id, author, content, created_at")
           .in("post_id", postIds)
           .order("created_at", { ascending: false }),
         getSb().from("post_likes").select("post_id, user_id").in("post_id", postIds),
@@ -1295,11 +1332,22 @@ async function loadPosts() {
       }
     }
 
-    const commentIds = allComments.map((c) => c.id);
-    const ratingStats = await window.RekabetliCommentRatings?.loadStatsForCommentIds(commentIds, currentUserId);
+    const commentIds = allComments.filter((c) => !c.parentCommentId).map((c) => c.id);
+    const ratingStats = await window.RekabetliCommentRatings?.loadStatsForCommentIds(
+      commentIds,
+      currentUserId,
+    );
     if (ratingStats) {
-      window.RekabetliCommentRatings.enrichComments(allComments, ratingStats);
+      window.RekabetliCommentRatings.enrichComments(
+        allComments.filter((c) => !c.parentCommentId),
+        ratingStats,
+      );
     }
+
+    allComments.forEach((comment) => {
+      const profile = comment.userId ? profilesByUserId.get(comment.userId) : null;
+      comment.authorIsMentor = Boolean(profile?.is_mentor);
+    });
 
     const commentsByPostId = new Map();
     allComments.forEach((comment) => {
@@ -1317,13 +1365,9 @@ async function loadPosts() {
         likeCount: countByPostId.get(post.id) ?? 0,
         likedByMe: likedByMe.has(post.id),
         savedByMe: savedByMe.has(post.id),
-        answers: (commentsByPostId.get(post.id) ?? []).map((answer) => {
-          const answerProfile = answer.userId ? profilesByUserId.get(answer.userId) : null;
-          return {
-            ...answer,
-            authorIsMentor: Boolean(answerProfile?.is_mentor),
-          };
-        }),
+        answers: window.RekabetliCommentReplies?.partitionComments(
+          commentsByPostId.get(post.id) ?? [],
+        ) ?? [],
       };
     });
 
@@ -1420,26 +1464,31 @@ function requireLoginForAction() {
   return false;
 }
 
-async function saveComment({ postId, author, content, userId }) {
+async function saveComment({ postId, author, content, userId, parentCommentId = null }) {
   const row = { post_id: postId, author, content };
   if (userId) row.user_id = userId;
+  if (parentCommentId) row.parent_comment_id = parentCommentId;
 
   const { data, error } = await getSb()
     .from("comments")
     .insert([row])
-    .select("id, post_id, user_id, author, content, created_at")
+    .select("id, post_id, parent_comment_id, user_id, author, content, created_at")
     .single();
 
   if (error) throw error;
   const mapped = mapCommentRow(data);
-  mapped.ratingAvg = null;
-  mapped.ratingCount = 0;
-  mapped.myRating = null;
+  if (!parentCommentId) {
+    mapped.ratingAvg = null;
+    mapped.ratingCount = 0;
+    mapped.myRating = null;
+  }
   return mapped;
 }
 
 function renderQuestions() {
   if (!questionList || !template?.content) return;
+
+  window.RekabetliFeedDrafts?.captureVisibleForms();
   
   questionList.replaceChildren();
   if (!questions.length) {
@@ -1587,14 +1636,21 @@ function renderQuestions() {
       answerToggleBtn.textContent = shouldShowForm ? "Vazgeç" : "Cevapla";
 
       if (shouldShowForm) {
+        if (communityId) {
+          answerForm.dataset.draftKey =
+            window.RekabetliFeedDrafts?.buildKey({
+              page: "community",
+              communityId,
+              kind: "answer",
+              id: question.id,
+            }) || "";
+        }
         const editor = window.RekabetliQuill?.ensureAnswerEditor(answerForm);
         if (!editor) {
           answerForm.hidden = true;
           answerToggleBtn.textContent = "Cevapla";
           void editorUnavailableAlert();
         }
-      } else if (answerForm._rekabetliQuill) {
-        window.RekabetliQuill?.clear(answerForm._rekabetliQuill);
       }
     });
 
@@ -1633,6 +1689,7 @@ function renderQuestions() {
           renderQuestions();
         }
         if (answerForm._rekabetliQuill) window.RekabetliQuill?.clear(answerForm._rekabetliQuill);
+        if (answerForm.dataset.draftKey) window.RekabetliFeedDrafts?.clear(answerForm.dataset.draftKey);
         answerForm.hidden = true;
         answerToggleBtn.textContent = "Cevapla";
         window.rekabetliNotifications?.refresh();
@@ -1702,6 +1759,14 @@ document.addEventListener("DOMContentLoaded", () => {
           answers: [],
         });
         form.reset();
+        if (communityId) {
+          const questionDraftKey = window.RekabetliFeedDrafts?.buildKey({
+            page: "community",
+            communityId,
+            kind: "question",
+          });
+          if (questionDraftKey) window.RekabetliFeedDrafts.clear(questionDraftKey);
+        }
         if (questionContentQuill) window.RekabetliQuill?.clear(questionContentQuill);
         closeQuestionModal();
         renderQuestions();

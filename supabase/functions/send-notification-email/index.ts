@@ -63,9 +63,13 @@ function getSiteUrl(): string {
 type NotificationType =
   | "comment"
   | "like"
+  | "answer_reply"
   | "community_join_request"
   | "community_join_rejected"
-  | "community_post";
+  | "community_post"
+  | "mentor_package_request"
+  | "mentor_student_message"
+  | "mentor_mentor_reply";
 
 interface NotificationRecord {
   id: string;
@@ -77,6 +81,10 @@ interface NotificationRecord {
   comment_id: string | null;
   community_id: string | null;
   join_request_id: string | null;
+  mentor_id: string | null;
+  package_request_id: string | null;
+  conversation_id: string | null;
+  message_id: string | null;
   read_at: string | null;
   created_at: string;
   email_sent?: boolean;
@@ -231,59 +239,131 @@ function isProcessQueueRequest(body: unknown): boolean {
   return action === "process_queue" || action === "process-queue";
 }
 
+function isSafeUuid(value: string | null | undefined): boolean {
+  if (!value) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+function joinSitePath(siteUrl: string, path: string): string {
+  const base = siteUrl.replace(/\/$/, "");
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${normalizedPath}`;
+}
+
 function buildNotificationMessage(record: NotificationRecord): string {
   const name = record.actor_name?.trim() || "Biri";
 
   switch (record.type) {
     case "comment":
       return `${name} sorunuza yanıt verdi.`;
+    case "answer_reply":
+      return `${name} yanıtınıza yorum yaptı.`;
     case "community_join_request":
       return `${name} topluluğunuza katılmak istiyor.`;
     case "community_join_rejected":
-      return `${name} topluluğuna katılma isteğiniz reddedildi.`;
+      return `${record.actor_name?.trim() || "Topluluk"} topluluğuna katılma isteğiniz reddedildi.`;
     case "community_post":
       return `${name} topluluğunuzda yeni bir paylaşım yaptı.`;
+    case "mentor_package_request":
+      return `${name} paketiniz için ön talep oluşturdu.`;
+    case "mentor_student_message":
+      return `${name} size bir soru sordu.`;
+    case "mentor_mentor_reply":
+      return `${name} sorunuza yanıt verdi.`;
     case "like":
-    default:
       return `${name} sorunuzu beğendi.`;
+    default:
+      return `${name} yeni bir bildirim gönderdi.`;
   }
 }
 
 function buildNotificationLink(record: NotificationRecord, siteUrl: string): string {
-  const base = siteUrl.replace(/\/$/, "");
+  if (record.type === "mentor_package_request") {
+    const params = new URLSearchParams({ inbox: "requests" });
+    if (isSafeUuid(record.package_request_id)) {
+      params.set("request", record.package_request_id);
+    }
+    return joinSitePath(siteUrl, `/mentor-sayfam?${params.toString()}`);
+  }
+
+  if (record.type === "mentor_student_message") {
+    const params = new URLSearchParams({ inbox: "messages" });
+    if (isSafeUuid(record.conversation_id)) {
+      params.set("conversation", record.conversation_id);
+    }
+    if (isSafeUuid(record.message_id)) {
+      params.set("message", record.message_id);
+    }
+    return joinSitePath(siteUrl, `/mentor-sayfam?${params.toString()}`);
+  }
+
+  if (record.type === "mentor_mentor_reply") {
+    const params = new URLSearchParams({ openMessaging: "1" });
+    if (isSafeUuid(record.mentor_id)) {
+      params.set("id", record.mentor_id);
+    }
+    if (isSafeUuid(record.conversation_id)) {
+      params.set("conversation", record.conversation_id);
+    }
+    if (isSafeUuid(record.message_id)) {
+      params.set("message", record.message_id);
+    }
+    return isSafeUuid(record.mentor_id)
+      ? joinSitePath(siteUrl, `/mentor?${params.toString()}`)
+      : joinSitePath(siteUrl, "/mentors");
+  }
 
   if (record.type === "community_join_request") {
     if (record.community_id) {
-      return `${base}//community?id=${encodeURIComponent(record.community_id)}`;
+      return joinSitePath(
+        siteUrl,
+        `/community?id=${encodeURIComponent(record.community_id)}`,
+      );
     }
-    return `${base}//communities`;
+    return joinSitePath(siteUrl, "/communities");
   }
 
   if (record.type === "community_join_rejected") {
     if (record.community_id) {
-      return `${base}//communities?community=${encodeURIComponent(record.community_id)}`;
+      return joinSitePath(
+        siteUrl,
+        `/communities?community=${encodeURIComponent(record.community_id)}`,
+      );
     }
-    return `${base}//communities`;
+    return joinSitePath(siteUrl, "/communities");
   }
 
   if (record.type === "community_post") {
     if (record.community_id) {
       const params = new URLSearchParams({ id: record.community_id });
       if (record.post_id) params.set("post", record.post_id);
-      return `${base}//community?${params.toString()}`;
+      return joinSitePath(siteUrl, `/community?${params.toString()}`);
     }
-    return `${base}//communities`;
+    return joinSitePath(siteUrl, "/communities");
   }
 
-  const tab = "questions";
-  const postId = record.post_id ?? "";
-  const commentId = record.type === "comment" ? (record.comment_id ?? "") : "";
+  if (record.type === "answer_reply") {
+    if (record.community_id) {
+      const params = new URLSearchParams({ id: record.community_id });
+      if (record.post_id) params.set("post", record.post_id);
+      if (record.comment_id) params.set("comment", record.comment_id);
+      return joinSitePath(siteUrl, `/community?${params.toString()}`);
+    }
+    const params = new URLSearchParams();
+    if (record.post_id) params.set("post", record.post_id);
+    if (record.comment_id) params.set("comment", record.comment_id);
+    const query = params.toString();
+    return query ? joinSitePath(siteUrl, `/?${query}`) : joinSitePath(siteUrl, "/");
+  }
 
-  const params = new URLSearchParams({ tab });
-  if (postId) params.set("post", postId);
-  if (commentId) params.set("comment", commentId);
-
-  return `${base}//profile?${params.toString()}`;
+  const params = new URLSearchParams({ tab: "questions" });
+  if (record.post_id) params.set("post", record.post_id);
+  if (record.type === "comment" && record.comment_id) {
+    params.set("comment", record.comment_id);
+  }
+  return joinSitePath(siteUrl, `/profile?${params.toString()}`);
 }
 
 function buildEmailHtml(options: {
