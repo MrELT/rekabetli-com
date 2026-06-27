@@ -97,15 +97,6 @@ export default function NotalNav() {
           ☰
         </button>
         <div className="nav-actions">
-          <a className="nav-btn nav-btn-notal" href="/notal" aria-label="NotAl — Not Al, Not AI">
-            <span className="notal-mark">
-              <span className="notal-word-not">Not</span>
-              <span className="notal-word-al">Al</span>
-            </span>
-          </a>
-          <a className="nav-btn" href="/notal/notlar">
-            Notlarım
-          </a>
           <button
             className="nav-btn"
             type="button"
@@ -204,19 +195,6 @@ export default function NotalNav() {
           <div className="mobile-menu-actions">
             <a className="nav-btn" href="/hakkimizda">
               Hakkımızda
-            </a>
-            <a
-              className="nav-btn nav-btn-notal"
-              href="/notal"
-              aria-label="NotAl — Not Al, Not AI"
-            >
-              <span className="notal-mark">
-                <span className="notal-word-not">Not</span>
-                <span className="notal-word-al">Al</span>
-              </span>
-            </a>
-            <a className="nav-btn" href="/notal/notlar">
-              Notlarım
             </a>
             <button
               className="nav-btn"
