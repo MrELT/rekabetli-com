@@ -4,9 +4,9 @@ import NotalNav from "@/components/NotalNav";
 import "./rekabetli-nav.css";
 
 export const metadata: Metadata = {
-  title: "NotAl — Rekabetli",
+  title: "NotAl — Sınava Hazırlan",
   description:
-    "Rekabetli NotAl ile olimpiyat konularında yapay zeka destekli not üretin.",
+    "Konu anlatımı ve soru PDF'lerinizi yükleyin; NotAl multi-agent sistemi materyal envanterinizi çıkarsın.",
   icons: {
     icon: [{ url: "/assets/rekabetli_logo.png", type: "image/png" }],
     apple: [{ url: "/assets/rekabetli_logo.png", type: "image/png" }],

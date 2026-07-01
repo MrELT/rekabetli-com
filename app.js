@@ -93,79 +93,348 @@ function animateCount(element, target, options = {}) {
   requestAnimationFrame(tick);
 }
 
-function renderBentoFeaturedCommunities(listEl, rows) {
+function getCommunityInitials(name) {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function appendTrendingAvatar(parent, row, href) {
+  const avatarLink = document.createElement("a");
+  avatarLink.className = "trending-avatar";
+  avatarLink.href = href;
+  avatarLink.setAttribute("aria-hidden", "true");
+  avatarLink.tabIndex = -1;
+
+  const img = document.createElement("img");
+  img.className = "trending-avatar-img";
+  const fallback = document.createElement("span");
+  fallback.className = "trending-avatar-fallback";
+  avatarLink.append(img, fallback);
+
+  window.RekabetliAvatars?.applyUserAvatar({
+    imgEl: img,
+    fallbackEl: fallback,
+    avatarUrl: row.avatar_url?.trim(),
+    displayName: row.name,
+    seed: row.id || row.name,
+  });
+
+  parent.appendChild(avatarLink);
+}
+
+function renderBentoFeaturedCommunities(listEl, rows, options = {}) {
+  const { animateCounts = true } = options;
   if (!listEl) return;
 
   listEl.replaceChildren();
+  listEl.classList.remove("is-loading");
+  listEl.setAttribute("aria-busy", "false");
 
   if (!rows.length) {
     const li = document.createElement("li");
-    li.className = "bento-communities-empty";
-    const label = document.createElement("span");
-    label.textContent = "Henüz topluluk yok";
-    const countEl = document.createElement("strong");
-    countEl.textContent = "0 üye";
-    li.append(label, countEl);
-    animateCount(countEl, 0, { suffix: " üye", duration: 800 });
+    li.className = "trending-item trending-item-empty";
+    li.innerHTML = `
+      <div class="trending-media">
+        <span class="trending-rank" aria-hidden="true">—</span>
+        <span class="trending-avatar trending-avatar-fallback" aria-hidden="true">?</span>
+      </div>
+      <div class="trending-body">
+        <span class="trending-name">Henüz topluluk yok</span>
+        <span class="trending-meta">İlk sen kur</span>
+      </div>
+      <a class="trending-go" href="/communities" aria-label="Topluluk oluştur">→</a>
+    `;
     listEl.appendChild(li);
     return;
   }
 
   rows.slice(0, 3).forEach((row, index) => {
     const li = document.createElement("li");
-    const span = document.createElement("span");
+    li.className = "trending-item";
+    li.style.animationDelay = `${index * 90}ms`;
+
+    const rank = document.createElement("span");
+    rank.className = "trending-rank";
+    rank.setAttribute("aria-hidden", "true");
+    rank.textContent = String(index + 1);
+
+    const communityHref = `/communities?community=${encodeURIComponent(row.id)}`;
+
+    const media = document.createElement("div");
+    media.className = "trending-media";
+    media.append(rank);
+    appendTrendingAvatar(media, row, communityHref);
+
+    const body = document.createElement("div");
+    body.className = "trending-body";
+
     const link = document.createElement("a");
-    link.className = "bento-community-link";
-    link.href = `/communities?community=${encodeURIComponent(row.id)}`;
+    link.className = "trending-name bento-community-link";
+    link.href = communityHref;
     link.textContent = row.name;
-    span.appendChild(link);
+    body.appendChild(link);
 
     if (row.visibility === "private") {
       const hint = document.createElement("span");
       hint.className = "bento-visibility-hint";
       hint.title = "Gizli topluluk";
       hint.textContent = " 🔒";
-      span.appendChild(hint);
+      link.appendChild(hint);
     }
 
-    const strong = document.createElement("strong");
-    const countEl = document.createElement("span");
-    countEl.className = "bento-member-count";
-    countEl.textContent = "0";
-    strong.append(countEl, document.createTextNode(" üye"));
-    li.append(span, strong);
-    animateCount(countEl, row.member_count ?? 0, {
-      duration: 1000,
-      delay: 120 + index * 140,
-    });
+    const meta = document.createElement("span");
+    meta.className = "trending-meta";
+    const memberCountEl = document.createElement("span");
+    memberCountEl.className = "bento-member-count";
+    const memberCount = Math.max(0, Math.round(Number(row.member_count) || 0));
+    if (animateCounts) {
+      memberCountEl.textContent = "0";
+      animateCount(memberCountEl, memberCount, {
+        duration: 1000,
+        delay: 180 + index * 120,
+      });
+    } else {
+      memberCountEl.textContent = String(memberCount);
+    }
+    meta.append(memberCountEl, document.createTextNode(" üye"));
+    body.appendChild(meta);
 
+    const go = document.createElement("a");
+    go.className = "trending-go";
+    go.href = communityHref;
+    go.setAttribute("aria-label", `${row.name} topluluğuna git`);
+    go.textContent = "→";
+
+    li.append(media, body, go);
     listEl.appendChild(li);
   });
 }
 
-async function loadBentoCommunityStats() {
+const HOME_BENTO_LS_KEY = "rekabetli.homeBento.v1";
+const HOME_BENTO_LS_TTL_MS = 5 * 60 * 1000;
+const HOME_BENTO_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isSafeHttpsAvatarUrl(url) {
+  const raw = String(url ?? "").trim();
+  if (!raw) return false;
+  try {
+    return new URL(raw).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeClientBentoRow(row) {
+  if (!row || typeof row !== "object") return null;
+
+  const id = String(row.id ?? "").trim();
+  if (!HOME_BENTO_UUID_RE.test(id)) return null;
+
+  let name = String(row.name ?? "")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!name) return null;
+  if (name.length > 120) name = name.slice(0, 120);
+
+  const visibility = row.visibility === "private" ? "private" : "public";
+  const member_count = Math.max(
+    0,
+    Math.min(1_000_000, Math.round(Number(row.member_count) || 0)),
+  );
+  const rawAvatar = String(row.avatar_url ?? "").trim();
+
+  return {
+    id,
+    name,
+    visibility,
+    member_count,
+    avatar_url: rawAvatar && isSafeHttpsAvatarUrl(rawAvatar) ? rawAvatar : null,
+  };
+}
+
+function normalizeHomeBentoPayload(raw) {
+  if (!raw || typeof raw !== "object") return null;
+
+  const count = Math.max(
+    0,
+    Math.min(1_000_000, Math.round(Number(raw.count) || 0)),
+  );
+  const trending = Array.isArray(raw.trending)
+    ? raw.trending
+        .map(sanitizeClientBentoRow)
+        .filter(Boolean)
+        .slice(0, 3)
+    : [];
+  const fetchedAt = Number(raw.fetchedAt);
+
+  return {
+    count,
+    trending,
+    fetchedAt: Number.isFinite(fetchedAt) && fetchedAt > 0 ? fetchedAt : Date.now(),
+  };
+}
+
+function homeBentoPayloadsEqual(a, b) {
+  if (!a || !b) return false;
+  if (a.count !== b.count || a.trending.length !== b.trending.length) return false;
+
+  return a.trending.every((row, index) => {
+    const other = b.trending[index];
+    return (
+      row.id === other.id &&
+      row.name === other.name &&
+      row.member_count === other.member_count &&
+      row.visibility === other.visibility
+    );
+  });
+}
+
+function readLocalHomeBento() {
+  try {
+    const raw = localStorage.getItem(HOME_BENTO_LS_KEY);
+    if (!raw) return null;
+    const parsed = normalizeHomeBentoPayload(JSON.parse(raw));
+    if (!parsed) return null;
+    if (Date.now() - parsed.fetchedAt > HOME_BENTO_LS_TTL_MS) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveLocalHomeBento(payload) {
+  try {
+    const normalized = normalizeHomeBentoPayload(payload);
+    if (!normalized) return;
+    localStorage.setItem(HOME_BENTO_LS_KEY, JSON.stringify(normalized));
+  } catch {
+    // localStorage dolu veya devre dışı
+  }
+}
+
+function setBentoLoadingState(isLoading) {
   const countEl = document.getElementById("bento-community-count");
   const listEl = document.getElementById("bento-featured-communities");
 
-  if (!supabaseClient || (!countEl && !listEl)) return;
+  if (countEl) {
+    countEl.classList.toggle("is-skeleton", isLoading);
+    if (isLoading) {
+      countEl.textContent = "";
+      countEl.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  if (listEl) {
+    listEl.classList.toggle("is-loading", isLoading);
+    listEl.setAttribute("aria-busy", isLoading ? "true" : "false");
+  }
+}
+
+function applyHomeBentoPayload(payload, options = {}) {
+  const { animateCounts = false } = options;
+  const data = normalizeHomeBentoPayload(payload);
+  if (!data) return false;
+
+  const countEl = document.getElementById("bento-community-count");
+  const listEl = document.getElementById("bento-featured-communities");
+
+  setBentoLoadingState(false);
+
+  if (countEl) {
+    countEl.classList.remove("is-skeleton");
+    countEl.removeAttribute("aria-hidden");
+    const prefix = countEl.dataset.prefix || "";
+    if (animateCounts) {
+      animateCount(countEl, data.count, { prefix, duration: 900 });
+    } else {
+      countEl.textContent = `${prefix}${data.count}`;
+    }
+  }
+
+  renderBentoFeaturedCommunities(listEl, data.trending, { animateCounts });
+  window.__REKABETLI_BENTO_APPLIED__ = data;
+  saveLocalHomeBento(data);
+  return true;
+}
+
+function tryInitialHomeBentoHydrate() {
+  if (window.__HOME_BENTO__) {
+    if (applyHomeBentoPayload(window.__HOME_BENTO__, { animateCounts: false })) {
+      return true;
+    }
+  }
+
+  const cached = readLocalHomeBento();
+  if (cached) {
+    return applyHomeBentoPayload(cached, { animateCounts: false });
+  }
+
+  return false;
+}
+
+function enrichBentoRows(rows, communities) {
+  const avatarById = new Map(
+    (communities ?? []).map((row) => [row.id, row.avatar_url?.trim() || null]),
+  );
+
+  return (rows ?? []).map((row) => ({
+    ...row,
+    avatar_url: row.avatar_url?.trim() || avatarById.get(row.id) || null,
+  }));
+}
+
+function renderBentoLoadError(listEl) {
+  if (!listEl) return;
+  listEl.replaceChildren();
+  listEl.classList.remove("is-loading");
+  listEl.setAttribute("aria-busy", "false");
+
+  const li = document.createElement("li");
+  li.className = "trending-item trending-item-empty";
+  li.innerHTML = `
+    <div class="trending-media">
+      <span class="trending-rank" aria-hidden="true">!</span>
+      <span class="trending-avatar trending-avatar-fallback" aria-hidden="true">!</span>
+    </div>
+    <div class="trending-body">
+      <span class="trending-name">Topluluklar yüklenemedi</span>
+      <span class="trending-meta">Lütfen sayfayı yenileyin</span>
+    </div>
+  `;
+  listEl.appendChild(li);
+}
+
+async function loadBentoCommunityStats(options = {}) {
+  const { background = false } = options;
+  const countEl = document.getElementById("bento-community-count");
+  const listEl = document.getElementById("bento-featured-communities");
+
+  if (!countEl && !listEl) return;
+
+  if (!background && !window.__REKABETLI_BENTO_APPLIED__) {
+    if (!tryInitialHomeBentoHydrate()) {
+      setBentoLoadingState(true);
+    }
+  }
+
+  if (!supabaseClient) return;
 
   try {
     const { data: communities, error } = await supabaseClient
       .from("communities")
-      .select("id, name, visibility, created_at");
+      .select("id, name, visibility, created_at, avatar_url");
 
     if (error) {
       console.error("Bento communities load error:", error.message);
-      if (listEl) {
-        listEl.replaceChildren();
-        const li = document.createElement("li");
-        li.className = "bento-communities-empty";
-        const label = document.createElement("span");
-        label.textContent = "Topluluklar yüklenemedi";
-        const strong = document.createElement("strong");
-        strong.textContent = "—";
-        li.append(label, strong);
-        listEl.appendChild(li);
+      if (!window.__REKABETLI_BENTO_APPLIED__) {
+        renderBentoLoadError(listEl);
       }
       return;
     }
@@ -173,35 +442,55 @@ async function loadBentoCommunityStats() {
     const rows = communities ?? [];
     const total = rows.length;
 
-    if (countEl) {
-      const prefix = countEl.dataset.prefix || "";
-      animateCount(countEl, total, { prefix, duration: 1200 });
-    }
+    const { data: stats, error: statsError } = await supabaseClient.rpc(
+      "get_communities_bento_stats",
+    );
 
-    const { data: stats, error: statsError } = await supabaseClient.rpc("get_communities_bento_stats");
+    let trendingRows = [];
 
     if (!statsError && stats?.length) {
-      renderBentoFeaturedCommunities(listEl, stats);
+      trendingRows = enrichBentoRows(stats, rows);
+    } else {
+      if (statsError) {
+        console.warn("Bento stats RPC unavailable:", statsError.message);
+      }
+      trendingRows = [...rows]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .map((row) => ({
+          id: row.id,
+          name: row.name,
+          visibility: row.visibility,
+          avatar_url: row.avatar_url?.trim() || null,
+          member_count: 1,
+        }));
+    }
+
+    const payload = normalizeHomeBentoPayload({
+      count: total,
+      trending: trendingRows
+        .map(sanitizeClientBentoRow)
+        .filter(Boolean)
+        .slice(0, 3),
+      fetchedAt: Date.now(),
+    });
+
+    if (!payload) {
+      if (!window.__REKABETLI_BENTO_APPLIED__) {
+        renderBentoLoadError(listEl);
+      }
       return;
     }
 
-    if (statsError) {
-      console.warn("Bento stats RPC unavailable:", statsError.message);
+    if (background && homeBentoPayloadsEqual(window.__REKABETLI_BENTO_APPLIED__, payload)) {
+      return;
     }
 
-    const fallback = [...rows]
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .map((row) => ({
-        id: row.id,
-        name: row.name,
-        visibility: row.visibility,
-        member_count: 1,
-      }));
-
-    renderBentoFeaturedCommunities(listEl, fallback);
+    applyHomeBentoPayload(payload, { animateCounts: !background });
   } catch (error) {
     console.error("Bento communities load failed:", error);
-    showEmptyListMessage(listEl, "Topluluklar yüklenemedi.");
+    if (!window.__REKABETLI_BENTO_APPLIED__) {
+      renderBentoLoadError(listEl);
+    }
   }
 }
 
@@ -244,32 +533,16 @@ async function editorUnavailableAlert() {
   });
 }
 
-function getAuthorInitials(name) {
-  const parts = String(name || "?")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return (parts[0]?.[0] ?? "?").toUpperCase();
-}
-
-function applyQuestionAvatar(container, avatarUrl, authorName) {
+function applyQuestionAvatar(container, avatarUrl, authorName, userId) {
   const imgEl = container.querySelector(".question-avatar-img");
   const fallbackEl = container.querySelector(".question-avatar-fallback");
-  if (!imgEl || !fallbackEl) return;
-
-  fallbackEl.textContent = getAuthorInitials(authorName);
-
-  if (avatarUrl && setSafeImgSrc(imgEl, avatarUrl)) {
-    imgEl.alt = `${authorName} profil fotoğrafı`;
-    imgEl.hidden = false;
-    fallbackEl.hidden = true;
-    return;
-  }
-
-  imgEl.hidden = true;
-  imgEl.removeAttribute("src");
-  fallbackEl.hidden = false;
+  window.RekabetliAvatars?.applyUserAvatar({
+    imgEl,
+    fallbackEl,
+    avatarUrl,
+    displayName: authorName,
+    seed: userId || authorName,
+  });
 }
 
 // --- 5. OTURUM KONTROLÜ (Merkezi Auth Store) ---
@@ -593,8 +866,10 @@ async function loadPosts() {
 
     questions = mappedPosts.map((post) => {
       const profile = post.userId ? profilesByUserId.get(post.userId) : null;
+      const displayName = profile?.display_name?.trim() || post.author;
       return {
         ...post,
+        author: displayName,
         authorAvatarUrl: profile?.avatar_url?.trim() || null,
         authorIsMentor: Boolean(profile?.is_mentor),
         likeCount: countByPostId.get(post.id) ?? 0,
@@ -790,7 +1065,7 @@ function renderQuestions() {
     }
 
     cardEl.id = `post-${question.id}`;
-    applyQuestionAvatar(cardEl, question.authorAvatarUrl, question.author);
+    applyQuestionAvatar(cardEl, question.authorAvatarUrl, question.author, question.userId);
 
     titleEl.textContent = question.title;
     metaEl.replaceChildren();
@@ -880,11 +1155,15 @@ function renderQuestions() {
     }
 
     renderAnswers(answersContainer, question.answers, question.id);
+    window.RekabetliFeedAccordion?.bind(cardEl, question);
 
     answerToggleBtn.addEventListener("click", () => {
       if (!requireLoginForAction()) return;
 
       const shouldShowForm = answerForm.hidden;
+      if (shouldShowForm) {
+        question._setAccordionExpanded?.(true);
+      }
       answerForm.hidden = !shouldShowForm;
       answerToggleBtn.textContent = shouldShowForm ? "Vazgeç" : "Cevapla";
 
@@ -935,6 +1214,7 @@ function renderQuestions() {
         if (target) {
           newComment.authorIsMentor = currentUserIsMentor;
           target.answers.unshift(newComment);
+          target.expanded = true;
           renderQuestions();
         }
         if (answerForm._rekabetliQuill) window.RekabetliQuill?.clear(answerForm._rekabetliQuill);
@@ -986,12 +1266,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function bootstrapHomePage() {
+    const hadBento = Boolean(window.__REKABETLI_BENTO_APPLIED__);
     const auth = window.RekabetliAuth;
     const state = auth ? await auth.whenReady() : { user: null };
 
     lastKnownHomeUserId = state.user?.id ?? null;
     await syncAppUserContext(state.user);
-    void loadBentoCommunityStats();
+    void loadBentoCommunityStats({ background: hadBento });
     await loadPosts();
     bindHomeAuthListener();
   }
@@ -1097,7 +1378,9 @@ document.addEventListener("DOMContentLoaded", () => {
     void loadPosts();
   });
 
-  // İlk Yüklemeler
+  // İlk Yüklemeler — bento bootstrap mümkün olduğunca erken
+  tryInitialHomeBentoHydrate();
+
   bootstrapHomePage().catch((error) => {
     console.error("Initial load failed:", error);
     if (questionList) {

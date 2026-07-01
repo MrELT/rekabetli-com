@@ -14,6 +14,7 @@ const ROOT_JS = new Set([
   "admin.js",
   "app.js",
   "auth-store.js",
+  "avatar-utils.js",
   "comment-ratings.js",
   "comment-replies.js",
   "communities-form.js",

@@ -33,6 +33,7 @@
     <script src="supabase-client.js"></script>
     <script src="auth-store.js"></script>
     <script src="security-utils.js"></script>
+    <script src="avatar-utils.js"></script>
       <script>
       window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>
@@ -97,50 +98,93 @@
       </section>
     </div>
 
-    <header class="site-header">
-      <p class="eyebrow">Hız, Gelişim, Başarı</p>
-      <h1>En İyi Mentörlerle Çalış, Gelişimini Hızlandır.</h1>
-      <p>rekabetli.com ile soru sor, topluluğunu bul, projeler geliştir ve liderlik yolunda aksiyona geç.</p>
-      <div class="hero-actions">
-        <button id="hero-join-btn" type="button" onclick="location.href='/login'">Hemen Katıl</button>
-      </div>
-    </header>
+    <div class="home-landing">
+      <div class="home-hero-grid">
+        <header class="site-header">
+          <p class="eyebrow">Hız, Gelişim, Başarı</p>
+          <h1 class="hero-title">
+            <span class="hero-title-line">En İyi Mentörlerle Çalış,</span>
+            <span class="hero-title-line hero-title-accent">Gelişimini Hızlandır.</span>
+          </h1>
+          <p class="hero-subtitle">Soru sor, topluluğunu bul, projeler geliştir ve liderlik yolunda aksiyona geç.</p>
+          <div class="hero-actions">
+            <button id="hero-join-btn" class="hero-btn hero-btn-primary" type="button" onclick="location.href='/login'">Hemen Katıl</button>
+            <button class="hero-btn hero-btn-secondary js-open-question-modal" type="button">Soru Sor</button>
+            <a class="hero-btn hero-btn-ghost" href="/communities">Toplulukları Keşfet</a>
+          </div>
+        </header>
 
-    <section class="bento-grid" aria-label="Rekabet ozeti">
-      <article class="bento-card">
-        <p class="bento-label">Aktif Topluluklar</p>
-        <h3 class="bento-stat-heading">
-          <span id="bento-community-count" class="bento-animated-stat" data-prefix="+">0</span>
-          Topluluk
-        </h3>
-        <p>Sana en uygun arkadaşları bulmanın tam zamanı.</p>
-      </article>
-      <article class="bento-card bento-card-mentor">
-        <p class="bento-label">Mentör adayı</p>
-        <h3>Başarınla yol göster</h3>
-        <p>Olimpiyat, YKS veya proje deneyimin varsa ön kayıt ol.</p>
-        <button type="button" class="nav-btn nav-btn-primary" id="mentor-apply-btn">Mentör adayı ol</button>
-      </article>
-      <article class="bento-card">
-        <p class="bento-label">Revaçta Topluluklar</p>
-        <ul id="bento-featured-communities" class="leaderboard bento-communities-list">
-          <li class="bento-communities-placeholder">
-            <span>Yükleniyor…</span>
-            <strong>—</strong>
-          </li>
-        </ul>
-      </article>
-    </section>
+        <section class="home-stats-panel" aria-label="Topluluk özeti">
+          <div class="stat-sidebar">
+            <article class="stat-card stat-card-communities">
+              <p class="stat-label">Aktif Topluluk</p>
+              <div class="stat-value-wrap" aria-live="polite">
+                <span
+                  id="bento-community-count"
+                  class="stat-number bento-animated-stat is-skeleton"
+                  data-prefix="+"
+                  aria-hidden="true"
+                ></span>
+              </div>
+              <a class="stat-link" href="/communities">
+                <span>Tümünü gör</span>
+                <span class="stat-link-icon" aria-hidden="true">→</span>
+              </a>
+            </article>
+
+            <aside class="mentor-strip mentor-strip-compact" aria-label="Mentör adayı">
+              <div class="mentor-strip-copy">
+                <p class="mentor-strip-label">Mentör adayı</p>
+                <p class="mentor-strip-title">Başarınla yol göster</p>
+                <p class="mentor-strip-desc">Olimpiyat, YKS veya proje deneyimin varsa ön kayıt ol.</p>
+              </div>
+              <button type="button" class="nav-btn nav-btn-primary mentor-strip-btn" id="mentor-apply-btn">Mentör adayı ol</button>
+            </aside>
+          </div>
+
+          <article class="stat-card stat-card-trending">
+            <div class="stat-card-head">
+              <p class="stat-label">Revaçta Topluluklar</p>
+              <span class="stat-live-dot" aria-hidden="true"></span>
+            </div>
+            <ul id="bento-featured-communities" class="trending-list is-loading" aria-busy="true">
+              <li class="trending-item trending-item-skeleton" aria-hidden="true">
+                <div class="trending-media">
+                  <span class="bento-skeleton bento-skeleton-rank"></span>
+                  <span class="bento-skeleton bento-skeleton-avatar"></span>
+                </div>
+                <div class="trending-body">
+                  <span class="bento-skeleton bento-skeleton-line bento-skeleton-line-title"></span>
+                  <span class="bento-skeleton bento-skeleton-line bento-skeleton-line-meta"></span>
+                </div>
+              </li>
+              <li class="trending-item trending-item-skeleton" aria-hidden="true">
+                <div class="trending-media">
+                  <span class="bento-skeleton bento-skeleton-rank"></span>
+                  <span class="bento-skeleton bento-skeleton-avatar"></span>
+                </div>
+                <div class="trending-body">
+                  <span class="bento-skeleton bento-skeleton-line bento-skeleton-line-title"></span>
+                  <span class="bento-skeleton bento-skeleton-line bento-skeleton-line-meta"></span>
+                </div>
+              </li>
+              <li class="trending-item trending-item-skeleton" aria-hidden="true">
+                <div class="trending-media">
+                  <span class="bento-skeleton bento-skeleton-rank"></span>
+                  <span class="bento-skeleton bento-skeleton-avatar"></span>
+                </div>
+                <div class="trending-body">
+                  <span class="bento-skeleton bento-skeleton-line bento-skeleton-line-title"></span>
+                  <span class="bento-skeleton bento-skeleton-line bento-skeleton-line-meta"></span>
+                </div>
+              </li>
+            </ul>
+          </article>
+        </section>
+      </div>
+    </div>
 
     <main class="layout">
-      <section class="panel campaign-promo" aria-label="Kampanya fırsatı">
-        <p class="campaign-promo-eyebrow">Fırsat</p>
-        <h2>5 kişilik gizli topluluk kur, ilk mentör görüşmesini ücretsiz al.</h2>
-        <p>
-          Arkadaşlarını davet et, hedefe odaklı bir ekip kur ve ilk mentör görüşmesi hediyesini kap.
-        </p>
-        <a class="nav-btn nav-btn-primary campaign-promo-btn" href="/firsatlar">Detayları Gör</a>
-      </section>
       <section class="panel">
         <div class="forum-header">
           <h2>Topluluk Akışı</h2>
@@ -176,16 +220,23 @@
 
     <template id="question-template">
       <article class="question-card">
-        <div class="question-head">
-          <div class="question-avatar" aria-hidden="true">
-            <img class="question-avatar-img" alt="" hidden />
-            <span class="question-avatar-fallback"></span>
+        <div class="question-summary-toggle" role="button" tabindex="0" aria-label="Cevapları göster">
+          <div class="question-head">
+            <div class="question-avatar" aria-hidden="true">
+              <img class="question-avatar-img" alt="" hidden />
+              <span class="question-avatar-fallback"></span>
+            </div>
+            <div class="question-body">
+              <h3 class="question-title"></h3>
+              <p class="question-meta"></p>
+              <div class="question-content rich-content"></div>
+            </div>
+            <button type="button" class="question-accordion-toggle" aria-expanded="false" aria-label="Cevapları göster">
+              <span class="question-accordion-chevron" aria-hidden="true"></span>
+            </button>
           </div>
-          <div class="question-body">
-            <h3 class="question-title"></h3>
-            <p class="question-meta"></p>
-            <div class="question-content rich-content"></div>
-            <div class="question-actions">
+        </div>
+        <div class="question-actions">
           <button type="button" class="action-btn like-btn" aria-pressed="false">
             <span aria-hidden="true">♥</span>
             <span class="like-count">0</span>
@@ -193,14 +244,14 @@
           <button type="button" class="action-btn save-btn" aria-pressed="false">Kaydet</button>
           <button type="button" class="action-btn delete-btn danger" hidden>Sil</button>
         </div>
-        <div class="answers"></div>
-        <button type="button" class="secondary answer-toggle-btn">Cevapla</button>
-        <form class="answer-form" hidden>
-          <label class="answer-editor-label">Yanıtın</label>
-          <div class="answer-editor-host quill-editor-host" aria-label="Yanıt metni"></div>
-          <button type="submit">Yanıtla</button>
-        </form>
-          </div>
+        <div class="question-accordion-panel" hidden>
+          <div class="answers"></div>
+          <button type="button" class="secondary answer-toggle-btn">Cevapla</button>
+          <form class="answer-form" hidden>
+            <label class="answer-editor-label">Yanıtın</label>
+            <div class="answer-editor-host quill-editor-host" aria-label="Yanıt metni"></div>
+            <button type="submit">Yanıtla</button>
+          </form>
         </div>
       </article>
     </template>

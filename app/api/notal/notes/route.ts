@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const notes = await listNotalNotes(supabase);
+    const notes = await listNotalNotes(supabase, identity);
     return NextResponse.json({ notes });
   } catch (error) {
     console.error("notal notes list:", error);

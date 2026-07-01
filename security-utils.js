@@ -24,11 +24,24 @@
     return raw.startsWith("blob:");
   }
 
+  function isSafeSvgDataUrl(url) {
+    const raw = String(url ?? "").trim();
+    if (!raw.startsWith("data:image/svg+xml,")) return false;
+    try {
+      const payload = raw.slice("data:image/svg+xml,".length);
+      const svg = decodeURIComponent(payload);
+      return /^<svg[\s>]/i.test(svg) && !/<script|foreignObject|on\w+\s*=/i.test(svg);
+    } catch {
+      return false;
+    }
+  }
+
   function setImgSrc(img, url, options = {}) {
     if (!img) return false;
     const raw = String(url ?? "").trim();
     const allowBlob = Boolean(options.allowBlob);
-    if (raw && (isSafeHttpUrl(raw) || (allowBlob && isSafeBlobUrl(raw)))) {
+    const allowDataSvg = Boolean(options.allowDataSvg);
+    if (raw && (isSafeHttpUrl(raw) || (allowBlob && isSafeBlobUrl(raw)) || (allowDataSvg && isSafeSvgDataUrl(raw)))) {
       img.src = raw;
       return true;
     }

@@ -121,6 +121,70 @@
     }
   }
 
+  function bindQuestionAccordion(cardEl, question) {
+    if (!cardEl || !question) return;
+
+    const panel = cardEl.querySelector(".question-accordion-panel");
+    const toggleBtn = cardEl.querySelector(".question-accordion-toggle");
+    const summaryToggle = cardEl.querySelector(".question-summary-toggle");
+    const actions = cardEl.querySelector(".question-actions");
+
+    if (!panel || !toggleBtn) return;
+
+    const answerCount = () =>
+      (question.answers ?? []).reduce(
+        (total, answer) => total + 1 + (answer.replies?.length ?? 0),
+        0,
+      );
+
+    const setExpanded = (expanded) => {
+      question.expanded = expanded;
+      panel.hidden = !expanded;
+      toggleBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
+      cardEl.classList.toggle("is-expanded", expanded);
+
+      const count = answerCount();
+      const countLabel = count > 0 ? ` (${count} cevap)` : "";
+      toggleBtn.setAttribute(
+        "aria-label",
+        expanded ? `Cevapları gizle${countLabel}` : `Cevapları göster${countLabel}`,
+      );
+      if (summaryToggle) {
+        summaryToggle.setAttribute(
+          "aria-label",
+          expanded ? `Cevapları gizle${countLabel}` : `Cevapları göster${countLabel}`,
+        );
+      }
+    };
+
+    setExpanded(Boolean(question.expanded));
+
+    const toggle = () => setExpanded(!question.expanded);
+
+    toggleBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggle();
+    });
+
+    if (summaryToggle) {
+      summaryToggle.addEventListener("click", (event) => {
+        if (event.target.closest("a, button, input, textarea, select, label")) return;
+        toggle();
+      });
+      summaryToggle.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        toggle();
+      });
+    }
+
+    if (actions) {
+      actions.addEventListener("click", (event) => event.stopPropagation());
+    }
+
+    question._setAccordionExpanded = setExpanded;
+  }
+
   window.RekabetliFeedDrafts = {
     buildKey,
     bindQuill,
@@ -129,6 +193,10 @@
     clear,
     captureVisibleForms,
     flushQuill,
+  };
+
+  window.RekabetliFeedAccordion = {
+    bind: bindQuestionAccordion,
   };
 
   document.addEventListener("visibilitychange", () => {

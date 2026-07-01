@@ -146,54 +146,6 @@ export async function refundNotalCredit(
     .eq("id", row.id);
 }
 
-export type GrantPdfResult =
-  | { granted: true; credits: NotalCreditsState }
-  | { granted: false; reason: "limit_reached"; credits: NotalCreditsState };
-
-export async function grantCreditsFromPdfDonation(
-  supabase: SupabaseClient,
-  identity: CreditIdentity,
-): Promise<GrantPdfResult> {
-  let row = await findRow(supabase, identity);
-  if (!row) {
-    row = await createRow(supabase, identity);
-  }
-
-  if (row.pdf_grant_count >= NOTAL_MAX_PDF_GRANTS) {
-    return {
-      granted: false,
-      reason: "limit_reached",
-      credits: buildCreditsState(row),
-    };
-  }
-
-  const { data, error } = await supabase
-    .from("notal_user_credits")
-    .update({
-      notes_remaining: NOTAL_NOTES_PER_GRANT,
-      pdf_grant_count: row.pdf_grant_count + 1,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", row.id)
-    .lt("pdf_grant_count", NOTAL_MAX_PDF_GRANTS)
-    .select("*")
-    .single();
-
-  if (error || !data) {
-    const fresh = await findRow(supabase, identity);
-    if (fresh && fresh.pdf_grant_count >= NOTAL_MAX_PDF_GRANTS) {
-      return {
-        granted: false,
-        reason: "limit_reached",
-        credits: buildCreditsState(fresh),
-      };
-    }
-    throw error ?? new Error("Hak güncellenemedi.");
-  }
-
-  return { granted: true, credits: buildCreditsState(data as CreditRow) };
-}
-
 /** Giriş yapmış kullanıcı: ziyaretçi kaydını hesaba bağla */
 export async function linkVisitorToUser(
   supabase: SupabaseClient,

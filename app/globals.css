@@ -51,6 +51,17 @@
     font-size: 1.05em;
   }
 
+  .notal-mermaid svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .notal-mermaid .nodeLabel,
+  .notal-mermaid .label {
+    color: #e8eefc !important;
+    fill: #e8eefc !important;
+  }
+
   .answer-rating-block {
     margin-top: 0.65rem;
     padding: 0.65rem 0.75rem;

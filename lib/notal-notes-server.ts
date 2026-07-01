@@ -14,6 +14,18 @@ interface NoteRow {
   created_at: string;
 }
 
+function matchesIdentity(row: NoteRow, identity: CreditIdentity): boolean {
+  if (identity.userId) {
+    return row.user_id === identity.userId;
+  }
+
+  if (identity.visitorId) {
+    return row.visitor_id === identity.visitorId;
+  }
+
+  return false;
+}
+
 function rowToListItem(row: NoteRow): NotalNoteListItem {
   return {
     id: row.id,
@@ -70,11 +82,22 @@ export async function saveNotalNote(
 
 export async function listNotalNotes(
   supabase: SupabaseClient,
+  identity: CreditIdentity,
 ): Promise<NotalNoteListItem[]> {
-  const { data, error } = await notesTable(supabase)
+  let query = notesTable(supabase)
     .select("*")
     .order("created_at", { ascending: false })
     .limit(100);
+
+  if (identity.userId) {
+    query = query.eq("user_id", identity.userId);
+  } else if (identity.visitorId) {
+    query = query.eq("visitor_id", identity.visitorId);
+  } else {
+    return [];
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return ((data ?? []) as NoteRow[]).map(rowToListItem);
@@ -83,6 +106,7 @@ export async function listNotalNotes(
 export async function getNotalNoteById(
   supabase: SupabaseClient,
   noteId: string,
+  identity?: CreditIdentity,
 ): Promise<SavedNotalNote | null> {
   const { data, error } = await notesTable(supabase)
     .select("*")
@@ -91,5 +115,11 @@ export async function getNotalNoteById(
 
   if (error) throw error;
   if (!data) return null;
-  return rowToNote(data as NoteRow);
+
+  const row = data as NoteRow;
+  if (identity && !matchesIdentity(row, identity)) {
+    return null;
+  }
+
+  return rowToNote(row);
 }

@@ -156,32 +156,16 @@ async function editorUnavailableAlert() {
   });
 }
 
-function getAuthorInitials(name) {
-  const parts = String(name || "?")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return (parts[0]?.[0] ?? "?").toUpperCase();
-}
-
-function applyQuestionAvatar(container, avatarUrl, authorName) {
+function applyQuestionAvatar(container, avatarUrl, authorName, userId) {
   const imgEl = container.querySelector(".question-avatar-img");
   const fallbackEl = container.querySelector(".question-avatar-fallback");
-  if (!imgEl || !fallbackEl) return;
-
-  fallbackEl.textContent = getAuthorInitials(authorName);
-
-  if (avatarUrl && setSafeImgSrc(imgEl, avatarUrl)) {
-    imgEl.alt = `${authorName} profil fotoğrafı`;
-    imgEl.hidden = false;
-    fallbackEl.hidden = true;
-    return;
-  }
-
-  imgEl.hidden = true;
-  imgEl.removeAttribute("src");
-  fallbackEl.hidden = false;
+  window.RekabetliAvatars?.applyUserAvatar({
+    imgEl,
+    fallbackEl,
+    avatarUrl,
+    displayName: authorName,
+    seed: userId || authorName,
+  });
 }
 
 // --- 5. OTURUM KONTROLÜ (Merkezi Auth Store) ---
@@ -511,13 +495,14 @@ function renderCommunityHeader() {
     communityVisibilityBadge.className = `community-visibility-badge ${isPrivate ? "is-private" : "is-public"}`;
   }
 
-  if (communityAvatarImg && communityAvatarFallback && community.avatar_url && setSafeImgSrc(communityAvatarImg, community.avatar_url)) {
-    communityAvatarImg.hidden = false;
-    communityAvatarFallback.hidden = true;
-  } else if (communityAvatarImg && communityAvatarFallback) {
-    communityAvatarImg.hidden = true;
-    communityAvatarFallback.hidden = false;
-    communityAvatarFallback.textContent = getCommunityInitials(community.name);
+  if (communityAvatarImg && communityAvatarFallback) {
+    window.RekabetliAvatars?.applyUserAvatar({
+      imgEl: communityAvatarImg,
+      fallbackEl: communityAvatarFallback,
+      avatarUrl: community.avatar_url,
+      displayName: community.name,
+      seed: community.id || community.name,
+    });
   }
 
   communityAdminNote.hidden = !isCommunityAdmin;
@@ -554,17 +539,12 @@ function renderJoinRequestItem({ id, displayName, avatarUrl, createdAt }) {
 
   const avatarWrap = document.createElement("div");
   avatarWrap.className = "community-member-avatar";
-  const img = document.createElement("img");
-  const fallback = document.createElement("span");
-  fallback.className = "community-member-avatar-fallback";
-
-  if (avatarUrl && setSafeImgSrc(img, avatarUrl)) {
-    img.alt = "";
-    avatarWrap.appendChild(img);
-  } else {
-    fallback.textContent = getCommunityInitials(displayName);
-    avatarWrap.appendChild(fallback);
-  }
+  window.RekabetliAvatars?.mountAvatar(avatarWrap, {
+    avatarUrl,
+    displayName,
+    seed: id || displayName,
+    fallbackClass: "community-member-avatar-fallback",
+  });
 
   const body = document.createElement("div");
   body.className = "community-member-body";
@@ -727,17 +707,12 @@ function renderMemberItem({ id, displayName, avatarUrl, roleLabel, joinedAt, rem
 
   const avatarWrap = document.createElement("div");
   avatarWrap.className = "community-member-avatar";
-  const img = document.createElement("img");
-  const fallback = document.createElement("span");
-  fallback.className = "community-member-avatar-fallback";
-
-  if (avatarUrl && setSafeImgSrc(img, avatarUrl)) {
-    img.alt = "";
-    avatarWrap.appendChild(img);
-  } else {
-    fallback.textContent = getCommunityInitials(displayName);
-    avatarWrap.appendChild(fallback);
-  }
+  window.RekabetliAvatars?.mountAvatar(avatarWrap, {
+    avatarUrl,
+    displayName,
+    seed: id || displayName,
+    fallbackClass: "community-member-avatar-fallback",
+  });
 
   const body = document.createElement("div");
   body.className = "community-member-body";
@@ -1358,8 +1333,10 @@ async function loadPosts() {
 
     questions = mappedPosts.map((post) => {
       const profile = post.userId ? profilesByUserId.get(post.userId) : null;
+      const displayName = profile?.display_name?.trim() || post.author;
       return {
         ...post,
+        author: displayName,
         authorAvatarUrl: profile?.avatar_url?.trim() || null,
         authorIsMentor: Boolean(profile?.is_mentor),
         likeCount: countByPostId.get(post.id) ?? 0,
@@ -1528,7 +1505,7 @@ function renderQuestions() {
     }
 
     cardEl.id = `post-${question.id}`;
-    applyQuestionAvatar(cardEl, question.authorAvatarUrl, question.author);
+    applyQuestionAvatar(cardEl, question.authorAvatarUrl, question.author, question.userId);
 
     titleEl.textContent = question.title;
     metaEl.replaceChildren();
@@ -1618,6 +1595,7 @@ function renderQuestions() {
     }
 
     renderAnswers(answersContainer, question.answers, question.id);
+    window.RekabetliFeedAccordion?.bind(cardEl, question);
 
     answerToggleBtn.addEventListener("click", () => {
       if (!requireLoginForAction()) return;
@@ -1632,6 +1610,9 @@ function renderQuestions() {
       }
 
       const shouldShowForm = answerForm.hidden;
+      if (shouldShowForm) {
+        question._setAccordionExpanded?.(true);
+      }
       answerForm.hidden = !shouldShowForm;
       answerToggleBtn.textContent = shouldShowForm ? "Vazgeç" : "Cevapla";
 
@@ -1686,6 +1667,7 @@ function renderQuestions() {
         if (target) {
           newComment.authorIsMentor = currentUserIsMentor;
           target.answers.unshift(newComment);
+          target.expanded = true;
           renderQuestions();
         }
         if (answerForm._rekabetliQuill) window.RekabetliQuill?.clear(answerForm._rekabetliQuill);

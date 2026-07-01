@@ -53,10 +53,17 @@ export async function notalFetch(
 
   await ensureNotalVisitorCookie();
 
-  const headers = {
-    ...notalCreditsHeaders(session.access_token),
+  const isFormData =
+    typeof FormData !== "undefined" && init?.body instanceof FormData;
+
+  const headers: Record<string, string> = {
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(init?.headers as Record<string, string> | undefined),
   };
+
+  if (session.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`;
+  }
 
   const response = await fetch(input, {
     ...init,

@@ -1,12 +1,15 @@
--- Ana sayfa bento: topluluk sayısı ve üye sayıları (anon dahil)
+-- Ana sayfa bento: topluluk sayısı, üye sayıları ve avatar (anon dahil)
 -- Supabase SQL Editor'da bir kez çalıştırın.
 
-CREATE OR REPLACE FUNCTION public.get_communities_bento_stats ()
+DROP FUNCTION IF EXISTS public.get_communities_bento_stats ();
+
+CREATE FUNCTION public.get_communities_bento_stats ()
 RETURNS TABLE (
   id uuid,
   name text,
   visibility text,
-  member_count bigint
+  member_count bigint,
+  avatar_url text
 )
 LANGUAGE sql
 STABLE
@@ -30,7 +33,8 @@ AS $$
             AND m.user_id = c.owner_id
         ) THEN 0::bigint
         ELSE 1::bigint
-      END AS member_count
+      END AS member_count,
+    c.avatar_url
   FROM public.communities c
   ORDER BY member_count DESC, c.created_at DESC;
 $$;

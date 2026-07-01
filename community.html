@@ -19,6 +19,7 @@
     <script src="supabase-client.js"></script>
     <script src="auth-store.js"></script>
     <script src="security-utils.js"></script>
+    <script src="avatar-utils.js"></script>
       <script>
       window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>
@@ -197,31 +198,38 @@
 
     <template id="question-template">
       <article class="question-card">
-        <div class="question-head">
-          <div class="question-avatar" aria-hidden="true">
-            <img class="question-avatar-img" alt="" hidden />
-            <span class="question-avatar-fallback"></span>
-          </div>
-          <div class="question-body">
-            <h3 class="question-title"></h3>
-            <p class="question-meta"></p>
-            <div class="question-content rich-content"></div>
-            <div class="question-actions">
-              <button type="button" class="action-btn like-btn" aria-pressed="false">
-                <span aria-hidden="true">♥</span>
-                <span class="like-count">0</span>
-              </button>
-              <button type="button" class="action-btn save-btn" aria-pressed="false">Kaydet</button>
-              <button type="button" class="action-btn delete-btn danger" hidden>Sil</button>
+        <div class="question-summary-toggle" role="button" tabindex="0" aria-label="Cevapları göster">
+          <div class="question-head">
+            <div class="question-avatar" aria-hidden="true">
+              <img class="question-avatar-img" alt="" hidden />
+              <span class="question-avatar-fallback"></span>
             </div>
-            <div class="answers"></div>
-            <button type="button" class="secondary answer-toggle-btn">Cevapla</button>
-            <form class="answer-form" hidden>
-              <label class="answer-editor-label">Yanıtın</label>
-              <div class="answer-editor-host quill-editor-host" aria-label="Yanıt metni"></div>
-              <button type="submit">Yanıtla</button>
-            </form>
+            <div class="question-body">
+              <h3 class="question-title"></h3>
+              <p class="question-meta"></p>
+              <div class="question-content rich-content"></div>
+            </div>
+            <button type="button" class="question-accordion-toggle" aria-expanded="false" aria-label="Cevapları göster">
+              <span class="question-accordion-chevron" aria-hidden="true"></span>
+            </button>
           </div>
+        </div>
+        <div class="question-actions">
+          <button type="button" class="action-btn like-btn" aria-pressed="false">
+            <span aria-hidden="true">♥</span>
+            <span class="like-count">0</span>
+          </button>
+          <button type="button" class="action-btn save-btn" aria-pressed="false">Kaydet</button>
+          <button type="button" class="action-btn delete-btn danger" hidden>Sil</button>
+        </div>
+        <div class="question-accordion-panel" hidden>
+          <div class="answers"></div>
+          <button type="button" class="secondary answer-toggle-btn">Cevapla</button>
+          <form class="answer-form" hidden>
+            <label class="answer-editor-label">Yanıtın</label>
+            <div class="answer-editor-host quill-editor-host" aria-label="Yanıt metni"></div>
+            <button type="submit">Yanıtla</button>
+          </form>
         </div>
       </article>
     </template>

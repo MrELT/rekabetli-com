@@ -6,7 +6,7 @@
     <title>Fırsatlar | rekabetli.com</title>
     <meta
       name="description"
-      content="5 kişilik gizli topluluk kampanyası: Topluluğunu kur, arkadaşlarını davet et, ilk mentör görüşmesini ücretsiz kazan."
+      content="Rekabetli kampanya sayfası. Bu kampanya sona ermiştir."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -45,70 +45,40 @@
       <a class="brand" href="/">
         <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
       </a>
-      <div class="nav-actions"><a class="nav-btn" href="/communities">Topluluklar</a>
-        <a id="firsatlar-cta-btn" class="nav-btn nav-btn-primary" href="/login">Hemen Katıl</a>
+      <div class="nav-actions">
+        <a class="nav-btn" href="/communities">Topluluklar</a>
+        <a class="nav-btn" href="/">Ana Sayfa</a>
       </div>
     </nav>
 
     <header class="site-header">
       <p class="eyebrow">Kampanya</p>
-      <h1>5 Kişilik Gizli Topluluklara İlk Mentör Görüşmesi Hediye</h1>
+      <h1>Bu kampanya sona erdi</h1>
       <p>
-        Arkadaşlarınla birlikte hedef odaklı bir ekip kur, topluluğunu büyüt ve ilk mentör görüşmesini ücretsiz al.
+        5 kişilik gizli topluluk kampanyamız tamamlanmıştır. Yeni fırsatlar için topluluklarımızı takip etmeye devam
+        edebilirsin.
       </p>
     </header>
 
     <main class="layout">
-      <section class="panel legal-document">
-        <h2>Kampanya Nasıl Çalışır?</h2>
-        <ol>
-          <li>Topluluklar sayfasından yeni bir <strong>gizli topluluk</strong> oluştur.</li>
-          <li>Topluluğuna arkadaşlarını davet et ve üye sayısını <strong>5 kişiye</strong> tamamla.</li>
-          <li>Topluluk aktif hale geldiğinde ücretsiz ilk mentör görüşmesi hakkın tanımlansın.</li>
-          <li>Mentör eşleşmesi sonrası ilk görüşmeni planlayarak süreci başlat.</li>
-        </ol>
-
-        <h2>Katılım Şartları</h2>
-        <ul>
-          <li>Topluluk gizli olmalı ve gerçek kullanıcılarla 5 kişiye ulaşmalı.</li>
-          <li>Kampanya hakkı topluluk başına bir kez kullanılır.</li>
-          <li>Uygunluk kontrolü sonrası mentör görüşmesi planlama bağlantısı paylaşılır.</li>
-        </ul>
-
-        <h2>Hemen Başla</h2>
-        <p>
-          Topluluğunu hemen kurmak için <a href="/communities">Topluluklar</a> sayfasına geçebilirsin. Kampanya
-          hakkında soruların olursa platform üzerinden bize ulaşabilirsin.
+      <section class="panel legal-document campaign-ended-panel">
+        <p class="campaign-ended-notice" role="status">
+          Bu kampanya sona erdi. Geçmiş dönemde sunulan ücretsiz ilk mentör görüşmesi hediyesi artık geçerli değildir.
         </p>
 
+        <h2>Ne yapabilirsin?</h2>
+        <ul>
+          <li>Mevcut topluluklara katılabilir veya kendi topluluğunu oluşturabilirsin.</li>
+          <li>Mentör vitrininden sana uygun mentörleri inceleyebilirsin.</li>
+          <li>Platformdaki diğer içerik ve topluluk paylaşımlarını takip edebilirsin.</li>
+        </ul>
+
         <div class="hero-actions">
-          <a class="nav-btn nav-btn-primary" href="/communities">Topluluk Oluşturmaya Git</a>
+          <a class="nav-btn nav-btn-primary" href="/communities">Topluluklara Git</a>
+          <a class="nav-btn" href="/mentors">Mentörleri Gör</a>
           <a class="nav-btn" href="/">Ana Sayfaya Dön</a>
         </div>
       </section>
     </main>
-
-    <script>
-      (async function syncFirsatlarTopCta() {
-        const ctaBtn = document.getElementById("firsatlar-cta-btn");
-        if (!ctaBtn) return;
-
-        const authStore = window.RekabetliAuth;
-        if (!authStore || typeof authStore.whenReady !== "function") return;
-
-        try {
-          const state = await authStore.whenReady();
-          if (state?.user) {
-            ctaBtn.href = "/communities";
-            ctaBtn.textContent = "Topluluklara Git";
-          } else {
-            ctaBtn.href = "/login";
-            ctaBtn.textContent = "Hemen Katıl";
-          }
-        } catch (error) {
-          console.warn("[rekabetli][firsatlar-cta-sync-error]", error);
-        }
-      })();
-    </script>
   </body>
 </html>

@@ -14,6 +14,8 @@
   let currentUserId = null;
   let notificationsOpen = false;
   let backdropEl = null;
+  let lastUnreadCount = 0;
+  let dismissBtn = null;
 
   function isMobileNotificationsLayout() {
     return window.matchMedia("(max-width: 1000px)").matches;
@@ -207,13 +209,78 @@
   }
 
   function updateBadge(unreadCount) {
-    if (!badgeEl) return;
-    if (unreadCount > 0) {
-      badgeEl.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+    lastUnreadCount = Math.max(0, Number(unreadCount) || 0);
+    if (!badgeEl) {
+      updateDismissButtonVisibility();
+      return;
+    }
+    if (lastUnreadCount > 0) {
+      badgeEl.textContent = lastUnreadCount > 9 ? "9+" : String(lastUnreadCount);
       badgeEl.hidden = false;
     } else {
       badgeEl.hidden = true;
     }
+    updateDismissButtonVisibility();
+  }
+
+  function updateDismissButtonVisibility() {
+    if (!dismissBtn) return;
+    dismissBtn.hidden = lastUnreadCount === 0;
+    dismissBtn.disabled = lastUnreadCount === 0;
+  }
+
+  function ensureDismissButton() {
+    if (dismissBtn) return;
+
+    const header = popup.querySelector(".notifications-popup-header");
+    if (!header || !closeBtn) return;
+
+    let actions = header.querySelector(".notifications-popup-actions");
+    if (!actions) {
+      actions = document.createElement("div");
+      actions.className = "notifications-popup-actions";
+      actions.append(closeBtn);
+      header.appendChild(actions);
+    }
+
+    dismissBtn = document.createElement("button");
+    dismissBtn.id = "dismiss-notifications";
+    dismissBtn.type = "button";
+    dismissBtn.className = "notifications-dismiss-btn";
+    dismissBtn.textContent = "Yoksay";
+    dismissBtn.setAttribute("aria-label", "Okunmamış bildirimleri yoksay");
+    dismissBtn.hidden = true;
+    dismissBtn.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      await dismissAllUnread();
+    });
+
+    actions.insertBefore(dismissBtn, closeBtn);
+    updateDismissButtonVisibility();
+  }
+
+  async function dismissAllUnread() {
+    if (!currentUserId || lastUnreadCount === 0) return;
+
+    if (dismissBtn) dismissBtn.disabled = true;
+
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("user_id", currentUserId)
+      .is("read_at", null);
+
+    if (error) {
+      console.error("Dismiss notifications error:", error.message);
+      if (dismissBtn) dismissBtn.disabled = lastUnreadCount === 0;
+      return;
+    }
+
+    updateBadge(0);
+    listEl.querySelectorAll(".notification-item.unread").forEach((item) => {
+      item.classList.remove("unread");
+    });
+    updateDismissButtonVisibility();
   }
 
   async function refreshBadge() {
@@ -403,6 +470,7 @@
   initAuthBinding();
 
   ensurePopupPortal();
+  ensureDismissButton();
 
   window.rekabetliNotifications = {
     refresh: refreshBadge,

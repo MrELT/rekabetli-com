@@ -68,20 +68,17 @@
   }
 
   function updateAvatarPreview(url, displayName) {
-    avatarFallback.textContent = getInitials(displayName || "?");
+    const isBlobPreview = String(url ?? "").trim().startsWith("blob:");
+    window.RekabetliAvatars?.applyUserAvatar({
+      imgEl: avatarPreview,
+      fallbackEl: avatarFallback,
+      avatarUrl: url,
+      displayName: displayName || "?",
+      seed: currentUser?.id || displayName,
+      setImgOptions: isBlobPreview ? { allowBlob: true } : undefined,
+    });
 
-    if (url) {
-      window.RekabetliSecurity?.setImgSrc(avatarPreview, url, { allowBlob: true });
-      avatarPreview.hidden = false;
-      avatarFallback.hidden = true;
-      removeAvatarBtn.hidden = false;
-      return;
-    }
-
-    avatarPreview.hidden = true;
-    avatarPreview.removeAttribute("src");
-    avatarFallback.hidden = false;
-    removeAvatarBtn.hidden = true;
+    removeAvatarBtn.hidden = !url;
   }
 
   function applyProfileToForm(profile, metadata) {
