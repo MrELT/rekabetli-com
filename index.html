@@ -242,7 +242,10 @@
             <span class="like-count">0</span>
           </button>
           <button type="button" class="action-btn save-btn" aria-pressed="false">Kaydet</button>
-          <button type="button" class="action-btn delete-btn danger" hidden>Sil</button>
+          <div class="question-owner-actions" hidden>
+            <button type="button" class="action-btn edit-btn">Düzenle</button>
+            <button type="button" class="action-btn delete-btn danger">Sil</button>
+          </div>
         </div>
         <div class="question-accordion-panel" hidden>
           <div class="answers"></div>
@@ -310,6 +313,7 @@
     <script src="image-upload-limit.js"></script>
     <script src="quill-editor.js"></script>
     <script src="feed-drafts.js"></script>
+    <script src="feed-edit.js"></script>
     <script src="comment-ratings.js"></script>
     <script src="comment-replies.js"></script>
     <script src="nav-profile.js"></script>

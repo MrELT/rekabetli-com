@@ -111,16 +111,14 @@
             Topluluğa Katıl
           </button>
         </div>
-      </section>
 
-      <section class="panel community-members-panel">
         <div class="activity-accordion community-panel-accordion" id="community-panel-accordion">
-          <section class="activity-accordion-section is-open" data-section="members">
+          <section class="activity-accordion-section" data-section="members">
             <button
               type="button"
               class="activity-accordion-trigger"
               id="trigger-members"
-              aria-expanded="true"
+              aria-expanded="false"
               aria-controls="panel-members"
             >
               <span class="activity-accordion-title">Üyeler</span>
@@ -220,7 +218,10 @@
             <span class="like-count">0</span>
           </button>
           <button type="button" class="action-btn save-btn" aria-pressed="false">Kaydet</button>
-          <button type="button" class="action-btn delete-btn danger" hidden>Sil</button>
+          <div class="question-owner-actions" hidden>
+            <button type="button" class="action-btn edit-btn">Düzenle</button>
+            <button type="button" class="action-btn delete-btn danger">Sil</button>
+          </div>
         </div>
         <div class="question-accordion-panel" hidden>
           <div class="answers"></div>
@@ -239,6 +240,7 @@
     <script src="image-upload-limit.js"></script>
     <script src="quill-editor.js"></script>
     <script src="feed-drafts.js"></script>
+    <script src="feed-edit.js"></script>
     <script src="comment-ratings.js"></script>
     <script src="comment-replies.js"></script>
     <script src="nav-profile.js"></script>

@@ -2324,10 +2324,109 @@ button:hover {
 }
 
 .action-btn.danger {
-  margin-left: auto;
   border-color: rgba(255, 107, 107, 0.45);
   background: rgba(255, 80, 80, 0.12);
   color: #ffc9c9;
+}
+
+.question-owner-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.edited-meta {
+  color: rgba(200, 214, 240, 0.72);
+}
+
+.feed-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+  min-width: 0;
+}
+
+.post-edit-form {
+  margin-top: 0.5rem;
+}
+
+.comment-edit-form {
+  margin-top: 0.45rem;
+}
+
+.feed-edit-title,
+.post-edit-title {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(124, 155, 214, 0.35);
+  background: rgba(8, 14, 26, 0.65);
+  color: #e8f0ff;
+  font-size: 1rem;
+}
+
+.feed-edit-editor-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.feed-edit-editor-panel > .feed-edit-editor-host {
+  margin-bottom: 0;
+}
+
+.feed-edit-editor-host .quill-editor-host {
+  margin-bottom: 0;
+}
+
+.feed-edit-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.55rem;
+  margin-top: 0.1rem;
+  border-top: 1px solid rgba(124, 155, 214, 0.22);
+}
+
+.feed-edit-footer .nav-btn,
+.feed-edit-footer .secondary {
+  width: auto;
+  margin-top: 0;
+}
+
+.feed-edit-footer .nav-btn:disabled,
+.feed-edit-footer .secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.post-edit-actions,
+.comment-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.answer-owner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
+
+.answer-edit-btn,
+.answer-delete-btn,
+.answer-reply-delete-btn {
+  width: auto;
+}
+
+.answer-delete-btn {
+  margin-top: 0;
 }
 
 .action-btn.danger:hover {
@@ -2358,11 +2457,6 @@ button:hover {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.2rem;
-}
-
-.answer-delete-btn {
-  margin-top: 0.45rem;
-  width: auto;
 }
 
 .answer-replies {
@@ -2415,11 +2509,6 @@ button:hover {
 .answer-reply-editor-label {
   font-size: 0.9rem;
   color: #b8c9e8;
-}
-
-.answer-reply-delete-btn {
-  margin-top: 0.35rem;
-  width: auto;
 }
 
 .answer-rating-block {
@@ -2951,13 +3040,14 @@ body.notifications-open {
   margin-top: 1rem;
 }
 
-.community-members-panel {
-  padding-top: 0.35rem;
-}
-
-.community-page-layout .community-members-panel,
 .community-page-layout .community-info-panel {
   margin-bottom: 0;
+}
+
+.community-info-panel .community-panel-accordion {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(126, 161, 228, 0.18);
 }
 
 .community-panel-accordion .activity-accordion-section.is-open .activity-accordion-panel {

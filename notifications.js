@@ -131,6 +131,28 @@
     return window.RekabetliSecurity?.isValidUuid?.(value) || false;
   }
 
+  function buildFeedNotificationHref(row) {
+    const params = new URLSearchParams();
+
+    if (isSafeUuid(row.community_id)) {
+      params.set("id", row.community_id);
+    }
+    if (isSafeUuid(row.post_id)) {
+      params.set("post", row.post_id);
+    }
+    if (isSafeUuid(row.comment_id)) {
+      params.set("comment", row.comment_id);
+    }
+
+    if (isSafeUuid(row.community_id)) {
+      const query = params.toString();
+      return query ? `/community?${query}` : "/communities";
+    }
+
+    const query = params.toString();
+    return query ? `/?${query}` : "/";
+  }
+
   function notificationHref(row) {
     if (row.type === "mentor_package_request") {
       const params = new URLSearchParams({ inbox: "requests" });
@@ -172,31 +194,38 @@
         ? `/communities?community=${encodeURIComponent(row.community_id)}`
         : "/communities";
     }
-    if (row.type === "community_post") {
-      const params = new URLSearchParams();
-      if (row.community_id) params.set("id", row.community_id);
-      if (row.post_id) params.set("post", row.post_id);
-      return params.has("id") ? `/community?${params.toString()}` : "/communities";
+    if (
+      row.type === "comment" ||
+      row.type === "like" ||
+      row.type === "answer_reply" ||
+      row.type === "community_post"
+    ) {
+      return buildFeedNotificationHref(row);
     }
-    if (row.type === "answer_reply") {
-      if (row.community_id) {
-        const params = new URLSearchParams();
-        params.set("id", row.community_id);
-        if (row.post_id) params.set("post", row.post_id);
-        if (row.comment_id) params.set("comment", row.comment_id);
-        return `/community?${params.toString()}`;
-      }
-      const params = new URLSearchParams();
-      if (row.post_id) params.set("post", row.post_id);
-      if (row.comment_id) params.set("comment", row.comment_id);
-      const query = params.toString();
-      return query ? `/?${query}` : "/";
+    return "/";
+  }
+
+  async function resolveNotificationHref(row) {
+    const feedTypes = new Set(["comment", "like", "answer_reply", "community_post"]);
+    if (!feedTypes.has(row.type) || isSafeUuid(row.community_id) || !isSafeUuid(row.post_id)) {
+      return notificationHref(row);
     }
-    const params = new URLSearchParams({ tab: "questions", post: row.post_id });
-    if (row.type === "comment" && row.comment_id) {
-      params.set("comment", row.comment_id);
+
+    const { data, error } = await supabase
+      .from("posts")
+      .select("community_id")
+      .eq("id", row.post_id)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Notification post lookup error:", error.message);
+      return notificationHref(row);
     }
-    return `/profile?${params.toString()}`;
+
+    return buildFeedNotificationHref({
+      ...row,
+      community_id: data?.community_id ?? null,
+    });
   }
 
   function setNavVisible(isLoggedIn) {
@@ -335,7 +364,7 @@
       button.addEventListener("click", async () => {
         await markAsRead(row.id);
         closePopup();
-        window.location.href = notificationHref(row);
+        window.location.href = await resolveNotificationHref(row);
       });
 
       li.appendChild(button);

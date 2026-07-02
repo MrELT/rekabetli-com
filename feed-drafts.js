@@ -185,6 +185,49 @@
     question._setAccordionExpanded = setExpanded;
   }
 
+  function scrollToTarget(questions) {
+    const params = new URLSearchParams(window.location.search);
+    const postId = params.get("post");
+    const commentId = params.get("comment");
+    if (!postId && !commentId) return;
+
+    const expandPost = (id) => {
+      if (!id || !Array.isArray(questions)) return;
+      const question = questions.find((q) => q.id === id);
+      if (!question) return;
+      question.expanded = true;
+      question._setAccordionExpanded?.(true);
+    };
+
+    if (postId) expandPost(postId);
+
+    let target = null;
+    if (commentId) {
+      target = document.getElementById(`comment-${commentId}`);
+      if (target) {
+        const parentPostId = target.closest(".question-card")?.id?.replace(/^post-/, "");
+        if (parentPostId) expandPost(parentPostId);
+      }
+    }
+    if (!target && postId) target = document.getElementById(`post-${postId}`);
+    if (!target) return;
+
+    document.querySelectorAll(".feed-item-highlight").forEach((el) => {
+      el.classList.remove("feed-item-highlight");
+    });
+    target.classList.add("feed-item-highlight");
+
+    window.requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("post");
+    cleanUrl.searchParams.delete("comment");
+    const query = cleanUrl.searchParams.toString();
+    window.history.replaceState({}, "", query ? `${cleanUrl.pathname}?${query}` : cleanUrl.pathname);
+  }
+
   window.RekabetliFeedDrafts = {
     buildKey,
     bindQuill,
@@ -197,6 +240,7 @@
 
   window.RekabetliFeedAccordion = {
     bind: bindQuestionAccordion,
+    scrollToTarget,
   };
 
   document.addEventListener("visibilitychange", () => {

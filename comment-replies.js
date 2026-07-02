@@ -48,7 +48,11 @@
       if (answer.authorIsMentor && ctx.createMentorBadge) {
         header.appendChild(ctx.createMentorBadge());
       }
-      header.append(document.createTextNode(` · ${ctx.formatDate(answer.createdAt)}`));
+      window.RekabetliFeedEdit?.appendTimestampMeta(header, {
+        createdAt: answer.createdAt,
+        updatedAt: answer.updatedAt,
+        formatDate: ctx.formatDate,
+      });
 
       const content = document.createElement("div");
       content.className = "rich-content";
@@ -65,15 +69,41 @@
       const isCommentOwner = Boolean(
         ctx.currentUserId && answer.userId && answer.userId === ctx.currentUserId,
       );
-      if (isCommentOwner && ctx.onDeleteAnswer) {
-        const deleteBtn = document.createElement("button");
-        deleteBtn.type = "button";
-        deleteBtn.className = "secondary danger answer-delete-btn";
-        deleteBtn.textContent = "Sil";
-        deleteBtn.addEventListener("click", () => {
-          void ctx.onDeleteAnswer(answer, postId);
-        });
-        answerEl.appendChild(deleteBtn);
+      if (isCommentOwner && (ctx.onEditAnswer || ctx.onDeleteAnswer)) {
+        const ownerActions = document.createElement("div");
+        ownerActions.className = "answer-owner-actions";
+
+        if (ctx.onEditAnswer) {
+          const editBtn = document.createElement("button");
+          editBtn.type = "button";
+          editBtn.className = "secondary answer-edit-btn";
+          editBtn.textContent = "Düzenle";
+          editBtn.addEventListener("click", () => {
+            window.RekabetliFeedEdit?.startCommentEdit({
+              containerEl: answerEl,
+              contentEl: content,
+              initialContent: answer.content,
+              onSave: async (newContent) => {
+                await ctx.onEditAnswer(answer, postId, newContent);
+              },
+              alertDialog: ctx.alertDialog,
+            });
+          });
+          ownerActions.appendChild(editBtn);
+        }
+
+        if (ctx.onDeleteAnswer) {
+          const deleteBtn = document.createElement("button");
+          deleteBtn.type = "button";
+          deleteBtn.className = "secondary danger answer-delete-btn";
+          deleteBtn.textContent = "Sil";
+          deleteBtn.addEventListener("click", () => {
+            void ctx.onDeleteAnswer(answer, postId);
+          });
+          ownerActions.appendChild(deleteBtn);
+        }
+
+        answerEl.appendChild(ownerActions);
       }
 
       mountReplySection(answerEl, answer, postId, ctx);
@@ -197,7 +227,11 @@
     if (reply.authorIsMentor && ctx.createMentorBadge) {
       header.appendChild(ctx.createMentorBadge());
     }
-    header.append(document.createTextNode(` · ${ctx.formatDate(reply.createdAt)}`));
+    window.RekabetliFeedEdit?.appendTimestampMeta(header, {
+      createdAt: reply.createdAt,
+      updatedAt: reply.updatedAt,
+      formatDate: ctx.formatDate,
+    });
 
     const content = document.createElement("div");
     content.className = "rich-content answer-reply-content";
@@ -206,15 +240,41 @@
     el.append(header, content);
 
     const isOwner = Boolean(ctx.currentUserId && reply.userId && reply.userId === ctx.currentUserId);
-    if (isOwner && ctx.onDeleteReply) {
-      const deleteBtn = document.createElement("button");
-      deleteBtn.type = "button";
-      deleteBtn.className = "secondary danger answer-reply-delete-btn";
-      deleteBtn.textContent = "Sil";
-      deleteBtn.addEventListener("click", () => {
-        void ctx.onDeleteReply(reply, answer, postId);
-      });
-      el.appendChild(deleteBtn);
+    if (isOwner && (ctx.onEditReply || ctx.onDeleteReply)) {
+      const ownerActions = document.createElement("div");
+      ownerActions.className = "answer-owner-actions";
+
+      if (ctx.onEditReply) {
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "secondary answer-edit-btn";
+        editBtn.textContent = "Düzenle";
+        editBtn.addEventListener("click", () => {
+          window.RekabetliFeedEdit?.startCommentEdit({
+            containerEl: el,
+            contentEl: content,
+            initialContent: reply.content,
+            onSave: async (newContent) => {
+              await ctx.onEditReply(reply, answer, postId, newContent);
+            },
+            alertDialog: ctx.alertDialog,
+          });
+        });
+        ownerActions.appendChild(editBtn);
+      }
+
+      if (ctx.onDeleteReply) {
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "secondary danger answer-reply-delete-btn";
+        deleteBtn.textContent = "Sil";
+        deleteBtn.addEventListener("click", () => {
+          void ctx.onDeleteReply(reply, answer, postId);
+        });
+        ownerActions.appendChild(deleteBtn);
+      }
+
+      el.appendChild(ownerActions);
     }
 
     return el;

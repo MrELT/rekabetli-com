@@ -335,35 +335,35 @@ function buildNotificationLink(record: NotificationRecord, siteUrl: string): str
     return joinSitePath(siteUrl, "/communities");
   }
 
-  if (record.type === "community_post") {
-    if (record.community_id) {
-      const params = new URLSearchParams({ id: record.community_id });
-      if (record.post_id) params.set("post", record.post_id);
-      return joinSitePath(siteUrl, `/community?${params.toString()}`);
-    }
-    return joinSitePath(siteUrl, "/communities");
-  }
-
-  if (record.type === "answer_reply") {
-    if (record.community_id) {
-      const params = new URLSearchParams({ id: record.community_id });
-      if (record.post_id) params.set("post", record.post_id);
-      if (record.comment_id) params.set("comment", record.comment_id);
-      return joinSitePath(siteUrl, `/community?${params.toString()}`);
-    }
+  if (
+    record.type === "comment" ||
+    record.type === "like" ||
+    record.type === "answer_reply" ||
+    record.type === "community_post"
+  ) {
     const params = new URLSearchParams();
-    if (record.post_id) params.set("post", record.post_id);
-    if (record.comment_id) params.set("comment", record.comment_id);
+    if (isSafeUuid(record.community_id)) {
+      params.set("id", record.community_id);
+    }
+    if (isSafeUuid(record.post_id)) {
+      params.set("post", record.post_id);
+    }
+    if (isSafeUuid(record.comment_id)) {
+      params.set("comment", record.comment_id);
+    }
+
+    if (isSafeUuid(record.community_id)) {
+      const query = params.toString();
+      return query
+        ? joinSitePath(siteUrl, `/community?${query}`)
+        : joinSitePath(siteUrl, "/communities");
+    }
+
     const query = params.toString();
     return query ? joinSitePath(siteUrl, `/?${query}`) : joinSitePath(siteUrl, "/");
   }
 
-  const params = new URLSearchParams({ tab: "questions" });
-  if (record.post_id) params.set("post", record.post_id);
-  if (record.type === "comment" && record.comment_id) {
-    params.set("comment", record.comment_id);
-  }
-  return joinSitePath(siteUrl, `/profile?${params.toString()}`);
+  return joinSitePath(siteUrl, "/");
 }
 
 function buildEmailHtml(options: {

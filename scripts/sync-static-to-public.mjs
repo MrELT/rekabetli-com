@@ -25,6 +25,7 @@ const ROOT_JS = new Set([
   "env-config.js",
   "env-config.example.js",
   "feed-drafts.js",
+  "feed-edit.js",
   "forgot-password.js",
   "image-compression.js",
   "image-upload-limit.js",

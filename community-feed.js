@@ -1049,30 +1049,7 @@ async function bootstrapCommunityFeedPage() {
 }
 
 function scrollToFeedTarget() {
-  const params = new URLSearchParams(window.location.search);
-  const postId = params.get("post");
-  const commentId = params.get("comment");
-  if (!postId && !commentId) return;
-
-  let target = null;
-  if (commentId) target = document.getElementById(`comment-${commentId}`);
-  if (!target && postId) target = document.getElementById(`post-${postId}`);
-  if (!target) return;
-
-  document.querySelectorAll(".feed-item-highlight").forEach((el) => {
-    el.classList.remove("feed-item-highlight");
-  });
-  target.classList.add("feed-item-highlight");
-
-  window.requestAnimationFrame(() => {
-    target.scrollIntoView({ behavior: "smooth", block: "center" });
-  });
-
-  const cleanUrl = new URL(window.location.href);
-  cleanUrl.searchParams.delete("post");
-  cleanUrl.searchParams.delete("comment");
-  const query = cleanUrl.searchParams.toString();
-  window.history.replaceState({}, "", query ? `${cleanUrl.pathname}?${query}` : cleanUrl.pathname);
+  window.RekabetliFeedAccordion?.scrollToTarget?.(questions);
 }
 
 // --- 6. VERİTABANI İŞLEMLERİ (Sorular ve Cevaplar) ---
@@ -1088,6 +1065,40 @@ function buildAnswerRenderContext() {
     },
     requireLogin: requireLoginForAction,
     alertDialog: rekabetliAlert,
+    onEditAnswer: async (answer, postId, content) => {
+      const row = await window.RekabetliFeedEdit.updateComment(
+        getSb(),
+        answer.id,
+        currentUserId,
+        content,
+      );
+      const target = questions.find((q) => q.id === postId);
+      if (!target) return;
+
+      const mapped = mapCommentRow(row);
+      mapped.authorIsMentor = answer.authorIsMentor;
+      mapped.ratingAvg = answer.ratingAvg;
+      mapped.ratingCount = answer.ratingCount;
+      mapped.myRating = answer.myRating;
+      mapped.replies = answer.replies;
+      window.RekabetliFeedEdit.patchCommentInTree(target.answers, answer.id, mapped);
+      renderQuestions();
+    },
+    onEditReply: async (reply, answer, postId, content) => {
+      const row = await window.RekabetliFeedEdit.updateComment(
+        getSb(),
+        reply.id,
+        currentUserId,
+        content,
+      );
+      const target = questions.find((q) => q.id === postId);
+      if (!target) return;
+
+      const mapped = mapCommentRow(row);
+      mapped.authorIsMentor = reply.authorIsMentor;
+      window.RekabetliFeedEdit.patchCommentInTree(target.answers, reply.id, mapped);
+      renderQuestions();
+    },
     onDeleteAnswer: async (answer, postId) => {
       if (
         !(await rekabetliConfirm({
@@ -1177,6 +1188,7 @@ function mapPostRow(postRow) {
     title: postRow.title,
     content: postRow.content,
     createdAt: postRow.created_at,
+    updatedAt: postRow.updated_at ?? null,
     authorIsMentor: false,
     likeCount: 0,
     likedByMe: false,
@@ -1215,6 +1227,7 @@ function mapCommentRow(commentRow) {
     author: commentRow.author,
     content: commentRow.content,
     createdAt: commentRow.created_at,
+    updatedAt: commentRow.updated_at ?? null,
     authorIsMentor: false,
     replies: [],
   };
@@ -1229,7 +1242,7 @@ async function loadPosts() {
   try {
     const { data: postRows, error: postsError } = await getSb()
       .from("posts")
-      .select("id, user_id, author, title, content, created_at")
+      .select("id, user_id, author, title, content, created_at, updated_at")
       .eq("community_id", communityId)
       .order("created_at", { ascending: false });
 
@@ -1255,7 +1268,7 @@ async function loadPosts() {
       const [commentsResult, likesResult, savesResult] = await Promise.all([
         getSb()
           .from("comments")
-          .select("id, post_id, parent_comment_id, user_id, author, content, created_at")
+          .select("id, post_id, parent_comment_id, user_id, author, content, created_at, updated_at")
           .in("post_id", postIds)
           .order("created_at", { ascending: false }),
         getSb().from("post_likes").select("post_id, user_id").in("post_id", postIds),
@@ -1365,7 +1378,7 @@ async function savePost({ author, title, content, userId }) {
   const { data, error } = await getSb()
     .from("posts")
     .insert([row])
-    .select("id, user_id, author, title, content, created_at")
+    .select("id, user_id, author, title, content, created_at, updated_at")
     .single();
 
   if (error) throw error;
@@ -1449,7 +1462,7 @@ async function saveComment({ postId, author, content, userId, parentCommentId = 
   const { data, error } = await getSb()
     .from("comments")
     .insert([row])
-    .select("id, post_id, parent_comment_id, user_id, author, content, created_at")
+    .select("id, post_id, parent_comment_id, user_id, author, content, created_at, updated_at")
     .single();
 
   if (error) throw error;
@@ -1484,6 +1497,8 @@ function renderQuestions() {
     const likeBtn = fragment.querySelector(".like-btn");
     const likeCountEl = fragment.querySelector(".like-count");
     const saveBtn = fragment.querySelector(".save-btn");
+    const ownerActions = fragment.querySelector(".question-owner-actions");
+    const editBtn = fragment.querySelector(".edit-btn");
     const deleteBtn = fragment.querySelector(".delete-btn");
     const answersContainer = fragment.querySelector(".answers");
     const answerToggleBtn = fragment.querySelector(".answer-toggle-btn");
@@ -1496,6 +1511,8 @@ function renderQuestions() {
       !likeBtn ||
       !likeCountEl ||
       !saveBtn ||
+      !ownerActions ||
+      !editBtn ||
       !deleteBtn ||
       !answersContainer ||
       !answerToggleBtn ||
@@ -1515,7 +1532,11 @@ function renderQuestions() {
     if (question.authorIsMentor) {
       metaEl.appendChild(createMentorBadge());
     }
-    metaEl.append(document.createTextNode(` · ${formatDate(question.createdAt)}`));
+    window.RekabetliFeedEdit?.appendTimestampMeta(metaEl, {
+      createdAt: question.createdAt,
+      updatedAt: question.updatedAt,
+      formatDate,
+    });
     window.RekabetliQuill?.renderRichContent(questionContentEl, question.content);
 
     likeCountEl.textContent = String(question.likeCount ?? 0);
@@ -1527,7 +1548,9 @@ function renderQuestions() {
 
     const isOwner = Boolean(currentUserId && question.userId && question.userId === currentUserId);
     if (!isOwner) {
-      deleteBtn.remove();
+      ownerActions.remove();
+    } else {
+      ownerActions.hidden = false;
     }
 
     likeBtn.addEventListener("click", async () => {
@@ -1567,6 +1590,31 @@ function renderQuestions() {
     });
 
     if (isOwner) {
+      editBtn.addEventListener("click", () => {
+        window.RekabetliFeedEdit?.startPostEdit({
+          question,
+          cardEl,
+          titleMaxLength: 120,
+          contentMaxLength: POST_CONTENT_MAX_LENGTH,
+          alertDialog: rekabetliAlert,
+          onSave: async ({ title, content }) => {
+            const row = await window.RekabetliFeedEdit.updatePost(
+              getSb(),
+              question.id,
+              currentUserId,
+              { title, content },
+            );
+            const target = questions.find((q) => q.id === question.id);
+            if (!target) return;
+
+            target.title = row.title;
+            target.content = row.content;
+            target.updatedAt = row.updated_at ?? null;
+            renderQuestions();
+          },
+        });
+      });
+
       deleteBtn.addEventListener("click", async () => {
         if (
           !(await rekabetliConfirm({
