@@ -1,4 +1,35 @@
+const AUDIENCE_LINKS = [
+  { href: "/kimler-icin#ogrenciler", label: "Öğrenciler" },
+  { href: "/kimler-icin#ogretmenler", label: "Öğretmenler" },
+  { href: "/kimler-icin#mentorler", label: "Mentörler" },
+  { href: "/kimler-icin#veliler", label: "Veliler" },
+  { href: "/hakkimizda", label: "Hakkımızda" },
+];
+
+function injectMobileAudienceNav() {
+  const container = document.querySelector(".mobile-menu-actions");
+  if (!container || container.querySelector('a[href="/kimler-icin#ogrenciler"]')) return;
+
+  const fragment = document.createDocumentFragment();
+  AUDIENCE_LINKS.forEach(({ href, label }) => {
+    const anchor = document.createElement("a");
+    anchor.className = "nav-btn";
+    anchor.href = href;
+    anchor.textContent = label;
+    fragment.appendChild(anchor);
+  });
+
+  const standaloneAbout = container.querySelector(
+    ':scope > a.nav-btn[href="/hakkimizda"]',
+  );
+  if (standaloneAbout) standaloneAbout.remove();
+
+  container.insertBefore(fragment, container.firstElementChild);
+}
+
 (function initSiteFooter() {
+  injectMobileAudienceNav();
+
   if (document.querySelector(".site-footer")) return;
 
   const footer = document.createElement("footer");
@@ -100,7 +131,30 @@
   });
 
   nav.append(navTitle, list);
-  inner.append(brand, nav);
+
+  const audienceNav = document.createElement("nav");
+  audienceNav.className = "site-footer-nav site-footer-nav-audience";
+  audienceNav.setAttribute("aria-label", "Kimler için");
+
+  const audienceTitle = document.createElement("p");
+  audienceTitle.className = "site-footer-nav-title";
+  audienceTitle.textContent = "Kimler İçin";
+
+  const audienceList = document.createElement("ul");
+  audienceList.className = "site-footer-links";
+
+  AUDIENCE_LINKS.forEach(({ href, label }) => {
+    const item = document.createElement("li");
+    const anchor = document.createElement("a");
+    anchor.href = href;
+    anchor.textContent = label;
+    item.appendChild(anchor);
+    audienceList.appendChild(item);
+  });
+
+  audienceNav.append(audienceTitle, audienceList);
+
+  inner.append(brand, audienceNav, nav);
 
   const copy = document.createElement("p");
   copy.className = "site-footer-copy";

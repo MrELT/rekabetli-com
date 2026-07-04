@@ -102,8 +102,25 @@
       <div class="home-hero-grid">
         <header class="site-header">
           <p class="eyebrow">Hız, Gelişim, Başarı</p>
-          <h1 class="hero-title">
-            <span class="hero-title-line">En İyi Mentörlerle Çalış,</span>
+          <h1 class="hero-title" aria-label="En İyi Mentörlerle Çalış, Gelişimini Hızlandır.">
+            <span class="hero-title-line">
+              <span class="hero-title-phrase">
+                <span class="hero-title-prefix">En İyi</span>
+                <span class="hero-rotate" data-hero-rotate>
+                  <span class="hero-rotate-window" id="hero-rotate-window">
+                    <span class="hero-rotate-track" id="hero-rotate-track">
+                      <span class="hero-rotate-item">Mentörlerle</span>
+                      <span class="hero-rotate-item">Danışmanlarla</span>
+                      <span class="hero-rotate-item">Koçlarla</span>
+                      <span class="hero-rotate-item">Öğretmenlerle</span>
+                      <span class="hero-rotate-item">Eğitmenlerle</span>
+                      <span class="hero-rotate-item" aria-hidden="true">Mentörlerle</span>
+                    </span>
+                  </span>
+                </span>
+                <span class="hero-title-suffix">Çalış,</span>
+              </span>
+            </span>
             <span class="hero-title-line hero-title-accent">Gelişimini Hızlandır.</span>
           </h1>
           <p class="hero-subtitle">Soru sor, topluluğunu bul, projeler geliştir ve liderlik yolunda aksiyona geç.</p>
@@ -359,6 +376,105 @@
     <script src="image-upload-limit.js"></script>
     <script src="quill-editor.js"></script>
     <script src="feed-skeleton.js"></script>
+    <script>
+      (function initHeroWordCarousel() {
+        var HOLD_MS = 1000;
+        var SLIDE_MS = 650;
+        var tries = 0;
+
+        function init() {
+          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+          var root = document.querySelector("[data-hero-rotate]");
+          var win = document.getElementById("hero-rotate-window");
+          var track = document.getElementById("hero-rotate-track");
+          if (!root || !win || !track) return;
+
+          var items = track.querySelectorAll(".hero-rotate-item");
+          if (items.length < 2) return;
+
+          var rowH = 0;
+          for (var i = 0; i < items.length; i += 1) {
+            rowH = Math.max(rowH, items[i].getBoundingClientRect().height);
+          }
+
+          if (!rowH) {
+            tries += 1;
+            if (tries < 30) window.requestAnimationFrame(init);
+            return;
+          }
+
+          rowH = Math.ceil(rowH);
+          root.style.setProperty("--hero-rotate-row-h", rowH + "px");
+          win.style.height = rowH + "px";
+
+          var maxW = 0;
+          for (var w = 0; w < items.length; w += 1) {
+            maxW = Math.max(maxW, items[w].scrollWidth);
+          }
+          if (maxW) {
+            win.style.minWidth = Math.ceil(maxW) + "px";
+          }
+
+          for (var j = 0; j < items.length; j += 1) {
+            items[j].style.height = rowH + "px";
+          }
+
+          var uniqueCount = items.length - 1;
+          var step = 0;
+
+          var ease =
+            getComputedStyle(root).getPropertyValue("--hero-rotate-ease").trim() ||
+            "cubic-bezier(0.16, 1, 0.3, 1)";
+
+          function yFor(stepIndex) {
+            return Math.round(items[stepIndex].offsetTop - items[0].offsetTop);
+          }
+
+          function snapToStart() {
+            track.style.transition = "none";
+            track.style.transform = "translate3d(0, " + -yFor(uniqueCount) + "px, 0)";
+            void track.offsetHeight;
+            track.style.transform = "translate3d(0, 0, 0)";
+            step = 0;
+            void track.offsetHeight;
+          }
+
+          function slideNext() {
+            step += 1;
+            track.style.transition = "transform " + SLIDE_MS + "ms " + ease;
+            track.style.transform = "translate3d(0, " + -yFor(step) + "px, 0)";
+
+            function onSlideEnd(e) {
+              if (e.target !== track || e.propertyName !== "transform") return;
+              track.removeEventListener("transitionend", onSlideEnd);
+
+              if (step >= uniqueCount) {
+                snapToStart();
+              }
+
+              window.setTimeout(slideNext, HOLD_MS);
+            }
+
+            track.addEventListener("transitionend", onSlideEnd);
+          }
+
+          window.setTimeout(slideNext, HOLD_MS);
+        }
+
+        function start() {
+          window.requestAnimationFrame(init);
+        }
+
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(start).catch(start);
+        } else if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", start);
+        } else {
+          start();
+        }
+      })();
+    </script>
     <script src="feed-drafts.js"></script>
     <script src="feed-edit.js"></script>
     <script src="comment-ratings.js"></script>
