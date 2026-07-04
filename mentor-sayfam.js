@@ -34,6 +34,9 @@
   const addLessonBtn = document.getElementById("mentor-add-lesson");
   const packagesListEl = document.getElementById("mentor-packages-list");
   const addPackageBtn = document.getElementById("mentor-add-package");
+  const toolbarEl = document.getElementById("mentor-sayfam-toolbar");
+  const previewToggleBtn = document.getElementById("mentor-preview-toggle-btn");
+  const toolbarLabelEl = document.getElementById("mentor-sayfam-toolbar-label");
 
   const MAX_ITEMS = 12;
   const MAX_TITLE = 120;
@@ -53,6 +56,7 @@
     packages: [],
   };
   let saving = false;
+  let previewMode = false;
 
   function setStatus(text) {
     if (statusEl) statusEl.textContent = text;
@@ -877,6 +881,7 @@
   }
 
   function renderAll() {
+    if (previewMode) return;
     if (displayNameEl) displayNameEl.textContent = displayName;
     renderVitrinAccent();
     renderPhoto();
@@ -884,7 +889,164 @@
     renderSummaries();
     void renderVitrinDisplays();
     renderItemEditors();
-    void mountMentorInbox();
+  }
+
+  function collectItemsFromEditor(listEl, kind) {
+    const vitrin = window.RekabetliMentorVitrin;
+    if (!listEl) {
+      return kind === "branch" ? [...pageData.branches] : [...pageData.private_lessons];
+    }
+
+    const items = [];
+    listEl.querySelectorAll("[data-item-id]").forEach((card, index) => {
+      const { title, description, accent } = readItemFromCard(card);
+      if (!title && !description) return;
+      items.push({
+        id: card.dataset.itemId,
+        title,
+        description,
+        accent: accent || vitrin?.getAccentForKind?.(kind, index) || null,
+      });
+    });
+    return items;
+  }
+
+  function collectPackagesFromEditor() {
+    const vitrin = window.RekabetliMentorVitrin;
+    if (!packagesListEl) return [...pageData.packages];
+
+    const items = [];
+    packagesListEl.querySelectorAll("[data-item-id]").forEach((card, index) => {
+      const { title, content, price, capacity, accent } = readPackageFromCard(card);
+      if (!title && !content) return;
+      items.push({
+        id: card.dataset.itemId,
+        title,
+        content,
+        price,
+        capacity,
+        accent: accent || vitrin?.getAccentForKind?.("package", index) || null,
+      });
+    });
+    return items;
+  }
+
+  function collectPreviewSnapshot() {
+    const vitrin = window.RekabetliMentorVitrin;
+    const vitrinAccent =
+      vitrin?.readAccentFromField?.(vitrinAccentPickerSlot) || pageData.vitrin_accent;
+
+    return {
+      photo_url: pageData.photo_url,
+      vitrin_accent: vitrinAccent,
+      about: pageData.about,
+      branches: collectItemsFromEditor(branchesListEl, "branch"),
+      private_lessons: collectItemsFromEditor(lessonsListEl, "lesson"),
+      packages: collectPackagesFromEditor(),
+    };
+  }
+
+  function renderPreviewPhoto(photoUrl) {
+    const url = photoUrl;
+    if (url) {
+      setImage(photoImg, url, { alt: displayName });
+      setFallbackVisible(photoFallback, false);
+      return;
+    }
+    setImage(photoImg, null);
+    if (photoFallback) {
+      photoFallback.textContent = getInitials(displayName);
+      setFallbackVisible(photoFallback, true);
+    }
+  }
+
+  async function renderPreview(snapshot) {
+    const vitrin = window.RekabetliMentorVitrin;
+    if (!vitrin) return;
+
+    if (displayNameEl) displayNameEl.textContent = displayName;
+    vitrin.applyVitrinShellAccent(showcaseEl, snapshot.vitrin_accent);
+    renderPreviewPhoto(snapshot.photo_url);
+    vitrin.fillAboutContent(aboutContentEl, snapshot.about);
+    vitrin.fillSummaryList(summaryBranchesEl, snapshot.branches, "Branş bilgisi yok", "branch");
+    vitrin.fillSummaryList(summaryLessonsEl, snapshot.private_lessons, "Ders bilgisi yok", "lesson");
+
+    vitrin.renderVitrinBranches(
+      document.getElementById("mentor-vitrin-branches"),
+      snapshot.branches,
+      "Henüz branş eklenmemiş.",
+    );
+    vitrin.renderVitrinLessons(
+      document.getElementById("mentor-vitrin-lessons"),
+      snapshot.private_lessons,
+      "Henüz özel ders eklenmemiş.",
+    );
+
+    const fillCounts = currentUser?.id
+      ? await vitrin.fetchPackageFillCounts(supabase, currentUser.id)
+      : new Map();
+    vitrin.renderVitrinPackages(
+      document.getElementById("mentor-vitrin-packages"),
+      snapshot.packages,
+      "Henüz paket eklenmemiş.",
+      {
+        mentorId: currentUser?.id || null,
+        mentorName: displayName,
+        packageFillCounts: fillCounts,
+      },
+    );
+  }
+
+  function setPreviewMode(active) {
+    previewMode = active;
+    showcaseEl?.classList.toggle("mentor-showcase--preview", active);
+    if (previewToggleBtn) {
+      previewToggleBtn.textContent = active ? "Düzenlemeye dön" : "Ön izle";
+    }
+    if (toolbarLabelEl) toolbarLabelEl.hidden = !active;
+    toolbarEl?.classList.toggle("is-preview", active);
+  }
+
+  function enterPreviewMode() {
+    const snapshot = collectPreviewSnapshot();
+    setPreviewMode(true);
+    void renderPreview(snapshot);
+    toolbarEl?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function exitPreviewMode() {
+    if (!previewMode) return;
+    setPreviewMode(false);
+    renderAll();
+  }
+
+  previewToggleBtn?.addEventListener("click", () => {
+    if (previewMode) exitPreviewMode();
+    else enterPreviewMode();
+  });
+
+  async function mountPackagePanelView(packageId) {
+    const safeId = sanitizeItemId(packageId);
+    const root = document.getElementById(`mentor-package-panel-root-${safeId}`);
+    const pkg = pageData.packages.find((item) => sanitizeItemId(item.id) === safeId);
+    if (!root || !pkg || !currentUser?.id || !window.RekabetliMentorMessaging?.mountPackagePanel) {
+      return;
+    }
+
+    const countEl = document.getElementById(`mentor-package-student-count-${safeId}`);
+    if (countEl) {
+      const count = packageFillCounts.get(safeId) || 0;
+      countEl.textContent = `${count} danışan / öğrenci`;
+    }
+
+    const deepLink = window.RekabetliMentorMessaging.parseInboxDeepLink?.() || null;
+    await window.RekabetliMentorMessaging.mountPackagePanel({
+      root,
+      mentorId: currentUser.id,
+      packageId: safeId,
+      packageTitle: pkg.title,
+      deepLink,
+    });
   }
 
   async function mountMentorInbox() {
@@ -963,6 +1125,10 @@
       if (error) throw error;
 
       pageData = { ...pageData, ...normalizedPatch };
+
+      if (patch.packages !== undefined) {
+        void renderPackageNavAndPanels();
+      }
 
       if (refreshEditors) {
         renderAll();
@@ -1123,8 +1289,292 @@
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeAllPriceInfoBoxes();
+    if (event.key === "Escape") {
+      if (previewMode) {
+        exitPreviewMode();
+        return;
+      }
+      closeAllPriceInfoBoxes();
+    }
   });
+
+  let packageFillCounts = new Map();
+  let showPanel = () => {};
+  let packagesAccordionOpen = false;
+
+  function setPackagesAccordionOpen(open) {
+    packagesAccordionOpen = open;
+    const group = document.querySelector('[data-mentor-nav-group="ogrenciler"]');
+    const parentBtn = document.querySelector('[data-mentor-accordion="ogrenciler"]');
+    const subnav = document.getElementById("mentor-package-subnav");
+    group?.classList.toggle("is-open", open);
+    parentBtn?.setAttribute("aria-expanded", open ? "true" : "false");
+    if (subnav) subnav.hidden = !open;
+  }
+
+  function packagePanelId(packageId) {
+    return `paket-${sanitizeItemId(packageId)}`;
+  }
+
+  function parsePackageIdFromPanel(panelId) {
+    const raw = String(panelId || "");
+    if (!raw.startsWith("paket-")) return "";
+    return sanitizeItemId(raw.slice(6));
+  }
+
+  function isKnownPanelId(panelId) {
+    if (
+      panelId === "profil" ||
+      panelId === "sayfam" ||
+      panelId === "ogrenciler" ||
+      panelId === "cuzdanim"
+    ) {
+      return true;
+    }
+    return Boolean(parsePackageIdFromPanel(panelId));
+  }
+
+  async function loadPackageFillCounts() {
+    const vitrin = window.RekabetliMentorVitrin;
+    if (!currentUser?.id || !vitrin?.fetchPackageFillCounts) return new Map();
+    return vitrin.fetchPackageFillCounts(supabase, currentUser.id);
+  }
+
+  function createPackageSubnavButton(pkg, count) {
+    const safeId = sanitizeItemId(pkg.id);
+    const title = pkg.title?.trim() || "Paket";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mentor-panel-nav-btn mentor-panel-nav-btn--sub";
+    btn.dataset.mentorPanel = packagePanelId(safeId);
+    btn.setAttribute("aria-current", "false");
+
+    const label = document.createElement("span");
+    label.className = "mentor-panel-subnav-label";
+    label.textContent = title;
+    label.title = title;
+
+    const countBadge = document.createElement("span");
+    countBadge.className = "mentor-panel-subnav-count";
+    countBadge.textContent = String(count);
+    countBadge.setAttribute("aria-label", `${count} danışan / öğrenci`);
+
+    btn.append(label, countBadge);
+    return btn;
+  }
+
+  function createPackagePanelSection(pkg, count) {
+    const safeId = sanitizeItemId(pkg.id);
+    const panelId = packagePanelId(safeId);
+    const title = pkg.title?.trim() || "Paket";
+
+    const section = document.createElement("section");
+    section.id = `mentor-panel-${panelId}`;
+    section.className = "mentor-panel-view";
+    section.dataset.mentorPanelView = panelId;
+    section.hidden = true;
+    section.setAttribute("aria-label", title);
+
+    const main = document.createElement("main");
+    main.className = "mentor-panel-students-layout";
+
+    const panel = document.createElement("section");
+    panel.className = "panel auth-panel mentor-students-panel";
+
+    const heading = document.createElement("h1");
+    heading.textContent = title;
+
+    const countEl = document.createElement("p");
+    countEl.id = `mentor-package-student-count-${safeId}`;
+    countEl.className = "mentor-package-student-count";
+    countEl.textContent = `${count} danışan / öğrenci`;
+
+    const hint = document.createElement("p");
+    hint.className = "profile-hint mentor-package-panel-hint";
+    hint.textContent =
+      "Bu pakete bağlı öğrenciler yakında burada listelenecek. Şimdilik ön talepler aşağıda görünür.";
+
+    const root = document.createElement("div");
+    root.id = `mentor-package-panel-root-${safeId}`;
+    root.className = "mentor-package-panel-root";
+
+    panel.append(heading, countEl, hint, root);
+    main.appendChild(panel);
+    section.appendChild(main);
+    return section;
+  }
+
+  async function renderPackageNavAndPanels() {
+    const subnav = document.getElementById("mentor-package-subnav");
+    const panelsRoot = document.getElementById("mentor-package-panels");
+    if (!subnav || !panelsRoot) return;
+
+    packageFillCounts = await loadPackageFillCounts();
+    subnav.replaceChildren();
+    panelsRoot.replaceChildren();
+
+    const packages = pageData.packages.filter((pkg) => pkg.title?.trim());
+    if (!packages.length) {
+      const empty = document.createElement("p");
+      empty.className = "mentor-panel-subnav-empty";
+      empty.textContent = "Henüz paket yok";
+      subnav.appendChild(empty);
+      subnav.hidden = !packagesAccordionOpen;
+      return;
+    }
+
+    packages.forEach((pkg) => {
+      const safeId = sanitizeItemId(pkg.id);
+      const count = packageFillCounts.get(safeId) || 0;
+      subnav.appendChild(createPackageSubnavButton(pkg, count));
+      panelsRoot.appendChild(createPackagePanelSection(pkg, count));
+    });
+
+    subnav.hidden = !packagesAccordionOpen;
+
+    const activePanel = document.querySelector(".mentor-panel-view.is-active")?.dataset.mentorPanelView;
+    if (activePanel?.startsWith("paket-")) {
+      const pkgId = parsePackageIdFromPanel(activePanel);
+      const stillExists = pageData.packages.some((pkg) => sanitizeItemId(pkg.id) === pkgId);
+      if (!stillExists) showPanel("ogrenciler");
+    }
+  }
+
+  async function resolveInitialPanelIdAsync() {
+    const hashPanel = window.location.hash.replace("#", "");
+    if (hashPanel === "profil" || hashPanel === "sayfam" || hashPanel === "ogrenciler" || hashPanel === "cuzdanim") {
+      return hashPanel;
+    }
+    if (hashPanel.startsWith("paket-") && parsePackageIdFromPanel(hashPanel)) {
+      return hashPanel;
+    }
+
+    const deepLink = window.RekabetliMentorMessaging?.parseInboxDeepLink?.();
+    if (deepLink?.conversationId || deepLink?.inbox === "messages") {
+      return "ogrenciler";
+    }
+
+    if (deepLink?.requestId && currentUser) {
+      const { data } = await supabase
+        .from("package_requests")
+        .select("package_id")
+        .eq("id", deepLink.requestId)
+        .eq("mentor_id", currentUser.id)
+        .maybeSingle();
+      const pkgId = data?.package_id ? sanitizeItemId(data.package_id) : "";
+      if (pkgId && pageData.packages.some((pkg) => sanitizeItemId(pkg.id) === pkgId)) {
+        return packagePanelId(pkgId);
+      }
+      return "ogrenciler";
+    }
+
+    if (deepLink?.inbox === "requests") {
+      return "ogrenciler";
+    }
+
+    return "sayfam";
+  }
+
+  function initMentorPanelNav() {
+    const nav = document.querySelector(".mentor-panel-nav");
+    if (!nav) return;
+
+    async function refreshDisplayNameFromProfile() {
+      if (!currentUser) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", currentUser.id)
+        .maybeSingle();
+      if (data?.display_name?.trim()) {
+        displayName = data.display_name.trim();
+        if (displayNameEl) displayNameEl.textContent = displayName;
+      }
+    }
+
+    showPanel = function showPanelImpl(panelId, { updateHash = true } = {}) {
+      const resolvedId = isKnownPanelId(panelId) ? panelId : "sayfam";
+      const isPackagePanel = resolvedId.startsWith("paket-");
+
+      document.querySelectorAll("[data-mentor-panel]").forEach((btn) => {
+        const isActive = btn.dataset.mentorPanel === resolvedId;
+        btn.classList.toggle("is-active", isActive);
+        btn.setAttribute("aria-current", isActive ? "page" : "false");
+      });
+
+      const navGroup = document.querySelector('[data-mentor-nav-group="ogrenciler"]');
+      if (navGroup) {
+        const parentBtn = navGroup.querySelector('[data-mentor-panel="ogrenciler"]');
+        parentBtn?.classList.toggle("is-active", resolvedId === "ogrenciler");
+        parentBtn?.classList.toggle(
+          "is-active-group",
+          resolvedId === "ogrenciler" || isPackagePanel,
+        );
+        navGroup.classList.toggle("has-active-child", isPackagePanel);
+      }
+
+      document.querySelectorAll("[data-mentor-panel-view]").forEach((view) => {
+        const isActive = view.dataset.mentorPanelView === resolvedId;
+        view.hidden = !isActive;
+        view.classList.toggle("is-active", isActive);
+      });
+
+      if (updateHash) {
+        const nextHash = `#${resolvedId}`;
+        if (window.location.hash !== nextHash) {
+          history.replaceState(
+            null,
+            "",
+            `${window.location.pathname}${window.location.search}${nextHash}`,
+          );
+        }
+      }
+
+      if (resolvedId === "sayfam") {
+        void refreshDisplayNameFromProfile();
+      } else {
+        exitPreviewMode();
+      }
+
+      if (resolvedId === "ogrenciler" || isPackagePanel) {
+        setPackagesAccordionOpen(true);
+      }
+
+      if (resolvedId === "ogrenciler") {
+        void mountMentorInbox();
+      } else if (isPackagePanel) {
+        void mountPackagePanelView(parsePackageIdFromPanel(resolvedId));
+      }
+    };
+
+    nav.addEventListener("click", (event) => {
+      const accordionBtn = event.target.closest("[data-mentor-accordion]");
+      if (accordionBtn && nav.contains(accordionBtn)) {
+        const willOpen = !packagesAccordionOpen;
+        setPackagesAccordionOpen(willOpen);
+        if (willOpen) showPanel("ogrenciler");
+        return;
+      }
+
+      const btn = event.target.closest("[data-mentor-panel]");
+      if (!btn || !nav.contains(btn)) return;
+      showPanel(btn.dataset.mentorPanel);
+    });
+
+    document.querySelectorAll("[data-open-mentor-panel]").forEach((el) => {
+      el.addEventListener("click", (event) => {
+        event.preventDefault();
+        showPanel(el.dataset.openMentorPanel);
+      });
+    });
+
+    window.addEventListener("hashchange", () => {
+      const hashPanel = window.location.hash.replace("#", "");
+      if (isKnownPanelId(hashPanel)) showPanel(hashPanel, { updateHash: false });
+    });
+  }
+
+  initMentorPanelNav();
 
   async function boot() {
     const {
@@ -1166,7 +1616,14 @@
 
     if (statusEl) statusEl.hidden = true;
     if (showcaseEl) showcaseEl.hidden = false;
+    if (toolbarEl) toolbarEl.hidden = false;
     renderAll();
+    await renderPackageNavAndPanels();
+
+    const initialPanel = await resolveInitialPanelIdAsync();
+    showPanel(initialPanel, {
+      updateHash: initialPanel !== "sayfam" || Boolean(window.location.hash),
+    });
   }
 
   void boot();

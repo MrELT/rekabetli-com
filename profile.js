@@ -47,6 +47,7 @@
   }
 
   function setMessage(text, isError = false) {
+    if (!profileMessage) return;
     profileMessage.textContent = text;
     profileMessage.classList.toggle("profile-message-error", isError);
   }
@@ -130,6 +131,7 @@
   }
 
   function setPanelEmpty(container, text) {
+    if (!container) return;
     container.replaceChildren();
     const empty = document.createElement("p");
     empty.className = "empty";
@@ -261,6 +263,7 @@
   }
 
   async function loadMyQuestions() {
+    if (!panelQuestions) return;
     setPanelEmpty(panelQuestions, "Yükleniyor...");
 
     const { data: posts, error } = await supabase
@@ -425,6 +428,7 @@
   }
 
   async function loadMyAnswers() {
+    if (!panelAnswers) return;
     setPanelEmpty(panelAnswers, "Yükleniyor...");
 
     const { data: comments, error } = await supabase
@@ -530,6 +534,7 @@
   }
 
   async function loadSavedPosts() {
+    if (!panelSaved) return;
     setPanelEmpty(panelSaved, "Yükleniyor...");
 
     const { data: saves, error: savesError } = await supabase
@@ -618,6 +623,8 @@
   }
 
   async function loadProfile() {
+    if (!profileForm) return;
+
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -628,8 +635,10 @@
     }
 
     currentUser = session.user;
-    profileEmail.replaceChildren();
-    profileEmail.append(document.createTextNode(`Hesap: ${currentUser.email}`));
+    if (profileEmail) {
+      profileEmail.replaceChildren();
+      profileEmail.append(document.createTextNode(`Hesap: ${currentUser.email}`));
+    }
 
     setupAccordions();
 
@@ -647,7 +656,7 @@
     }
 
     applyProfileToForm(data, currentUser.user_metadata ?? {});
-    if (data?.is_mentor) {
+    if (data?.is_mentor && profileEmail) {
       profileEmail.append(document.createTextNode(" "));
       profileEmail.appendChild(createMentorBadge());
       if (mentorPageAction) mentorPageAction.hidden = false;

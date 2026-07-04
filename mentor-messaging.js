@@ -794,9 +794,54 @@
     finishInboxMount();
   }
 
+  async function mountPackagePanel({ root, mentorId, packageId, packageTitle, deepLink = null }) {
+    if (!root || !vitrin()?.isValidMentorId?.(mentorId)) return;
+
+    const safePackageId = sec()?.sanitizePackageId?.(packageId) || "";
+    if (!safePackageId) return;
+
+    root.replaceChildren();
+    const loading = document.createElement("p");
+    loading.className = "mentor-inbox-empty";
+    loading.textContent = "Yükleniyor…";
+    root.appendChild(loading);
+
+    const { data, error } = await sb()
+      .from("package_requests")
+      .select(
+        "id, package_id, package_title, package_price, first_name, last_name, email, phone, note, status, created_at",
+      )
+      .eq("mentor_id", mentorId)
+      .eq("package_id", safePackageId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("mentor package panel:", error.message);
+      root.replaceChildren();
+      const err = document.createElement("p");
+      err.className = "mentor-inbox-empty";
+      err.textContent = "Ön talepler yüklenemedi.";
+      root.appendChild(err);
+      return;
+    }
+
+    const requests = (data ?? []).map((row) => ({
+      ...row,
+      package_title: row.package_title || packageTitle || "Paket",
+    }));
+    renderPackageRequests(root, requests);
+
+    if (deepLink?.requestId) {
+      const card = root.querySelector(`[data-request-id="${CSS.escape(deepLink.requestId)}"]`);
+      applyHighlightScroll(card);
+      cleanUrlParams(["inbox", "request"]);
+    }
+  }
+
   window.RekabetliMentorMessaging = {
     mountStudentPanel,
     mountMentorInbox,
+    mountPackagePanel,
     parseInboxDeepLink,
     parseStudentMessagingDeepLink,
   };

@@ -1235,9 +1235,12 @@ function mapCommentRow(commentRow) {
 
 async function loadPosts() {
   if (!canViewFeed || !communityId) {
+    window.RekabetliFeedSkeleton?.clearFeedLoadingState?.(questionList);
     if (questionList) questionList.replaceChildren();
     return;
   }
+
+  window.RekabetliFeedSkeleton?.setFeedLoadingState?.(questionList);
 
   try {
     const { data: postRows, error: postsError } = await getSb()
@@ -1249,6 +1252,7 @@ async function loadPosts() {
     if (postsError) {
       console.error("Posts load error:", postsError.message);
       if (questionList) {
+        window.RekabetliFeedSkeleton?.clearFeedLoadingState?.(questionList);
         showEmptyListMessage(
           questionList,
           "Veriler yüklenemedi. Supabase'de user_id sütunu ve tablolar için supabase-post-actions.sql dosyasını çalıştırın."
@@ -1366,6 +1370,7 @@ async function loadPosts() {
   } catch (error) {
     console.error("Community posts load failed:", error);
     if (questionList) {
+      window.RekabetliFeedSkeleton?.clearFeedLoadingState?.(questionList);
       showEmptyListMessage(questionList, "Paylaşımlar yüklenirken bir hata oluştu. Sayfayı yenileyin.");
     }
   }
@@ -1478,6 +1483,7 @@ async function saveComment({ postId, author, content, userId, parentCommentId = 
 function renderQuestions() {
   if (!questionList || !template?.content) return;
 
+  window.RekabetliFeedSkeleton?.clearFeedLoadingState?.(questionList);
   window.RekabetliFeedDrafts?.captureVisibleForms();
   
   questionList.replaceChildren();

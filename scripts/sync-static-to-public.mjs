@@ -26,6 +26,7 @@ const ROOT_JS = new Set([
   "env-config.example.js",
   "feed-drafts.js",
   "feed-edit.js",
+  "feed-skeleton.js",
   "forgot-password.js",
   "image-compression.js",
   "image-upload-limit.js",
@@ -46,6 +47,7 @@ const ROOT_JS = new Set([
   "register.js",
   "reset-password.js",
   "security-utils.js",
+  "site-footer.js",
   "supabase-client.js",
   "unsubscribe.js",
 ]);

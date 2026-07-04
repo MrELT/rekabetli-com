@@ -761,6 +761,7 @@ function mapCommentRow(commentRow) {
 
 async function loadPosts() {
   guestFeedHasMore = false;
+  window.RekabetliFeedSkeleton?.setFeedLoadingState?.(questionList);
 
   try {
     let postsQuery = getSb()
@@ -778,6 +779,7 @@ async function loadPosts() {
     if (postsError) {
       console.error("Posts load error:", postsError.message);
       if (questionList) {
+        window.RekabetliFeedSkeleton?.clearFeedLoadingState?.(questionList);
         showEmptyListMessage(
           questionList,
           "Veriler yüklenemedi. Supabase'de user_id sütunu ve tablolar için supabase-post-actions.sql dosyasını çalıştırın."
@@ -901,6 +903,7 @@ async function loadPosts() {
   } catch (error) {
     console.error("Posts load failed:", error);
     if (questionList) {
+      window.RekabetliFeedSkeleton?.clearFeedLoadingState?.(questionList);
       showEmptyListMessage(questionList, "Veriler yüklenirken bir hata oluştu. Sayfayı yenileyin.");
     }
   }
@@ -1040,6 +1043,7 @@ function renderGuestFeedCta() {
 function renderQuestions() {
   if (!questionList || !template?.content) return;
 
+  window.RekabetliFeedSkeleton?.clearFeedLoadingState?.(questionList);
   window.RekabetliFeedDrafts?.captureVisibleForms();
 
   questionList.replaceChildren();
@@ -1434,6 +1438,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bootstrapHomePage().catch((error) => {
     console.error("Initial load failed:", error);
     if (questionList) {
+      window.RekabetliFeedSkeleton?.clearFeedLoadingState?.(questionList);
       showEmptyListMessage(questionList, "Sayfa yüklenirken bir hata oluştu. Lütfen yenileyin.");
     }
   });

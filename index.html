@@ -189,7 +189,53 @@
         <div class="forum-header">
           <h2>Topluluk Akışı</h2>
         </div>
-        <div id="question-list" class="question-list"></div>
+        <div id="question-list" class="question-list is-loading" aria-busy="true">
+          <article class="question-card question-card-skeleton" aria-hidden="true">
+            <div class="feed-skeleton-head">
+              <span class="bento-skeleton feed-skeleton-avatar" aria-hidden="true"></span>
+              <div class="feed-skeleton-body">
+                <span class="bento-skeleton bento-skeleton-line feed-skeleton-line-title" aria-hidden="true"></span>
+                <span class="bento-skeleton bento-skeleton-line feed-skeleton-line-meta" aria-hidden="true"></span>
+                <span class="bento-skeleton bento-skeleton-line feed-skeleton-line-content" aria-hidden="true"></span>
+                <span class="bento-skeleton bento-skeleton-line feed-skeleton-line-content feed-skeleton-line-content--short" aria-hidden="true"></span>
+              </div>
+            </div>
+            <div class="feed-skeleton-actions">
+              <span class="bento-skeleton feed-skeleton-action" aria-hidden="true"></span>
+              <span class="bento-skeleton feed-skeleton-action" aria-hidden="true"></span>
+            </div>
+          </article>
+          <article class="question-card question-card-skeleton" aria-hidden="true">
+            <div class="feed-skeleton-head">
+              <span class="bento-skeleton feed-skeleton-avatar" aria-hidden="true"></span>
+              <div class="feed-skeleton-body">
+                <span class="bento-skeleton bento-skeleton-line feed-skeleton-line-title" aria-hidden="true"></span>
+                <span class="bento-skeleton bento-skeleton-line feed-skeleton-line-meta" aria-hidden="true"></span>
+                <span class="bento-skeleton bento-skeleton-line feed-skeleton-line-content" aria-hidden="true"></span>
+                <span class="bento-skeleton bento-skeleton-line feed-skeleton-line-content feed-skeleton-line-content--short" aria-hidden="true"></span>
+              </div>
+            </div>
+            <div class="feed-skeleton-actions">
+              <span class="bento-skeleton feed-skeleton-action" aria-hidden="true"></span>
+              <span class="bento-skeleton feed-skeleton-action" aria-hidden="true"></span>
+            </div>
+          </article>
+          <article class="question-card question-card-skeleton" aria-hidden="true">
+            <div class="feed-skeleton-head">
+              <span class="bento-skeleton feed-skeleton-avatar" aria-hidden="true"></span>
+              <div class="feed-skeleton-body">
+                <span class="bento-skeleton bento-skeleton-line feed-skeleton-line-title" aria-hidden="true"></span>
+                <span class="bento-skeleton bento-skeleton-line feed-skeleton-line-meta" aria-hidden="true"></span>
+                <span class="bento-skeleton bento-skeleton-line feed-skeleton-line-content" aria-hidden="true"></span>
+                <span class="bento-skeleton bento-skeleton-line feed-skeleton-line-content feed-skeleton-line-content--short" aria-hidden="true"></span>
+              </div>
+            </div>
+            <div class="feed-skeleton-actions">
+              <span class="bento-skeleton feed-skeleton-action" aria-hidden="true"></span>
+              <span class="bento-skeleton feed-skeleton-action" aria-hidden="true"></span>
+            </div>
+          </article>
+        </div>
       </section>
     </main>
 
@@ -312,6 +358,7 @@
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <script src="image-upload-limit.js"></script>
     <script src="quill-editor.js"></script>
+    <script src="feed-skeleton.js"></script>
     <script src="feed-drafts.js"></script>
     <script src="feed-edit.js"></script>
     <script src="comment-ratings.js"></script>
@@ -321,5 +368,6 @@
     <script src="notifications.js"></script>
     <script src="mentor-application.js"></script>
     <script src="app.js"></script>
+      <script src="site-footer.js"></script>
   </body>
 </html>
