@@ -267,6 +267,7 @@ registerForm.addEventListener("submit", async (event) => {
       );
     } else {
       setMessage("Kayıt başarılı. Giriş yapabilirsin.");
+      void window.RekabetliReferral?.claimReferralAttribution?.();
     }
 
     registerForm.reset();

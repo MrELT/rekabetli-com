@@ -3,6 +3,7 @@ const AUDIENCE_LINKS = [
   { href: "/kimler-icin#ogretmenler", label: "Öğretmenler" },
   { href: "/kimler-icin#mentorler", label: "Mentörler" },
   { href: "/kimler-icin#veliler", label: "Veliler" },
+  { href: "/influencer-program", label: "Influencer Programı" },
   { href: "/hakkimizda", label: "Hakkımızda" },
 ];
 
@@ -28,6 +29,22 @@ function injectMobileAudienceNav() {
 }
 
 (function initSiteFooter() {
+  if (!window.RekabetliCookieConsent && !document.querySelector('script[data-rekabetli-cookie-consent="1"]')) {
+    const consentScript = document.createElement("script");
+    consentScript.src = "/cookie-consent.js";
+    consentScript.dataset.rekabetliCookieConsent = "1";
+    consentScript.defer = true;
+    document.head.appendChild(consentScript);
+  }
+
+  if (!window.RekabetliReferral && !document.querySelector('script[data-rekabetli-referral="1"]')) {
+    const referralScript = document.createElement("script");
+    referralScript.src = "/referral-tracking.js";
+    referralScript.dataset.rekabetliReferral = "1";
+    referralScript.defer = true;
+    document.head.appendChild(referralScript);
+  }
+
   injectMobileAudienceNav();
 
   if (document.querySelector(".site-footer")) return;

@@ -98,6 +98,9 @@
   }
 
   function notificationMessage(row) {
+    const custom = row.body_text?.trim();
+    if (custom) return custom;
+
     const name = row.actor_name || "Biri";
     if (row.type === "comment") {
       return `${name} sorunuza yanıt verdi.`;
@@ -118,11 +121,56 @@
     if (row.type === "mentor_package_request") {
       return `${name} paketiniz için ön talep oluşturdu.`;
     }
+    if (row.type === "mentor_package_purchased") {
+      return row.body_text || `${name} paket satın alımınız tamamlandı.`;
+    }
+    if (row.type === "mentor_package_sale") {
+      return row.body_text || `${name} paketinizi satın aldı.`;
+    }
+    if (row.type === "mentor_package_refund_requested") {
+      return row.body_text || `${name} paketiniz için iade talep etti.`;
+    }
+    if (row.type === "mentor_package_refunded") {
+      return row.body_text || "Paket iadeniz işlendi.";
+    }
     if (row.type === "mentor_student_message") {
       return `${name} size bir soru sordu.`;
     }
     if (row.type === "mentor_mentor_reply") {
       return `${name} sorunuza yanıt verdi.`;
+    }
+    if (row.type === "mentor_meeting_proposal") {
+      return `${name} size görüşme zamanı teklifi gönderdi.`;
+    }
+    if (row.type === "mentor_meeting_confirmed") {
+      return `${name} görüşme zamanınızı onayladı.`;
+    }
+    if (row.type === "mentor_meeting_postpone") {
+      return row.body_text || `${name} görüşmeyi ertelemek istiyor.`;
+    }
+    if (row.type === "mentor_meeting_postpone_accepted") {
+      return row.body_text || `${name} yeni görüşme zamanını seçti.`;
+    }
+    if (row.type === "mentor_meeting_refund_requested") {
+      return row.body_text || "Görüşme için iade talebi oluşturuldu.";
+    }
+    if (row.type === "mentor_meeting_reminder_1d") {
+      return "Yarın görüşmeniz var.";
+    }
+    if (row.type === "mentor_meeting_reminder_30m") {
+      return "Görüşmeniz 30 dakika sonra.";
+    }
+    if (row.type === "mentor_vitrin_active") {
+      return row.body_text || `${name} artık yeni öğrenci kabul ediyor.`;
+    }
+    if (row.type === "admin_mentor_vitrin_review") {
+      return row.body_text || `${name} vitrin sayfasını incelemeniz için gönderdi.`;
+    }
+    if (row.type === "mentor_vitrin_review_approved") {
+      return row.body_text || "Vitrin sayfanız onaylandı.";
+    }
+    if (row.type === "mentor_vitrin_review_rejected") {
+      return row.body_text || "Vitrin sayfanız reddedildi.";
     }
     return `${name} sorunuzu beğendi.`;
   }
@@ -161,6 +209,29 @@
       }
       return `/mentor-sayfam?${params.toString()}`;
     }
+    if (row.type === "mentor_package_purchased") {
+      if (isSafeUuid(row.enrollment_id)) {
+        return `/ogrenci-sayfam#kayit-${encodeURIComponent(row.enrollment_id)}`;
+      }
+      return "/ogrenci-sayfam";
+    }
+    if (row.type === "mentor_package_sale") {
+      if (isSafeUuid(row.enrollment_id)) {
+        const params = new URLSearchParams({
+          enrollment: row.enrollment_id,
+          openSchedule: "1",
+          fromSale: "1",
+        });
+        return `/mentor-sayfam?${params.toString()}`;
+      }
+      return "/mentor-sayfam#ogrenciler";
+    }
+    if (row.type === "mentor_package_refund_requested") {
+      return "/mentor-sayfam#ogrenciler";
+    }
+    if (row.type === "mentor_package_refunded") {
+      return "/ogrenci-sayfam#cuzdanim";
+    }
     if (row.type === "mentor_student_message") {
       const params = new URLSearchParams({ inbox: "messages" });
       if (isSafeUuid(row.conversation_id)) {
@@ -172,17 +243,60 @@
       return `/mentor-sayfam?${params.toString()}`;
     }
     if (row.type === "mentor_mentor_reply") {
-      const params = new URLSearchParams({ openMessaging: "1" });
-      if (isSafeUuid(row.mentor_id)) {
-        params.set("id", row.mentor_id);
-      }
+      const params = new URLSearchParams({ openMessages: "1" });
       if (isSafeUuid(row.conversation_id)) {
         params.set("conversation", row.conversation_id);
       }
       if (isSafeUuid(row.message_id)) {
         params.set("message", row.message_id);
       }
-      return params.has("id") ? `/mentor?${params.toString()}` : "/mentors";
+      if (isSafeUuid(row.enrollment_id)) {
+        const query = params.toString();
+        return query
+          ? `/ogrenci-sayfam?${query}#kayit-${encodeURIComponent(row.enrollment_id)}`
+          : `/ogrenci-sayfam#kayit-${encodeURIComponent(row.enrollment_id)}`;
+      }
+      return params.toString() ? `/ogrenci-sayfam?${params.toString()}` : "/ogrenci-sayfam";
+    }
+    if (row.type === "mentor_meeting_proposal" || row.type === "mentor_meeting_postpone") {
+      if (isSafeUuid(row.enrollment_id)) {
+        return `/ogrenci-sayfam#kayit-${encodeURIComponent(row.enrollment_id)}`;
+      }
+      return "/ogrenci-sayfam";
+    }
+    if (row.type === "mentor_meeting_postpone_accepted") {
+      return "/mentor-sayfam#ogrenciler";
+    }
+    if (row.type === "mentor_meeting_refund_requested") {
+      if (isSafeUuid(row.mentor_id) && row.user_id === row.mentor_id) {
+        return "/mentor-sayfam#ogrenciler";
+      }
+      if (isSafeUuid(row.enrollment_id)) {
+        return `/ogrenci-sayfam#kayit-${encodeURIComponent(row.enrollment_id)}`;
+      }
+      return "/ogrenci-sayfam";
+    }
+    if (
+      row.type === "mentor_meeting_confirmed" ||
+      row.type === "mentor_meeting_reminder_1d" ||
+      row.type === "mentor_meeting_reminder_30m"
+    ) {
+      if (isSafeUuid(row.enrollment_id)) {
+        return `/ogrenci-sayfam#kayit-${encodeURIComponent(row.enrollment_id)}`;
+      }
+      return "/ogrenci-sayfam";
+    }
+    if (row.type === "mentor_vitrin_active") {
+      if (isSafeUuid(row.mentor_id)) {
+        return `/mentor?id=${encodeURIComponent(row.mentor_id)}`;
+      }
+      return "/mentors";
+    }
+    if (row.type === "admin_mentor_vitrin_review") {
+      return "/admin#mentor-vitrin-reviews";
+    }
+    if (row.type === "mentor_vitrin_review_approved" || row.type === "mentor_vitrin_review_rejected") {
+      return "/mentor-sayfam";
     }
     if (row.type === "community_join_request") {
       return row.community_id
@@ -378,7 +492,7 @@
     const { data, error } = await supabase
       .from("notifications")
       .select(
-        "id, actor_name, type, post_id, comment_id, community_id, join_request_id, mentor_id, package_request_id, conversation_id, message_id, read_at, created_at",
+        "id, actor_name, type, post_id, comment_id, community_id, join_request_id, mentor_id, package_request_id, conversation_id, message_id, meeting_proposal_id, enrollment_id, body_text, read_at, created_at",
       )
       .eq("user_id", currentUserId)
       .order("created_at", { ascending: false })

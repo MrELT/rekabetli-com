@@ -19,6 +19,8 @@
   const cityInput = document.getElementById("city");
   const phoneInput = document.getElementById("phone");
   const profileMessage = document.getElementById("profile-message");
+  const profileUserCodeEl = document.getElementById("profile-user-code");
+  const profileUserCodeCopyBtn = document.getElementById("profile-user-code-copy");
   const logoutBtn = document.getElementById("logout-btn");
   const deleteProfileBtn = document.getElementById("profile-delete-btn");
   const avatarInput = document.getElementById("avatar-input");
@@ -32,6 +34,8 @@
   const countAnswers = document.getElementById("count-answers");
   const countSaved = document.getElementById("count-saved");
   const mentorPageAction = document.getElementById("mentor-page-action");
+  const studentPageAction = document.getElementById("student-page-action");
+  const influencerPageAction = document.getElementById("influencer-page-action");
   const accordionSections = document.querySelectorAll(".activity-accordion-section");
 
   let currentUser = null;
@@ -50,6 +54,24 @@
     if (!profileMessage) return;
     profileMessage.textContent = text;
     profileMessage.classList.toggle("profile-message-error", isError);
+  }
+
+  function applyUserCodeDisplay(userCode) {
+    const code = String(userCode || "").trim().toUpperCase();
+    if (!profileUserCodeEl) return;
+    profileUserCodeEl.textContent = code || "—";
+    if (profileUserCodeCopyBtn) profileUserCodeCopyBtn.hidden = !code;
+  }
+
+  async function copyUserCodeToClipboard() {
+    const code = profileUserCodeEl?.textContent?.trim();
+    if (!code || code === "—") return;
+    try {
+      await navigator.clipboard.writeText(code);
+      setMessage("Kullanıcı kodu kopyalandı.");
+    } catch {
+      setMessage("Kod kopyalanamadı. Kodu elle seçip kopyalayın.", true);
+    }
   }
 
   function createMentorBadge() {
@@ -645,7 +667,7 @@
     const { data, error } = await supabase
       .from("profiles")
       .select(
-        "display_name, bio, avatar_url, city, school, user_type, phone, is_mentor, answer_rating_sum, answer_rating_count"
+        "display_name, bio, avatar_url, city, school, user_type, phone, user_code, is_mentor, answer_rating_sum, answer_rating_count"
       )
       .eq("id", currentUser.id)
       .maybeSingle();
@@ -656,15 +678,27 @@
     }
 
     applyProfileToForm(data, currentUser.user_metadata ?? {});
+    applyUserCodeDisplay(data?.user_code);
     if (data?.is_mentor && profileEmail) {
       profileEmail.append(document.createTextNode(" "));
       profileEmail.appendChild(createMentorBadge());
       if (mentorPageAction) mentorPageAction.hidden = false;
-    } else if (mentorPageAction) {
-      mentorPageAction.hidden = true;
+      if (studentPageAction) studentPageAction.hidden = true;
+    } else {
+      if (mentorPageAction) mentorPageAction.hidden = true;
+      if (studentPageAction) studentPageAction.hidden = false;
+    }
+
+    const { data: influencerApp } = await supabase.rpc("get_my_influencer_application");
+    if (influencerPageAction) {
+      influencerPageAction.hidden = influencerApp?.status !== "approved";
     }
     await loadAllActivity();
   }
+
+  profileUserCodeCopyBtn?.addEventListener("click", () => {
+    void copyUserCodeToClipboard();
+  });
 
   avatarInput.addEventListener("change", async () => {
     const file = avatarInput.files?.[0];
@@ -746,7 +780,10 @@
 
     if (!currentUser) return;
 
-    const displayName = displayNameInput.value.trim();
+    const displayNameRaw = displayNameInput.value.trim();
+    const displayName = window.RekabetliSecurity?.sanitizePersonName
+      ? window.RekabetliSecurity.sanitizePersonName(displayNameRaw, 120)
+      : displayNameRaw;
     if (!displayName) {
       setMessage("Görünen isim boş olamaz.", true);
       return;

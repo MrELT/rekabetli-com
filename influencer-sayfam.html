@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Influencer Paneli | rekabetli.com</title>
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="env-config.local.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="auth-store.js"></script>
+    <script defer src="/_vercel/insights/script.js"></script>
+  </head>
+  <body class="profile-page mentor-sayfam-page influencer-sayfam-page">
+    <nav class="profile-page-nav">
+      <a class="brand" href="/">
+        <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
+      </a>
+      <div class="profile-page-nav-actions">
+        <a class="nav-btn nav-btn-home" href="/" aria-label="Ana sayfa">
+          <span class="nav-btn-home-icon" aria-hidden="true">⌂</span>
+          <span class="nav-btn-home-text">Ana Sayfa</span>
+        </a>
+      </div>
+    </nav>
+
+    <div class="mentor-panel-shell">
+      <aside class="mentor-panel-sidebar" aria-label="Influencer paneli menüsü">
+        <p class="mentor-panel-sidebar-title">Influencer Paneli</p>
+        <nav class="mentor-panel-nav">
+          <button type="button" class="mentor-panel-nav-btn is-active" data-influencer-panel="programim" aria-current="page">
+            Programım
+          </button>
+          <button type="button" class="mentor-panel-nav-btn" data-influencer-panel="cuzdanim" aria-current="false">
+            Cüzdanım
+          </button>
+          <a class="mentor-panel-nav-btn mentor-panel-nav-link" href="/profile">Profil</a>
+        </nav>
+      </aside>
+
+      <div class="mentor-panel-content">
+        <p id="influencer-sayfam-status" class="mentor-showcase-status">Yükleniyor…</p>
+
+        <section
+          id="influencer-panel-programim"
+          class="mentor-panel-view is-active"
+          data-influencer-panel-view="programim"
+          aria-label="Programım"
+        >
+          <div class="mentor-students-panel influencer-program-panel">
+            <h1>Influencer Programım</h1>
+            <p class="mentor-inbox-hint">
+              Davet linkinizle gelen kullanıcıları takip edin. Satın alma komisyonları cüzdanınıza yansır.
+            </p>
+
+            <div class="influencer-link-card">
+              <p class="mentor-wallet-stat-label">Davet linkiniz</p>
+              <div class="influencer-link-row">
+                <input id="influencer-referral-link" type="text" readonly class="influencer-link-input" />
+                <button type="button" id="influencer-copy-link-btn" class="secondary">Kopyala</button>
+              </div>
+              <p id="influencer-referral-code" class="profile-hint"></p>
+            </div>
+
+            <div id="influencer-program-stats" class="mentor-wallet-stats"></div>
+          </div>
+        </section>
+
+        <section
+          id="influencer-panel-cuzdanim"
+          class="mentor-panel-view"
+          data-influencer-panel-view="cuzdanim"
+          hidden
+          aria-label="Cüzdanım"
+        >
+          <div class="mentor-students-panel mentor-wallet-panel">
+            <h1>Cüzdanım</h1>
+            <div class="mentor-wallet-layout">
+              <div class="mentor-wallet-main">
+                <div class="mentor-wallet-balance-card">
+                  <p class="mentor-wallet-balance-label">Çekilebilir bakiye</p>
+                  <p id="influencer-wallet-balance" class="mentor-wallet-balance-value">0 ₺</p>
+                  <p id="influencer-wallet-note" class="mentor-wallet-balance-note"></p>
+                  <div id="influencer-wallet-stats" class="mentor-wallet-stats" hidden></div>
+                </div>
+
+                <div id="influencer-wallet-payout-request" class="mentor-wallet-payout-request">
+                  <div class="mentor-wallet-payout-amount-field">
+                    <label for="influencer-wallet-payout-amount">Çekilecek tutar (₺)</label>
+                    <div class="mentor-wallet-payout-amount-row">
+                      <input id="influencer-wallet-payout-amount" class="mentor-wallet-payout-amount-input" type="number" min="500" step="1" />
+                      <button type="button" id="influencer-wallet-payout-max-btn" class="nav-btn mentor-wallet-payout-max-btn">Tamamı</button>
+                    </div>
+                  </div>
+                  <button type="button" id="influencer-wallet-payout-btn" class="nav-btn mentor-wallet-payout-btn" disabled>
+                    Ödeme talep et
+                  </button>
+                  <p id="influencer-wallet-payout-hint" class="profile-hint mentor-wallet-payout-hint"></p>
+                  <p id="influencer-wallet-payout-message" class="profile-message empty" role="status"></p>
+                </div>
+
+                <div class="mentor-wallet-transactions-wrap">
+                  <h2 class="mentor-wallet-subtitle">Komisyon geçmişi</h2>
+                  <p id="influencer-wallet-empty" class="mentor-wallet-empty">Henüz komisyon yok.</p>
+                  <ul id="influencer-wallet-transactions" class="mentor-wallet-transactions" hidden></ul>
+                </div>
+              </div>
+
+              <aside class="mentor-wallet-side">
+                <details class="mentor-payout-account-accordion" id="influencer-payout-account-accordion" open>
+                  <summary>Ödeme hesabı (IBAN)</summary>
+                  <form id="influencer-payout-account-form" class="mentor-payout-account-form">
+                    <label for="influencer-payout-holder">Hesap sahibi</label>
+                    <input id="influencer-payout-holder" type="text" maxlength="120" required />
+                    <label for="influencer-payout-iban">IBAN</label>
+                    <input id="influencer-payout-iban" type="text" maxlength="32" required placeholder="TR00 0000 0000 0000 0000 0000 00" />
+                    <label for="influencer-payout-bank">Banka</label>
+                    <input id="influencer-payout-bank" type="text" maxlength="80" required readonly />
+                    <button type="submit" class="secondary">Hesabı kaydet</button>
+                  </form>
+                  <p id="influencer-payout-account-message" class="profile-message empty" role="status"></p>
+                </details>
+
+                <div class="mentor-wallet-payout-history">
+                  <h2 class="mentor-wallet-subtitle">Ödeme talepleri</h2>
+                  <p id="influencer-wallet-payout-empty" class="mentor-wallet-empty">Henüz ödeme talebi yok.</p>
+                  <ul id="influencer-wallet-payout-requests" class="mentor-wallet-payout-requests" hidden></ul>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script src="turkish-bank-codes.js"></script>
+    <script src="mentor-vitrin-utils.js"></script>
+    <script src="confirm-dialog.js"></script>
+    <script src="mentor-panel-shell.js"></script>
+    <script src="influencer-sayfam.js"></script>
+    <script src="site-footer.js"></script>
+  </body>
+</html>

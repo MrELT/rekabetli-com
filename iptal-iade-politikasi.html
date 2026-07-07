@@ -44,7 +44,8 @@
           <ul>
             <li>
               <strong>24 saatten fazla önceden:</strong> Öğrenci, planlanan mentörlük oturumunu başlangıç saatinden 24
-              saatten fazla önce iptal ederse, ödeme yöntemine %100 tam iade yapılır.
+              saatten fazla önce gerekçe göstermeden iptal ederse, ödeme yöntemine iade yapılır; ancak ödeme sistemi
+              (Stripe) komisyonu iade tutarından düşülür.
             </li>
             <li>
               <strong>24 saatten az önceden:</strong> Öğrenci, oturumu planlanan başlangıç saatine 24 saat kala iptal
@@ -73,7 +74,24 @@
             bağlayıcı kararı verme hakkını saklı tutar.
           </p>
 
-          <h2>4. İadelerin İşlenmesi</h2>
+          <h2>4. Paket Satın Almaları</h2>
+          <ul>
+            <li>
+              Mentörlük paketi satın alımlarında Öğrenci, ödeme tarihinden itibaren 14 gün içinde Platform
+              üzerinden iade talep edebilir.
+            </li>
+            <li>
+              Onaylanan paket iadeleri Stripe aracılığıyla öğrencinin ödeme yöntemine aktarılır; gerekçe göstermeden
+              yapılan iadelerde ödeme sistemi komisyonu iade tutarından düşülür. Paket erişimi sonlandırılır ve mentör
+              cüzdanındaki ilgili satış tutarı düşülür.
+            </li>
+            <li>
+              Mentör payı, onaylanan ilk görüşmeden itibaren 14 gün sonra çekilebilir hale gelir. Öğrenci iade hakkı
+              ödeme tarihinden itibaren 14 gün içinde geçerlidir.
+            </li>
+          </ul>
+
+          <h2>5. İadelerin İşlenmesi</h2>
           <p>
             İadeler Platform onayının ardından derhal başlatılır. Ancak standart bankacılık ve kart ağı süreçleri
             (Stripe aracılığıyla) nedeniyle iade tutarının Öğrencinin banka veya kredi kartı ekstresinde görünmesi 5 ila

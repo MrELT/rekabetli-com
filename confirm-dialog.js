@@ -104,9 +104,15 @@
       confirmBtn.textContent = options.confirmLabel;
       cancelBtn.textContent = options.cancelLabel;
       cancelBtn.hidden = !options.showCancel;
+      const secondaryLabel = String(options.secondaryLabel || "").trim();
       if (secondaryBtn) {
-        secondaryBtn.hidden = !options.secondaryLabel;
-        if (options.secondaryLabel) secondaryBtn.textContent = options.secondaryLabel;
+        if (secondaryLabel) {
+          secondaryBtn.textContent = secondaryLabel;
+          secondaryBtn.hidden = false;
+        } else {
+          secondaryBtn.textContent = "";
+          secondaryBtn.hidden = true;
+        }
       }
 
       const isDanger = Boolean(options.danger);
@@ -114,7 +120,7 @@
       confirmBtn.classList.toggle("danger", isDanger);
 
       dialogEl.hidden = false;
-      if (options.secondaryLabel && secondaryBtn) {
+      if (secondaryLabel && secondaryBtn) {
         secondaryBtn.focus();
       } else {
         (options.showCancel ? cancelBtn : confirmBtn).focus();
@@ -130,6 +136,7 @@
       cancelLabel: "Vazgeç",
       showCancel: true,
       danger: false,
+      secondaryLabel: null,
     });
 
     return openDialog(options).then((result) => result === "confirm");

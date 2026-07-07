@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ödeme | rekabetli.com</title>
+    <link rel="icon" type="image/png" href="/assets/rekabetli_logo.png" />
+    <link rel="apple-touch-icon" href="/assets/rekabetli_logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/env-config.js"></script>
+    <script src="/env-config.local.js"></script>
+    <script src="/supabase-client.js"></script>
+    <script src="/auth-store.js"></script>
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+  </head>
+  <body class="profile-page payment-result-page">
+    <nav class="profile-page-nav">
+      <a class="brand" href="/">
+        <img src="/assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
+      </a>
+    </nav>
+
+    <main class="mentor-showcase-layout payment-result-layout">
+      <section class="panel auth-panel payment-result-card">
+        <h1 id="payment-result-title">Ödemeniz işleniyor</h1>
+        <p id="payment-result-message" class="payment-result-message">
+          Kaydınız hazırlanıyor, lütfen birkaç saniye bekleyin…
+        </p>
+        <p id="payment-result-detail" class="profile-hint payment-result-detail" hidden></p>
+        <div id="payment-result-actions" class="payment-result-actions" hidden>
+          <a id="payment-result-primary" class="nav-btn" href="/ogrenci-sayfam">Danışman paneline git</a>
+          <a id="payment-result-secondary" class="secondary auth-link-btn" href="/mentors">Mentörlere dön</a>
+        </div>
+      </section>
+    </main>
+
+    <script src="/odeme-basarili.js"></script>
+    <script src="/site-footer.js"></script>
+  </body>
+</html>

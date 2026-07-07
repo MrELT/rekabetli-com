@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rekabetli Influencer Programı | rekabetli.com</title>
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png" />
+    <link rel="apple-touch-icon" href="assets/rekabetli_logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="env-config.local.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="auth-store.js"></script>
+    <script src="security-utils.js"></script>
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+  </head>
+  <body class="influencer-program-page">
+    <nav class="top-menu">
+      <div class="menu-actions">
+        <a class="menu-btn" href="/kimler-icin#ogrenciler">Öğrenciler</a>
+        <a class="menu-btn" href="/kimler-icin#ogretmenler">Öğretmenler</a>
+        <a class="menu-btn" href="/kimler-icin#mentorler">Mentörler</a>
+        <a class="menu-btn" href="/kimler-icin#veliler">Veliler</a>
+        <a class="menu-btn menu-btn-about" href="/hakkimizda">Hakkımızda</a>
+        <a class="menu-btn is-active" href="/influencer-program" aria-current="page">Influencer</a>
+      </div>
+    </nav>
+
+    <nav class="top-nav">
+      <a class="brand" href="/">
+        <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
+      </a>
+      <button id="open-mobile-menu" class="menu-toggle" type="button" aria-label="Menüyü aç">☰</button>
+      <div class="nav-actions">
+        <button class="nav-btn" type="button" onclick="location.href='/communities'">Topluluklar</button>
+        <button class="nav-btn" type="button" onclick="location.href='/competitions'">Yarışmalar</button>
+        <button class="nav-btn" type="button" onclick="location.href='/exams'">Sınavlar</button>
+        <button class="nav-btn" type="button" onclick="location.href='/mentors'">Mentörüm</button>
+        <div class="notifications-wrap">
+          <button id="notifications-btn" class="nav-btn notifications-btn" type="button" aria-label="Bildirimler" hidden>
+            🔔
+            <span id="notifications-badge" class="notifications-badge" hidden>0</span>
+          </button>
+          <div id="notifications-popup" class="notifications-popup" hidden>
+            <div class="notifications-popup-header">
+              <strong>Bildirimler</strong>
+              <button id="close-notifications" type="button" class="icon-btn" aria-label="Kapat">✕</button>
+            </div>
+            <ul id="notifications-list" class="notifications-list"></ul>
+            <p id="notifications-empty" class="empty notifications-empty">Bildirim yok.</p>
+          </div>
+        </div>
+        <a id="desktop-profile-btn" class="nav-btn profile-link" href="/login?redirect=%2Finfluencer-program">Giriş Yap</a>
+      </div>
+    </nav>
+
+    <div id="mobile-menu" class="mobile-menu-overlay" hidden>
+      <section class="mobile-menu-sheet" role="dialog" aria-modal="true" aria-label="Mobil menü">
+        <div class="mobile-menu-header">
+          <strong>Menü</strong>
+          <button id="close-mobile-menu" type="button" class="icon-btn" aria-label="Menüyü kapat">✕</button>
+        </div>
+        <div class="mobile-menu-actions">
+          <a class="nav-btn" href="/kimler-icin#ogrenciler">Öğrenciler</a>
+          <a class="nav-btn" href="/kimler-icin#ogretmenler">Öğretmenler</a>
+          <a class="nav-btn" href="/kimler-icin#mentorler">Mentörler</a>
+          <a class="nav-btn" href="/kimler-icin#veliler">Veliler</a>
+          <a class="nav-btn" href="/hakkimizda">Hakkımızda</a>
+          <a class="nav-btn is-active" href="/influencer-program">Influencer Programı</a>
+          <button class="nav-btn" type="button" onclick="location.href='/communities'">Topluluklar</button>
+          <button class="nav-btn" type="button" onclick="location.href='/competitions'">Yarışmalar</button>
+          <button class="nav-btn" type="button" onclick="location.href='/exams'">Sınavlar</button>
+          <button class="nav-btn" type="button" onclick="location.href='/mentors'">Mentörüm</button>
+          <button id="mobile-notifications-btn" class="nav-btn notifications-btn" type="button" hidden>
+            🔔 Bildirimler
+          </button>
+          <a id="mobile-profile-btn" class="nav-btn profile-link" href="/login?redirect=%2Finfluencer-program">Giriş Yap</a>
+        </div>
+      </section>
+    </div>
+
+    <main class="layout influencer-program-layout">
+      <section class="panel influencer-program-hero">
+        <div class="influencer-program-hero-inner">
+          <div class="influencer-program-hero-copy">
+            <p class="eyebrow">Rekabetli Influencer Programı</p>
+            <h1>Kitleni rekabetli.com'a taşı, <span class="influencer-program-accent">kazancını takip et</span></h1>
+            <p class="about-lead">
+              Eğitim içerik üreticileri ve topluluk liderleri için affiliate program. Özel davet linkinle gelen
+              kullanıcılar platforma kayıt olur; davet ettiğin kişiler mentör paketi satın aldığında komisyon kazanırsın.
+            </p>
+            <div class="influencer-program-hero-actions">
+              <a href="#basvuru" class="nav-btn nav-btn-primary">Başvuru yap</a>
+              <a href="#nasil-calisir" class="nav-btn secondary">Nasıl çalışır?</a>
+            </div>
+          </div>
+
+          <aside class="influencer-program-hero-card" aria-label="Program özeti">
+            <p class="influencer-program-hero-card-label">Komisyon oranı</p>
+            <p class="influencer-program-hero-card-value">%5</p>
+            <p class="influencer-program-hero-card-note">Paket satın alımlarından brüt tutar üzerinden</p>
+            <ul class="influencer-program-highlights">
+              <li><span>30 gün</span> son tıklama penceresi</li>
+              <li><span>1 yıl</span> komisyon süresi</li>
+              <li><span>500 ₺</span> minimum ödeme</li>
+            </ul>
+          </aside>
+        </div>
+      </section>
+
+      <section id="nasil-calisir" class="panel influencer-program-section">
+        <div class="influencer-program-section-head">
+          <h2>Affiliate nasıl çalışır?</h2>
+          <p>Dört adımda başvur, paylaş, kazan ve çek.</p>
+        </div>
+        <div class="influencer-program-steps">
+          <article class="influencer-program-step">
+            <span class="influencer-program-step-num">1</span>
+            <h3>Başvur ve onay al</h3>
+            <p>Formu doldur; ekibimiz başvurunu inceler. Onay sonrası sana özel <strong>INF-</strong> kodlu davet linkin açılır.</p>
+          </article>
+          <article class="influencer-program-step">
+            <span class="influencer-program-step-num">2</span>
+            <h3>Linkini paylaş</h3>
+            <p>Instagram, YouTube, TikTok veya topluluğunda <code>rekabetli.com/r/INF-…</code> linkini kullan.</p>
+          </article>
+          <article class="influencer-program-step">
+            <span class="influencer-program-step-num">3</span>
+            <h3>Satışları takip et</h3>
+            <p>Linkinden gelen kayıtlar ve paket satın alımları influencer panelinde görünür; komisyon otomatik işlenir.</p>
+          </article>
+          <article class="influencer-program-step">
+            <span class="influencer-program-step-num">4</span>
+            <h3>Kazancını çek</h3>
+            <p>IBAN bilgini gir, ödeme talep et. Komisyonlar ilk görüşme + 14 gün sonra çekilebilir hale gelir.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel influencer-program-section">
+        <div class="influencer-program-section-head">
+          <h2>Program koşulları</h2>
+          <p>Şeffaf kurallar, net kazanç.</p>
+        </div>
+        <div class="influencer-program-terms-grid">
+          <article class="influencer-program-term">
+            <h3>Komisyon</h3>
+            <p>Davet ettiğin kullanıcının paket satın alımlarından brüt tutarın %5'i.</p>
+          </article>
+          <article class="influencer-program-term">
+            <h3>Attribution</h3>
+            <p>Son tıklama 30 gün geçerlidir; komisyon penceresi kayıttan itibaren 1 yıldır.</p>
+          </article>
+          <article class="influencer-program-term">
+            <h3>Ödeme</h3>
+            <p>Minimum çekim 500 ₺. Havale ücreti (35 ₺) talep tutarından düşülür.</p>
+          </article>
+          <article class="influencer-program-term">
+            <h3>İade</h3>
+            <p>İade edilen satışlarda komisyon otomatik olarak cüzdanından düşülür.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="basvuru" class="panel influencer-program-section influencer-program-form-panel">
+        <div class="influencer-program-section-head">
+          <h2>Başvuru formu</h2>
+          <p>Giriş yaptıktan sonra başvurunu gönder; admin onayından sonra panelin açılır.</p>
+        </div>
+
+        <div class="influencer-application-card">
+          <p id="influencer-application-status" class="influencer-application-status" hidden></p>
+
+          <form id="influencer-application-form" class="influencer-application-form" hidden>
+            <div class="influencer-form-grid">
+              <div class="influencer-form-field influencer-form-field--full">
+                <label for="influencer-display-label">Görünen ad / kanal adı</label>
+                <input id="influencer-display-label" type="text" maxlength="120" required />
+              </div>
+              <div class="influencer-form-field">
+                <label for="influencer-social-platform">Platform</label>
+                <select id="influencer-social-platform" required>
+                  <option value="">Seçin</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="YouTube">YouTube</option>
+                  <option value="TikTok">TikTok</option>
+                  <option value="Twitter/X">Twitter / X</option>
+                  <option value="Discord">Discord</option>
+                  <option value="Diğer">Diğer</option>
+                </select>
+              </div>
+              <div class="influencer-form-field">
+                <label for="influencer-social-handle">Kullanıcı adı / kanal</label>
+                <input id="influencer-social-handle" type="text" maxlength="120" required placeholder="@kullaniciadi" />
+              </div>
+              <div class="influencer-form-field">
+                <label for="influencer-follower-range">Takipçi aralığı</label>
+                <select id="influencer-follower-range" required>
+                  <option value="">Seçin</option>
+                  <option value="1K-10K">1K – 10K</option>
+                  <option value="10K-50K">10K – 50K</option>
+                  <option value="50K-100K">50K – 100K</option>
+                  <option value="100K+">100K+</option>
+                </select>
+              </div>
+              <div class="influencer-form-field">
+                <label for="influencer-contact-email">İletişim e-postası</label>
+                <input id="influencer-contact-email" type="email" maxlength="200" />
+              </div>
+              <div class="influencer-form-field">
+                <label for="influencer-website-url">Web / portfolyo</label>
+                <input id="influencer-website-url" type="url" maxlength="300" placeholder="https://" />
+              </div>
+              <div class="influencer-form-field influencer-form-field--full">
+                <label for="influencer-application-note">Neden katılmak istiyorsunuz?</label>
+                <textarea id="influencer-application-note" rows="4" maxlength="2000" placeholder="Kitleniz, içerik tarzınız ve rekabetli.com ile nasıl çalışmak istediğinizi kısaca yazın."></textarea>
+              </div>
+            </div>
+            <button type="submit" class="nav-btn nav-btn-primary influencer-application-submit" id="influencer-application-submit">
+              Başvuruyu gönder
+            </button>
+          </form>
+
+          <p id="influencer-application-login-hint" class="influencer-application-login-hint">
+            Başvuru için <a href="/login?redirect=%2Finfluencer-program">giriş yapın</a> veya
+            <a href="/register?redirect=%2Finfluencer-program">hesap oluşturun</a>.
+          </p>
+          <p id="influencer-application-message" class="profile-message empty" role="status"></p>
+        </div>
+      </section>
+    </main>
+
+    <script src="nav-profile.js"></script>
+    <script src="notifications.js"></script>
+    <script src="nav-auth.js"></script>
+    <script src="influencer-program.js"></script>
+    <script src="site-footer.js"></script>
+  </body>
+</html>

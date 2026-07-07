@@ -40,6 +40,16 @@ function getSiteUrl(): string {
   return siteUrl.replace(/\/$/, "");
 }
 
+function getEmailLogoUrl(siteUrl: string): string {
+  const override = Deno.env.get("EMAIL_LOGO_URL")?.trim();
+  if (override) return override.replace(/\/$/, "");
+  return `${siteUrl.replace(/\/$/, "")}/assets/rekabetli.png`;
+}
+
+function getEmailLogoFallbackUrl(siteUrl: string): string {
+  return `${siteUrl.replace(/\/$/, "")}/assets/rekabetli_logo.png`;
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -128,10 +138,8 @@ function buildEmailHtml(options: {
   const safeButtonUrl = escapeHtml(options.payload.buttonUrl);
   const safeSiteUrl = escapeHtml(options.siteUrl.replace(/\/$/, ""));
   const safeUnsubscribeUrl = escapeHtml(options.unsubscribeUrl);
-  const safeLogoUrl =
-    "https://xtggaelcgimohftfupvo.supabase.co/storage/v1/object/public/logos/rekabetli.png";
-  const safeLogoFallback =
-    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=160&q=80";
+  const safeLogoUrl = escapeHtml(getEmailLogoUrl(options.siteUrl));
+  const safeLogoFallback = escapeHtml(getEmailLogoFallbackUrl(options.siteUrl));
 
   return `<!DOCTYPE html>
 <html lang="tr">

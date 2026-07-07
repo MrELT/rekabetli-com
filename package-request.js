@@ -728,12 +728,12 @@
 
       console.error("package request save:", error.message);
 
+      const unavailable = String(error.message || "").includes("package_request_mentor_unavailable");
       setFormMessage(
-
-        "Ön talep kaydedilemedi. package_requests tablosunun oluşturulduğundan emin olun.",
-
+        unavailable
+          ? "Bu mentör şu anda yeni öğrenci kabul etmiyor."
+          : "Ön talep kaydedilemedi. package_requests tablosunun oluşturulduğundan emin olun.",
         true,
-
       );
 
       return;
@@ -761,11 +761,39 @@
 
 
 
+  async function isMentorAcceptingRequests(mentorId) {
+    if (!vitrin?.isValidMentorId?.(mentorId)) return false;
+    const { data, error } = await supabase
+      .from("mentor_pages")
+      .select("vitrin_active")
+      .eq("user_id", mentorId)
+      .maybeSingle();
+    if (error) {
+      console.error("package request availability:", error.message);
+      return false;
+    }
+    return data?.vitrin_active !== false;
+  }
+
   async function open(context) {
 
     const normalized = normalizeStoredContext(context);
 
     if (!normalized) return;
+
+    const accepting = await isMentorAcceptingRequests(normalized.mentorId);
+    if (!accepting) {
+      if (typeof window.rekabetliAlert === "function") {
+        await window.rekabetliAlert({
+          title: "Mentör meşgul",
+          message:
+            "Bu mentör şu anda yeni öğrenci kabul etmiyor. Daha sonra tekrar deneyebilir veya başka bir mentör seçebilirsiniz.",
+          confirmLabel: "Tamam",
+          showCancel: false,
+        });
+      }
+      return;
+    }
 
 
 

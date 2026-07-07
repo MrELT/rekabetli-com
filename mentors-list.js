@@ -122,7 +122,9 @@
 
     const { data: pages, error: pagesError } = await supabase
       .from("mentor_pages")
-      .select("user_id, photo_url, vitrin_accent, about, branches, private_lessons, packages, updated_at")
+      .select(
+        "user_id, photo_url, vitrin_accent, about, branches, private_lessons, packages, meeting_platform, meeting_link, payout_ready, updated_at, vitrin_review_status",
+      )
       .order("updated_at", { ascending: false })
       .limit(60);
 

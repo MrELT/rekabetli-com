@@ -26,7 +26,7 @@
     </script>
     <script defer src="/_vercel/insights/script.js"></script>
   </head>
-  <body class="profile-page">
+  <body class="profile-page admin-page">
     <nav class="profile-page-nav">
       <a class="brand" href="/">
         <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
@@ -37,242 +37,361 @@
       </div>
     </nav>
 
-    <main class="layout auth-layout profile-page-layout">
-      <section class="panel auth-panel profile-panel admin-panel">
-        <h1>Admin Paneli</h1>
-        <p class="auth-subtitle">
-          Mentör başvuruları, mentörlük talepleri ve kullanıcı listesi.
-        </p>
-        <p id="admin-message" class="profile-message empty"></p>
+    <div class="admin-shell">
+      <aside class="admin-sidebar" aria-label="Admin menüsü">
+        <p class="admin-sidebar-title">Yönetim</p>
+        <nav class="admin-nav" id="admin-nav">
+          <p class="admin-nav-group-label">Başvurular</p>
+          <button
+            type="button"
+            class="admin-nav-btn is-active"
+            data-admin-section="mentor-applications"
+            aria-current="page"
+          >
+            <span class="admin-nav-btn-label">Mentör Başvuruları</span>
+            <span id="admin-count-applications" class="admin-nav-count">0</span>
+          </button>
+          <button type="button" class="admin-nav-btn" data-admin-section="mentorship-requests">
+            <span class="admin-nav-btn-label">Mentörlük Talepleri</span>
+            <span id="admin-count-requests" class="admin-nav-count">0</span>
+          </button>
+          <button type="button" class="admin-nav-btn" data-admin-section="mentor-vitrin-reviews">
+            <span class="admin-nav-btn-label">Mentör Vitrin İstekleri</span>
+            <span id="admin-count-vitrin-reviews" class="admin-nav-count">0</span>
+          </button>
+          <button type="button" class="admin-nav-btn" data-admin-section="users">
+            <span class="admin-nav-btn-label">Kullanıcılar</span>
+            <span id="admin-count-users" class="admin-nav-count">0</span>
+          </button>
+          <button type="button" class="admin-nav-btn" data-admin-section="communities">
+            <span class="admin-nav-btn-label">Topluluklar</span>
+            <span id="admin-count-communities" class="admin-nav-count">0</span>
+          </button>
 
-        <div class="activity-accordion profile-page-accordion admin-page-accordion" id="admin-accordion">
-          <section class="activity-accordion-section is-open" data-section="mentor-applications">
-            <button
-              type="button"
-              class="activity-accordion-trigger"
-              id="trigger-mentor-applications"
-              aria-expanded="true"
-              aria-controls="panel-mentor-applications"
-            >
-              <span class="activity-accordion-title">Mentör Başvuruları</span>
-              <span class="activity-accordion-meta">
-                <span id="admin-count-applications" class="activity-accordion-count">0</span>
-                <span class="activity-accordion-chevron" aria-hidden="true"></span>
-              </span>
-            </button>
-            <div
-              id="panel-mentor-applications"
-              class="activity-accordion-panel admin-accordion-panel"
-              role="region"
-              aria-labelledby="trigger-mentor-applications"
-            >
-              <div class="admin-table-wrap">
-                <table class="admin-table" id="admin-mentor-applications-table">
-                  <thead>
-                    <tr>
-                      <th>Ad Soyad</th>
-                      <th>E-posta</th>
-                      <th>Branşlar</th>
-                      <th>Haftalık</th>
-                      <th>Durum</th>
-                      <th>Tarih</th>
-                    </tr>
-                  </thead>
-                  <tbody id="admin-mentor-applications-body"></tbody>
-                </table>
-              </div>
+          <p class="admin-nav-group-label">Finans</p>
+          <button type="button" class="admin-nav-btn" data-admin-section="package-refunds">
+            <span class="admin-nav-btn-label">Paket İadeleri</span>
+            <span id="admin-count-refunds" class="admin-nav-count">0</span>
+          </button>
+          <button type="button" class="admin-nav-btn" data-admin-section="mentor-payouts">
+            <span class="admin-nav-btn-label">Mentör Ödemeleri</span>
+            <span id="admin-count-payouts" class="admin-nav-count">0</span>
+          </button>
+          <button type="button" class="admin-nav-btn" data-admin-section="influencer-program">
+            <span class="admin-nav-btn-label">Influencer Programı</span>
+            <span id="admin-count-influencers" class="admin-nav-count">0</span>
+          </button>
+
+          <p class="admin-nav-group-label">İletişim</p>
+          <button type="button" class="admin-nav-btn" data-admin-section="campaign-mails">
+            <span class="admin-nav-btn-label">Fırsat Maili</span>
+            <span id="admin-count-campaign-jobs" class="admin-nav-count">0</span>
+          </button>
+          <button type="button" class="admin-nav-btn" data-admin-section="notal-notes">
+            <span class="admin-nav-btn-label">NotAl Notları</span>
+            <span id="admin-count-notal-notes" class="admin-nav-count">0</span>
+          </button>
+        </nav>
+      </aside>
+
+      <main class="admin-main">
+        <header class="admin-main-head">
+          <div>
+            <h1 id="admin-section-title" class="admin-main-title">Mentör Başvuruları</h1>
+            <p id="admin-section-desc" class="admin-main-desc">
+              Yeni mentör başvurularını inceleyin ve durumlarını takip edin.
+            </p>
+          </div>
+          <p id="admin-message" class="profile-message empty admin-main-message"></p>
+        </header>
+
+        <section
+          class="admin-section-view is-active"
+          data-admin-section="mentor-applications"
+          id="admin-section-mentor-applications"
+        >
+          <div class="admin-section-card">
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="admin-mentor-applications-table">
+                <thead>
+                  <tr>
+                    <th>Ad Soyad</th>
+                    <th>E-posta</th>
+                    <th>Branşlar</th>
+                    <th>Haftalık</th>
+                    <th>Durum</th>
+                    <th>Tarih</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-mentor-applications-body"></tbody>
+              </table>
             </div>
-          </section>
+          </div>
+        </section>
 
-          <section class="activity-accordion-section" data-section="mentorship-requests">
-            <button
-              type="button"
-              class="activity-accordion-trigger"
-              id="trigger-mentorship-requests"
-              aria-expanded="false"
-              aria-controls="panel-mentorship-requests"
-            >
-              <span class="activity-accordion-title">Mentörlük Talepleri</span>
-              <span class="activity-accordion-meta">
-                <span id="admin-count-requests" class="activity-accordion-count">0</span>
-                <span class="activity-accordion-chevron" aria-hidden="true"></span>
-              </span>
-            </button>
-            <div
-              id="panel-mentorship-requests"
-              class="activity-accordion-panel admin-accordion-panel"
-              role="region"
-              aria-labelledby="trigger-mentorship-requests"
-            >
-              <div class="admin-table-wrap">
-                <table class="admin-table" id="admin-mentorship-requests-table">
-                  <thead>
-                    <tr>
-                      <th>Ad Soyad</th>
-                      <th>E-posta</th>
-                      <th>Branşlar</th>
-                      <th>Aylık</th>
-                      <th>Durum</th>
-                      <th>Tarih</th>
-                    </tr>
-                  </thead>
-                  <tbody id="admin-mentorship-requests-body"></tbody>
-                </table>
-              </div>
+        <section
+          class="admin-section-view"
+          data-admin-section="mentorship-requests"
+          id="admin-section-mentorship-requests"
+          hidden
+        >
+          <div class="admin-section-card">
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="admin-mentorship-requests-table">
+                <thead>
+                  <tr>
+                    <th>Ad Soyad</th>
+                    <th>E-posta</th>
+                    <th>Branşlar</th>
+                    <th>Aylık</th>
+                    <th>Durum</th>
+                    <th>Tarih</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-mentorship-requests-body"></tbody>
+              </table>
             </div>
-          </section>
+          </div>
+        </section>
 
-          <section class="activity-accordion-section" data-section="users">
-            <button
-              type="button"
-              class="activity-accordion-trigger"
-              id="trigger-admin-users"
-              aria-expanded="false"
-              aria-controls="panel-admin-users"
-            >
-              <span class="activity-accordion-title">Kullanıcılar</span>
-              <span class="activity-accordion-meta">
-                <span id="admin-count-users" class="activity-accordion-count">0</span>
-                <span class="activity-accordion-chevron" aria-hidden="true"></span>
-              </span>
-            </button>
-            <div
-              id="panel-admin-users"
-              class="activity-accordion-panel admin-accordion-panel"
-              role="region"
-              aria-labelledby="trigger-admin-users"
-            >
-              <div class="admin-table-wrap">
-                <table class="admin-table" id="admin-users-table">
-                  <thead>
-                    <tr>
-                      <th>Kullanıcı</th>
-                      <th>E-posta</th>
-                      <th>Tür</th>
-                      <th>Mentör</th>
-                      <th>İşlem</th>
-                    </tr>
-                  </thead>
-                  <tbody id="admin-users-body"></tbody>
-                </table>
-              </div>
+        <section
+          class="admin-section-view"
+          data-admin-section="mentor-vitrin-reviews"
+          id="admin-section-mentor-vitrin-reviews"
+          hidden
+        >
+          <div class="admin-section-card">
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="admin-vitrin-reviews-table">
+                <thead>
+                  <tr>
+                    <th>Mentör</th>
+                    <th>E-posta</th>
+                    <th>Durum</th>
+                    <th>Gönderim</th>
+                    <th>İşlem</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-vitrin-reviews-body"></tbody>
+              </table>
             </div>
-          </section>
+          </div>
+        </section>
 
-          <section class="activity-accordion-section" data-section="communities">
-            <button
-              type="button"
-              class="activity-accordion-trigger"
-              id="trigger-admin-communities"
-              aria-expanded="false"
-              aria-controls="panel-admin-communities"
-            >
-              <span class="activity-accordion-title">Topluluklar</span>
-              <span class="activity-accordion-meta">
-                <span id="admin-count-communities" class="activity-accordion-count">0</span>
-                <span class="activity-accordion-chevron" aria-hidden="true"></span>
-              </span>
-            </button>
-            <div
-              id="panel-admin-communities"
-              class="activity-accordion-panel admin-accordion-panel"
-              role="region"
-              aria-labelledby="trigger-admin-communities"
-            >
-              <div class="admin-table-wrap">
-                <table class="admin-table" id="admin-communities-table">
-                  <thead>
-                    <tr>
-                      <th>Topluluk</th>
-                      <th>Görünürlük</th>
-                      <th>Kurucu</th>
-                      <th>Oluşturulma</th>
-                      <th>İşlem</th>
-                    </tr>
-                  </thead>
-                  <tbody id="admin-communities-body"></tbody>
-                </table>
-              </div>
+        <section class="admin-section-view" data-admin-section="users" id="admin-section-users" hidden>
+          <div class="admin-section-card">
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="admin-users-table">
+                <thead>
+                  <tr>
+                    <th>Kullanıcı</th>
+                    <th>E-posta</th>
+                    <th>Tür</th>
+                    <th>Mentör</th>
+                    <th>İşlem</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-users-body"></tbody>
+              </table>
             </div>
-          </section>
+          </div>
+        </section>
 
-          <section class="activity-accordion-section" data-section="campaign-mails">
-            <button
-              type="button"
-              class="activity-accordion-trigger"
-              id="trigger-admin-campaign-mails"
-              aria-expanded="false"
-              aria-controls="panel-admin-campaign-mails"
-            >
-              <span class="activity-accordion-title">Fırsat Maili Gönderimi</span>
-              <span class="activity-accordion-meta">
-                <span id="admin-count-campaign-jobs" class="activity-accordion-count">0</span>
-                <span class="activity-accordion-chevron" aria-hidden="true"></span>
-              </span>
-            </button>
-            <div
-              id="panel-admin-campaign-mails"
-              class="activity-accordion-panel admin-accordion-panel"
-              role="region"
-              aria-labelledby="trigger-admin-campaign-mails"
-            >
-              <form id="admin-campaign-mail-form" class="modal-form">
-                <label for="campaign-subject">Mail Başlığı</label>
-                <input
-                  id="campaign-subject"
-                  name="subject"
-                  type="text"
-                  maxlength="120"
-                  placeholder="Örn: 5 Kişilik Gizli Topluluklara İlk Mentör Görüşmesi Hediye"
-                  required
-                />
+        <section
+          class="admin-section-view"
+          data-admin-section="communities"
+          id="admin-section-communities"
+          hidden
+        >
+          <div class="admin-section-card">
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="admin-communities-table">
+                <thead>
+                  <tr>
+                    <th>Topluluk</th>
+                    <th>Görünürlük</th>
+                    <th>Kurucu</th>
+                    <th>Oluşturulma</th>
+                    <th>İşlem</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-communities-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
 
-                <label for="campaign-preview">Kısa Özet</label>
-                <textarea
-                  id="campaign-preview"
-                  name="preview"
-                  rows="3"
-                  maxlength="240"
-                  placeholder="Mail başında görünecek kısa açıklama..."
-                  required
-                ></textarea>
+        <section
+          class="admin-section-view"
+          data-admin-section="package-refunds"
+          id="admin-section-package-refunds"
+          hidden
+        >
+          <div class="admin-section-card">
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="admin-refunds-table">
+                <thead>
+                  <tr>
+                    <th>Öğrenci</th>
+                    <th>Mentör</th>
+                    <th>Paket</th>
+                    <th>Tutar</th>
+                    <th>Talep</th>
+                    <th>İşlem</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-refunds-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
 
-                <label for="campaign-button-label">Buton Metni</label>
-                <input
-                  id="campaign-button-label"
-                  name="buttonLabel"
-                  type="text"
-                  maxlength="40"
-                  value="Detayları Gör"
-                  required
-                />
+        <section
+          class="admin-section-view"
+          data-admin-section="mentor-payouts"
+          id="admin-section-mentor-payouts"
+          hidden
+        >
+          <div class="admin-section-card">
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="admin-payouts-table">
+                <thead>
+                  <tr>
+                    <th>Alıcı</th>
+                    <th>Talep</th>
+                    <th>Ücret</th>
+                    <th>Net</th>
+                    <th>Hesap sahibi</th>
+                    <th>Banka</th>
+                    <th>IBAN</th>
+                    <th>Durum</th>
+                    <th>Tarih</th>
+                    <th>İşlem</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-payouts-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
 
-                <label for="campaign-button-url">Buton Linki</label>
-                <input
-                  id="campaign-button-url"
-                  name="buttonUrl"
-                  type="text"
-                  maxlength="500"
-                  value="https://rekabetli.com/firsatlar"
-                  required
-                />
-
-                <label for="campaign-plain-message">Mesaj İçeriği</label>
-                <textarea
-                  id="campaign-plain-message"
-                  name="plainMessage"
-                  rows="6"
-                  maxlength="1200"
-                  placeholder="Kampanya detay metni..."
-                  required
-                ></textarea>
-
-                <div class="panel-header-actions">
-                  <button id="campaign-select-all-btn" type="button" class="secondary">Tüm Üyeleri Seç</button>
-                  <button id="campaign-clear-selection-btn" type="button" class="secondary">Seçimi Temizle</button>
+        <section
+          class="admin-section-view"
+          data-admin-section="influencer-program"
+          id="admin-section-influencer-program"
+          hidden
+        >
+          <div class="admin-section-card">
+            <form id="admin-influencer-add-form" class="admin-influencer-add-form">
+              <h2 class="admin-subsection-title">Influencer ekle</h2>
+              <p class="profile-hint">
+                Kullanıcı UUID ile başvuru oluşturun; onay sonrası özel davet linki aktif olur.
+              </p>
+              <div class="admin-form-grid">
+                <div class="admin-form-field admin-form-field--full">
+                  <label for="admin-influencer-user-id">Kullanıcı ID</label>
+                  <input id="admin-influencer-user-id" type="text" required placeholder="uuid" />
                 </div>
-                <p id="campaign-selected-count" class="profile-hint">Seçilen üye: 0</p>
-                <div class="admin-table-wrap">
+                <div class="admin-form-field admin-form-field--full">
+                  <label for="admin-influencer-label">Görünen ad (isteğe bağlı)</label>
+                  <input id="admin-influencer-label" type="text" maxlength="120" />
+                </div>
+              </div>
+              <button type="submit" class="secondary">Başvuru oluştur</button>
+            </form>
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="admin-influencers-table">
+                <thead>
+                  <tr>
+                    <th>Kullanıcı</th>
+                    <th>Platform</th>
+                    <th>Durum</th>
+                    <th>Referral</th>
+                    <th>Başvuru</th>
+                    <th>İşlem</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-influencers-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section
+          class="admin-section-view"
+          data-admin-section="campaign-mails"
+          id="admin-section-campaign-mails"
+          hidden
+        >
+          <div class="admin-section-card admin-section-card--form">
+            <form id="admin-campaign-mail-form" class="admin-campaign-form">
+              <div class="admin-form-grid">
+                <div class="admin-form-field admin-form-field--full">
+                  <label for="campaign-subject">Mail Başlığı</label>
+                  <input
+                    id="campaign-subject"
+                    name="subject"
+                    type="text"
+                    maxlength="120"
+                    placeholder="Örn: 5 Kişilik Gizli Topluluklara İlk Mentör Görüşmesi Hediye"
+                    required
+                  />
+                </div>
+                <div class="admin-form-field admin-form-field--full">
+                  <label for="campaign-preview">Kısa Özet</label>
+                  <textarea
+                    id="campaign-preview"
+                    name="preview"
+                    rows="3"
+                    maxlength="240"
+                    placeholder="Mail başında görünecek kısa açıklama..."
+                    required
+                  ></textarea>
+                </div>
+                <div class="admin-form-field">
+                  <label for="campaign-button-label">Buton Metni</label>
+                  <input
+                    id="campaign-button-label"
+                    name="buttonLabel"
+                    type="text"
+                    maxlength="40"
+                    value="Detayları Gör"
+                    required
+                  />
+                </div>
+                <div class="admin-form-field">
+                  <label for="campaign-button-url">Buton Linki</label>
+                  <input
+                    id="campaign-button-url"
+                    name="buttonUrl"
+                    type="text"
+                    maxlength="500"
+                    value="https://rekabetli.com/firsatlar"
+                    required
+                  />
+                </div>
+                <div class="admin-form-field admin-form-field--full">
+                  <label for="campaign-plain-message">Mesaj İçeriği</label>
+                  <textarea
+                    id="campaign-plain-message"
+                    name="plainMessage"
+                    rows="6"
+                    maxlength="1200"
+                    placeholder="Kampanya detay metni..."
+                    required
+                  ></textarea>
+                </div>
+              </div>
+
+              <div class="admin-campaign-recipients">
+                <div class="admin-campaign-recipients-head">
+                  <p id="campaign-selected-count" class="profile-hint">Seçilen üye: 0</p>
+                  <div class="admin-campaign-recipients-actions">
+                    <button id="campaign-select-all-btn" type="button" class="secondary">Tümünü seç</button>
+                    <button id="campaign-clear-selection-btn" type="button" class="secondary">Temizle</button>
+                  </div>
+                </div>
+                <div class="admin-table-wrap admin-table-wrap--recipients">
                   <table class="admin-table" id="admin-campaign-recipients-table">
                     <thead>
                       <tr>
@@ -284,54 +403,39 @@
                     <tbody id="admin-campaign-recipients-body"></tbody>
                   </table>
                 </div>
-
-                <p id="admin-campaign-mail-message" class="form-message" role="status" hidden></p>
-                <button id="admin-campaign-mail-submit" type="submit">Toplu Maili Gönder</button>
-              </form>
-
-              <div class="admin-table-wrap" style="margin-top: 1rem;">
-                <table class="admin-table" id="admin-campaign-jobs-table">
-                  <thead>
-                    <tr>
-                      <th>Tarih</th>
-                      <th>Başlık</th>
-                      <th>Durum</th>
-                      <th>Başarılı</th>
-                      <th>Hata</th>
-                    </tr>
-                  </thead>
-                  <tbody id="admin-campaign-jobs-body"></tbody>
-                </table>
               </div>
-            </div>
-          </section>
 
-          <section class="activity-accordion-section" data-section="notal-notes">
-            <button
-              type="button"
-              class="activity-accordion-trigger"
-              id="trigger-notal-notes"
-              aria-expanded="false"
-              aria-controls="panel-notal-notes"
-            >
-              <span class="activity-accordion-title">NotAl Notları</span>
-              <span class="activity-accordion-meta">
-                <span id="admin-count-notal-notes" class="activity-accordion-count">0</span>
-                <span class="activity-accordion-chevron" aria-hidden="true"></span>
-              </span>
-            </button>
-            <div
-              id="panel-notal-notes"
-              class="activity-accordion-panel admin-accordion-panel"
-              role="region"
-              aria-labelledby="trigger-notal-notes"
-            >
-              <div id="admin-notal-notes-list" class="admin-notal-notes-list"></div>
+              <p id="admin-campaign-mail-message" class="form-message" role="status" hidden></p>
+              <button id="admin-campaign-mail-submit" type="submit">Toplu Maili Gönder</button>
+            </form>
+          </div>
+
+          <div class="admin-section-card">
+            <h2 class="admin-subsection-title">Gönderim geçmişi</h2>
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="admin-campaign-jobs-table">
+                <thead>
+                  <tr>
+                    <th>Tarih</th>
+                    <th>Başlık</th>
+                    <th>Durum</th>
+                    <th>Başarılı</th>
+                    <th>Hata</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-campaign-jobs-body"></tbody>
+              </table>
             </div>
-          </section>
-        </div>
-      </section>
-    </main>
+          </div>
+        </section>
+
+        <section class="admin-section-view" data-admin-section="notal-notes" id="admin-section-notal-notes" hidden>
+          <div class="admin-section-card">
+            <div id="admin-notal-notes-list" class="admin-notal-notes-list"></div>
+          </div>
+        </section>
+      </main>
+    </div>
 
     <div id="admin-mentor-assign-modal" class="modal-overlay" hidden>
       <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="admin-mentor-assign-title">
@@ -353,7 +457,8 @@
       </section>
     </div>
 
+    <script src="confirm-dialog.js"></script>
     <script src="admin.js"></script>
-      <script src="site-footer.js"></script>
+    <script src="site-footer.js"></script>
   </body>
 </html>

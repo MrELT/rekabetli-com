@@ -82,7 +82,8 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF NEW.email_sent IS DISTINCT FROM true THEN
+  IF NEW.email_sent IS DISTINCT FROM true
+     AND NEW.created_at >= now() - interval '24 hours' THEN
     BEGIN
       INSERT INTO public.notification_email_queue (notification_id)
       VALUES (NEW.id)
@@ -108,6 +109,7 @@ INSERT INTO public.notification_email_queue (notification_id)
 SELECT n.id
 FROM public.notifications AS n
 WHERE n.email_sent = false
+  AND n.created_at >= now() - interval '24 hours'
 ON CONFLICT (notification_id) DO NOTHING;
 
 -- ---------------------------------------------------------------------------

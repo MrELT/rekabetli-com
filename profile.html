@@ -122,6 +122,19 @@
                 <label for="phone">Telefon</label>
                 <input id="phone" name="phone" type="tel" maxlength="20" placeholder="05xx xxx xx xx" />
 
+                <div class="profile-user-code-block">
+                  <label for="profile-user-code">Kullanıcı kodunuz</label>
+                  <div class="profile-user-code-row">
+                    <output id="profile-user-code" class="profile-user-code-value" for="profile-user-code-display">—</output>
+                    <button id="profile-user-code-copy" class="secondary profile-user-code-copy" type="button" hidden>
+                      Kopyala
+                    </button>
+                  </div>
+                  <p class="profile-hint profile-user-code-hint">
+                    Bu kod değiştirilemez. Mentörünüz sizi panele eklemek için bu kodu sizden isteyebilir.
+                  </p>
+                </div>
+
                 <button type="submit">Profili Kaydet</button>
                 <button id="profile-delete-btn" class="secondary profile-delete-btn" type="button">
                   Profili Sil
@@ -189,6 +202,26 @@
             href="/mentor-sayfam"
           >
             Mentör Sayfam
+          </a>
+        </div>
+
+        <div id="student-page-action" class="profile-mentor-action" hidden>
+          <a
+            id="student-page-btn"
+            class="nav-btn nav-btn-primary full-width auth-link-btn"
+            href="/ogrenci-sayfam"
+          >
+            Danışman Panelim
+          </a>
+        </div>
+
+        <div id="influencer-page-action" class="profile-mentor-action" hidden>
+          <a
+            id="influencer-page-btn"
+            class="nav-btn full-width auth-link-btn"
+            href="/influencer-sayfam"
+          >
+            Influencer Panelim
           </a>
         </div>
 

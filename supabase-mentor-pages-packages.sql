@@ -11,4 +11,4 @@ ALTER TABLE public.mentor_pages
 ADD CONSTRAINT mentor_pages_packages_is_array CHECK (jsonb_typeof(packages) = 'array');
 
 COMMENT ON COLUMN public.mentor_pages.packages IS
-  'Mentörlük paketleri: [{ id, title, content, price }] — price TRY, brüt liste fiyatı.';
+  'Mentörlük paketleri: [{ id, title, content, price, capacity, meeting_period, meeting_count }] — price TRY, brüt liste fiyatı; meeting_period: once|week|month|year.';

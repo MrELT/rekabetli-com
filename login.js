@@ -17,6 +17,7 @@ const ALLOWED_REDIRECT_PATHS = [
   "/profile",
   "/mentors",
   "/mentor-sayfam",
+  "/ogrenci-sayfam",
   "/mentor",
   "/communities",
   "/community",
@@ -90,6 +91,7 @@ if (loginForm && supabaseClient) {
     }
 
     sessionStorage.removeItem("rekabetli_notal_login_redirect_ts");
+    void window.RekabetliReferral?.claimReferralAttribution?.();
     window.location.href = getSafeRedirectAfterLogin();
   });
 }

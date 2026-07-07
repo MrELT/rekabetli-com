@@ -5,10 +5,17 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { execSync } from "child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const publicDir = path.join(root, "public");
+
+try {
+  execSync("node scripts/build-turkish-bank-codes.mjs", { cwd: root, stdio: "inherit" });
+} catch (error) {
+  console.warn("turkish-bank-codes derlemesi atlandı:", error?.message || error);
+}
 
 const ROOT_JS = new Set([
   "admin.js",
@@ -22,6 +29,7 @@ const ROOT_JS = new Set([
   "community-feed.js",
   "competitions.js",
   "confirm-dialog.js",
+  "cookie-consent.js",
   "env-config.js",
   "env-config.example.js",
   "feed-drafts.js",
@@ -29,26 +37,35 @@ const ROOT_JS = new Set([
   "feed-skeleton.js",
   "forgot-password.js",
   "image-compression.js",
-  "image-upload-limit.js",
+  "influencer-program.js",
+  "influencer-sayfam.js",
   "login.js",
   "mentor-application.js",
   "mentor-public.js",
   "mentor-messaging.js",
+  "mentor-meeting-proposals.js",
+  "mentor-package-tasks.js",
+  "mentor-panel-shell.js",
   "mentor-sayfam.js",
+  "ogrenci-sayfam.js",
   "mentor-vitrin-utils.js",
   "mentors-list.js",
   "mentorship-request.js",
   "nav-auth.js",
   "nav-profile.js",
   "notifications.js",
+  "student-panel-notifications.js",
+  "odeme-basarili.js",
   "package-request.js",
   "profile.js",
   "quill-editor.js",
+  "referral-tracking.js",
   "register.js",
   "reset-password.js",
   "security-utils.js",
   "site-footer.js",
   "supabase-client.js",
+  "turkish-bank-codes.js",
   "unsubscribe.js",
 ]);
 
@@ -74,7 +91,12 @@ fs.mkdirSync(publicDir, { recursive: true });
 
 for (const name of fs.readdirSync(root)) {
   if (!name.endsWith(".html")) continue;
-  copyFile(path.join(root, name), path.join(publicDir, name));
+  const from = path.join(root, name);
+  const to = path.join(publicDir, name);
+  copyFile(from, to);
+  if (name === "odeme-basarili.html") {
+    copyFile(from, path.join(publicDir, "odeme", "basarili", "index.html"));
+  }
 }
 
 for (const name of ROOT_JS) {

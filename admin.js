@@ -7,18 +7,27 @@
 
   const messageEl = document.getElementById("admin-message");
   const mentorApplicationsBody = document.getElementById("admin-mentor-applications-body");
+  const vitrinReviewsBody = document.getElementById("admin-vitrin-reviews-body");
   const mentorshipRequestsBody = document.getElementById("admin-mentorship-requests-body");
   const usersBody = document.getElementById("admin-users-body");
   const communitiesBody = document.getElementById("admin-communities-body");
 
   const countApplications = document.getElementById("admin-count-applications");
+  const countVitrinReviews = document.getElementById("admin-count-vitrin-reviews");
   const countRequests = document.getElementById("admin-count-requests");
   const countUsers = document.getElementById("admin-count-users");
   const countCommunities = document.getElementById("admin-count-communities");
   const countCampaignJobs = document.getElementById("admin-count-campaign-jobs");
   const countNotalNotes = document.getElementById("admin-count-notal-notes");
+  const countRefunds = document.getElementById("admin-count-refunds");
+  const countPayouts = document.getElementById("admin-count-payouts");
+  const refundsBody = document.getElementById("admin-refunds-body");
+  const payoutsBody = document.getElementById("admin-payouts-body");
   const notalNotesList = document.getElementById("admin-notal-notes-list");
-  const accordionSections = document.querySelectorAll(".activity-accordion-section");
+  const adminNavButtons = document.querySelectorAll("[data-admin-section].admin-nav-btn");
+  const adminSectionViews = document.querySelectorAll(".admin-section-view");
+  const adminSectionTitle = document.getElementById("admin-section-title");
+  const adminSectionDesc = document.getElementById("admin-section-desc");
   const campaignMailForm = document.getElementById("admin-campaign-mail-form");
   const campaignMailSubmitBtn = document.getElementById("admin-campaign-mail-submit");
   const campaignMailMessage = document.getElementById("admin-campaign-mail-message");
@@ -126,28 +135,95 @@
     mentorAssignMessage.classList.toggle("is-error", Boolean(isError));
   }
 
-  function setAccordionOpen(sectionName, isOpen) {
-    const section = document.querySelector(`.activity-accordion-section[data-section="${sectionName}"]`);
-    if (!section) return;
-    section.classList.toggle("is-open", isOpen);
-    const trigger = section.querySelector(".activity-accordion-trigger");
-    if (trigger) trigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  const ADMIN_SECTIONS = {
+    "mentor-applications": {
+      title: "Mentör Başvuruları",
+      desc: "Yeni mentör başvurularını inceleyin ve durumlarını takip edin.",
+    },
+    "mentor-vitrin-reviews": {
+      title: "Mentör Vitrin İstekleri",
+      desc: "Mentörlerin vitrin sayfası yayın taleplerini inceleyin, onaylayın veya reddedin.",
+    },
+    "mentorship-requests": {
+      title: "Mentörlük Talepleri",
+      desc: "Mentörlük talep formlarını ve başvuru durumlarını görüntüleyin.",
+    },
+    users: {
+      title: "Kullanıcılar",
+      desc: "Kayıtlı kullanıcıları yönetin ve mentör yetkisi verin.",
+    },
+    communities: {
+      title: "Topluluklar",
+      desc: "Toplulukları görüntüleyin ve gizli topluluklara mentör ekleyin.",
+    },
+    "package-refunds": {
+      title: "Paket İade Talepleri",
+      desc: "Öğrenci iade taleplerini onaylayıp Stripe üzerinden iade başlatın.",
+    },
+    "mentor-payouts": {
+      title: "Mentör Ödemeleri",
+      desc: "Wise transfer taleplerini izleyin ve gerekirse yeniden deneyin.",
+    },
+    "influencer-program": {
+      title: "Influencer Programı",
+      desc: "Influencer başvurularını onaylayın; davet linkleri ve kayıt sayıları burada yönetilir.",
+    },
+    "campaign-mails": {
+      title: "Fırsat Maili Gönderimi",
+      desc: "Seçili üyelere toplu kampanya e-postası gönderin.",
+    },
+    "notal-notes": {
+      title: "NotAl Notları",
+      desc: "Kaydedilen notları ve geri bildirimleri inceleyin.",
+    },
+  };
+
+  function isKnownAdminSection(sectionId) {
+    return Boolean(ADMIN_SECTIONS[sectionId]);
   }
 
-  function setupAccordions() {
-    accordionSections.forEach((section) => {
-      const trigger = section.querySelector(".activity-accordion-trigger");
-      if (!trigger) return;
-      trigger.addEventListener("click", () => {
-        const shouldOpen = !section.classList.contains("is-open");
-        accordionSections.forEach((sec) => {
-          const secName = sec.dataset.section;
-          if (secName) setAccordionOpen(secName, false);
-        });
-        const name = section.dataset.section;
-        if (name) setAccordionOpen(name, shouldOpen);
+  function resolveInitialAdminSection() {
+    const hash = window.location.hash.replace("#", "").trim();
+    return isKnownAdminSection(hash) ? hash : "mentor-applications";
+  }
+
+  function showAdminSection(sectionId, { updateHash = true } = {}) {
+    const resolved = isKnownAdminSection(sectionId) ? sectionId : "mentor-applications";
+    const meta = ADMIN_SECTIONS[resolved];
+
+    adminSectionViews.forEach((view) => {
+      const isActive = view.dataset.adminSection === resolved;
+      view.hidden = !isActive;
+      view.classList.toggle("is-active", isActive);
+    });
+
+    adminNavButtons.forEach((btn) => {
+      const isActive = btn.dataset.adminSection === resolved;
+      btn.classList.toggle("is-active", isActive);
+      btn.setAttribute("aria-current", isActive ? "page" : "false");
+    });
+
+    if (adminSectionTitle) adminSectionTitle.textContent = meta.title;
+    if (adminSectionDesc) adminSectionDesc.textContent = meta.desc;
+
+    if (updateHash && window.location.hash.replace("#", "") !== resolved) {
+      window.location.hash = resolved;
+    }
+  }
+
+  function setupAdminNav() {
+    adminNavButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const sectionId = btn.dataset.adminSection;
+        if (sectionId) showAdminSection(sectionId);
       });
     });
+
+    window.addEventListener("hashchange", () => {
+      showAdminSection(resolveInitialAdminSection(), { updateHash: false });
+    });
+
+    showAdminSection(resolveInitialAdminSection(), { updateHash: false });
   }
 
   function clearTable(body, emptyMessage, colSpan = 6) {
@@ -212,6 +288,132 @@
       tr.appendChild(createCell(row.status || "-"));
       tr.appendChild(createCell(formatDate(row.created_at)));
       mentorApplicationsBody.appendChild(tr);
+    });
+  }
+
+  function vitrinReviewStatusLabel(status) {
+    const value = String(status || "draft").trim().toLowerCase();
+    if (value === "pending") return "İnceleniyor";
+    if (value === "approved") return "Onaylandı";
+    if (value === "rejected") return "Reddedildi";
+    return "Taslak";
+  }
+
+  async function setMentorVitrinReview(mentorId, status, note = null) {
+    setMessage("");
+    const { error } = await supabase.rpc("admin_set_mentor_vitrin_review", {
+      p_mentor_id: mentorId,
+      p_status: status,
+      p_note: note,
+    });
+    if (error) throw error;
+  }
+
+  async function loadMentorVitrinReviews() {
+    const { data: pages, error: pagesError } = await supabase
+      .from("mentor_pages")
+      .select(
+        "user_id, vitrin_review_status, vitrin_submitted_at, vitrin_reviewed_at, vitrin_review_note, updated_at",
+      )
+      .in("vitrin_review_status", ["pending", "rejected", "approved"])
+      .order("vitrin_submitted_at", { ascending: false, nullsFirst: false })
+      .limit(200);
+
+    if (pagesError) throw pagesError;
+
+    const pageRows = (pages ?? []).filter((row) => row.vitrin_review_status !== "draft");
+    const pendingCount = pageRows.filter((row) => row.vitrin_review_status === "pending").length;
+    if (countVitrinReviews) countVitrinReviews.textContent = String(pendingCount);
+
+    vitrinReviewsBody?.replaceChildren();
+    if (!vitrinReviewsBody || !pageRows.length) {
+      if (vitrinReviewsBody) clearTable(vitrinReviewsBody, "Henüz vitrin isteği yok.", 5);
+      return;
+    }
+
+    const userIds = pageRows.map((row) => row.user_id);
+    const { data: profiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, display_name, email")
+      .in("id", userIds);
+
+    if (profilesError) throw profilesError;
+
+    const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+
+    pageRows.forEach((row) => {
+      const profile = profileById.get(row.user_id);
+      const tr = document.createElement("tr");
+      tr.appendChild(createCell(profile?.display_name?.trim() || "Mentör"));
+      tr.appendChild(createCell(profile?.email?.trim() || "-"));
+      tr.appendChild(createCell(vitrinReviewStatusLabel(row.vitrin_review_status)));
+      tr.appendChild(
+        createCell(formatDate(row.vitrin_submitted_at || row.updated_at)),
+      );
+
+      const actionsTd = document.createElement("td");
+      actionsTd.className = "admin-table-actions";
+
+      const previewLink = document.createElement("a");
+      previewLink.className = "secondary admin-table-btn";
+      previewLink.href = `/mentor?id=${encodeURIComponent(row.user_id)}`;
+      previewLink.target = "_blank";
+      previewLink.rel = "noopener noreferrer";
+      previewLink.textContent = "Görüntüle";
+      actionsTd.appendChild(previewLink);
+
+      if (row.vitrin_review_status === "pending") {
+        const approveBtn = document.createElement("button");
+        approveBtn.type = "button";
+        approveBtn.className = "admin-table-btn";
+        approveBtn.textContent = "Onayla";
+        approveBtn.addEventListener("click", async () => {
+          try {
+            approveBtn.disabled = true;
+            await setMentorVitrinReview(row.user_id, "approved");
+            setMessage("Vitrin sayfası onaylandı.");
+            await loadMentorVitrinReviews();
+          } catch (err) {
+            console.error("vitrin approve:", err?.message || err);
+            setMessage("Onaylama başarısız.", true);
+            approveBtn.disabled = false;
+          }
+        });
+
+        const rejectBtn = document.createElement("button");
+        rejectBtn.type = "button";
+        rejectBtn.className = "secondary admin-table-btn";
+        rejectBtn.textContent = "Reddet";
+        rejectBtn.addEventListener("click", async () => {
+          const note = window.prompt("Red gerekçesi (mentöre iletilecek):");
+          if (note === null) return;
+          const trimmed = note.trim();
+          if (!trimmed) {
+            setMessage("Red gerekçesi zorunludur.", true);
+            return;
+          }
+          try {
+            rejectBtn.disabled = true;
+            await setMentorVitrinReview(row.user_id, "rejected", trimmed);
+            setMessage("Vitrin isteği reddedildi.");
+            await loadMentorVitrinReviews();
+          } catch (err) {
+            console.error("vitrin reject:", err?.message || err);
+            setMessage("Reddetme başarısız.", true);
+            rejectBtn.disabled = false;
+          }
+        });
+
+        actionsTd.append(approveBtn, rejectBtn);
+      } else if (row.vitrin_review_note?.trim()) {
+        const note = document.createElement("span");
+        note.className = "admin-inline-note";
+        note.textContent = row.vitrin_review_note.trim();
+        actionsTd.appendChild(note);
+      }
+
+      tr.appendChild(actionsTd);
+      vitrinReviewsBody.appendChild(tr);
     });
   }
 
@@ -504,6 +706,394 @@
     return NOTAL_DEPTH_LABELS[depth] || depth || "-";
   }
 
+  function formatTryMoney(value) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return "—";
+    return new Intl.NumberFormat("tr-TR", {
+      style: "currency",
+      currency: "TRY",
+      maximumFractionDigits: 2,
+    }).format(amount);
+  }
+
+  function formatIban(iban) {
+    const compact = String(iban || "").replace(/\s+/g, "").toUpperCase();
+    if (!compact) return "—";
+    return compact.replace(/(.{4})/g, "$1 ").trim();
+  }
+
+  function mapPayoutStatus(status) {
+    const map = {
+      pending: "Beklemede",
+      processing: "İşleniyor",
+      completed: "Ödendi",
+      rejected: "Reddedildi",
+      canceled: "İptal",
+    };
+    return map[String(status || "")] || String(status || "—");
+  }
+
+  async function processPackageRefund(orderId) {
+    const { data, error } = await supabase.functions.invoke("process-package-refund", {
+      body: { orderId },
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.message || data.error);
+    return data;
+  }
+
+  async function readSupabaseFunctionResult(result) {
+    const { data, error } = result || {};
+    if (!error) {
+      return {
+        data,
+        errorCode: data?.error ? String(data.error) : null,
+        errorMessage: data?.message ? String(data.message) : null,
+      };
+    }
+
+    let payload = data;
+    if (!payload && error?.context && typeof error.context.json === "function") {
+      try {
+        payload = await error.context.json();
+      } catch {
+        payload = null;
+      }
+    }
+
+    return {
+      data: payload,
+      errorCode: payload?.error ? String(payload.error) : null,
+      errorMessage: payload?.message
+        ? String(payload.message)
+        : error?.message
+          ? String(error.message)
+          : null,
+    };
+  }
+
+  async function processMentorPayout(requestId) {
+    const { data, error } = await supabase.functions.invoke("process-mentor-payout", {
+      body: { requestId },
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.message || data.error);
+    return data;
+  }
+
+  async function processInfluencerPayout(requestId) {
+    const { data, error } = await supabase.functions.invoke("process-influencer-payout", {
+      body: { requestId },
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.message || data.error);
+    return data;
+  }
+
+  async function downloadAdminPayoutInvoice(requestId) {
+    const result = await supabase.functions.invoke("get-mentor-payout-invoice", {
+      body: { requestId },
+    });
+    const parsed = await readSupabaseFunctionResult(result);
+    if (parsed.errorCode || result.error) {
+      throw new Error(parsed.errorMessage || "Gider pusulası indirilemedi.");
+    }
+    const url = parsed.data?.signed_url;
+    if (!url) throw new Error("Gider pusulası bağlantısı alınamadı.");
+    window.open(url, "_blank", "noopener,noreferrer");
+    return parsed.data;
+  }
+
+  async function loadInfluencerApplications() {
+    const body = document.getElementById("admin-influencers-body");
+    const countEl = document.getElementById("admin-count-influencers");
+    if (!body) return;
+
+    const { data, error } = await supabase.rpc("admin_list_influencer_applications");
+    if (error) {
+      clearTable(body, "Influencer listesi yüklenemedi.", 6);
+      if (countEl) countEl.textContent = "0";
+      return;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    if (countEl) countEl.textContent = String(rows.filter((r) => r.status === "pending").length);
+
+    body.replaceChildren();
+    if (!rows.length) {
+      clearTable(body, "Henüz influencer kaydı yok.", 6);
+      return;
+    }
+
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      const userCell = document.createElement("td");
+      const nameStrong = document.createElement("strong");
+      nameStrong.textContent = row.display_name || "—";
+      userCell.appendChild(nameStrong);
+      userCell.appendChild(document.createElement("br"));
+      const userHint = document.createElement("span");
+      userHint.className = "profile-hint";
+      userHint.textContent = row.email || row.user_id || "";
+      userCell.appendChild(userHint);
+      tr.appendChild(userCell);
+
+      const platformText = [row.social_platform, row.social_handle].filter(Boolean).join(" · ") || "—";
+      tr.appendChild(createCell(platformText));
+      tr.appendChild(createCell(row.status || "—"));
+      tr.appendChild(createCell(row.referral_code || "—"));
+
+      const noteCell = document.createElement("td");
+      const noteParts = [
+        row.follower_range ? `Takipçi: ${row.follower_range}` : "",
+        row.application_note || "",
+        row.contact_email ? `E-posta: ${row.contact_email}` : "",
+      ].filter(Boolean);
+      noteCell.textContent = noteParts.join(" — ") || formatDate(row.created_at);
+      noteCell.title = noteParts.join("\n");
+      tr.appendChild(noteCell);
+
+      const actionTd = document.createElement("td");
+      if (row.status === "pending") {
+        const approveBtn = document.createElement("button");
+        approveBtn.type = "button";
+        approveBtn.className = "secondary";
+        approveBtn.textContent = "Onayla";
+        approveBtn.addEventListener("click", async () => {
+          approveBtn.disabled = true;
+          const { error: statusError } = await supabase.rpc("admin_set_influencer_status", {
+            p_user_id: row.user_id,
+            p_status: "approved",
+            p_display_label: row.display_label || row.display_name || "",
+          });
+          if (statusError) {
+            setMessage(statusError.message, true);
+            approveBtn.disabled = false;
+            return;
+          }
+          setMessage("Influencer onaylandı.");
+          await loadInfluencerApplications();
+        });
+        actionTd.appendChild(approveBtn);
+
+        const rejectBtn = document.createElement("button");
+        rejectBtn.type = "button";
+        rejectBtn.className = "secondary";
+        rejectBtn.textContent = "Reddet";
+        rejectBtn.style.marginLeft = "0.35rem";
+        rejectBtn.addEventListener("click", async () => {
+          const confirmed = await window.rekabetliConfirm?.({
+            title: "Başvuruyu reddet",
+            message: `${row.display_name || "Kullanıcı"} başvurusu reddedilsin mi?`,
+            confirmLabel: "Reddet",
+          });
+          if (!confirmed) return;
+          rejectBtn.disabled = true;
+          const { error: statusError } = await supabase.rpc("admin_set_influencer_status", {
+            p_user_id: row.user_id,
+            p_status: "rejected",
+            p_display_label: row.display_label || row.display_name || "",
+          });
+          if (statusError) {
+            setMessage(statusError.message, true);
+            rejectBtn.disabled = false;
+            return;
+          }
+          setMessage("Başvuru reddedildi.");
+          await loadInfluencerApplications();
+        });
+        actionTd.appendChild(rejectBtn);
+      } else {
+        actionTd.textContent = "—";
+      }
+      tr.appendChild(actionTd);
+      body.appendChild(tr);
+    });
+  }
+
+  const influencerAddForm = document.getElementById("admin-influencer-add-form");
+  influencerAddForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const userId = document.getElementById("admin-influencer-user-id")?.value?.trim();
+    const label = document.getElementById("admin-influencer-label")?.value?.trim() || "";
+    if (!userId) return;
+
+    const { error } = await supabase.rpc("admin_create_influencer_application", {
+      p_user_id: userId,
+      p_display_label: label,
+    });
+    if (error) {
+      setMessage(error.message, true);
+      return;
+    }
+    setMessage("Influencer başvurusu oluşturuldu.");
+    influencerAddForm.reset();
+    await loadInfluencerApplications();
+  });
+
+  async function loadRefundQueue() {
+    if (!refundsBody) return;
+
+    const { data, error } = await supabase.rpc("get_admin_refund_queue");
+    if (error) {
+      clearTable(refundsBody, "İade kuyruğu yüklenemedi.", 6);
+      if (countRefunds) countRefunds.textContent = "0";
+      return;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    if (countRefunds) countRefunds.textContent = String(rows.length);
+    refundsBody.replaceChildren();
+
+    if (!rows.length) {
+      clearTable(refundsBody, "Bekleyen iade talebi yok.", 6);
+      return;
+    }
+
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      tr.appendChild(createCell(row.student_name || "—"));
+      tr.appendChild(createCell(row.mentor_name || "—"));
+      tr.appendChild(createCell(row.package_title || "—"));
+      const paid = formatTryMoney(row.amount_paid);
+      const refundNet = formatTryMoney(row.refund_amount);
+      const fee = Number(row.stripe_fee_retained) || 0;
+      tr.appendChild(
+        createCell(
+          fee > 0
+            ? `${paid} → ${refundNet} (−${formatTryMoney(fee)} komisyon)`
+            : paid,
+        ),
+      );
+      tr.appendChild(createCell(formatDate(row.refund_requested_at)));
+
+      const actionTd = document.createElement("td");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "secondary";
+      btn.textContent = "Stripe iadesi";
+      btn.addEventListener("click", async () => {
+        const refundNet = formatTryMoney(row.refund_amount);
+        const fee = Number(row.stripe_fee_retained) || 0;
+        const feeNote =
+          fee > 0 ? ` Ödeme sistemi komisyonu ${formatTryMoney(fee)} düşülerek` : "";
+        const confirmed = await window.rekabetliConfirm?.({
+          title: "İade onayı",
+          message: `${row.student_name} için${feeNote} ${refundNet} tutarında Stripe iadesi başlatılsın mı? (Ödenen: ${formatTryMoney(row.amount_paid)})`,
+          confirmLabel: "İade et",
+        });
+        if (!confirmed) return;
+
+        btn.disabled = true;
+        try {
+          await processPackageRefund(row.id);
+          setMessage("İade başarıyla işlendi.");
+          await loadRefundQueue();
+        } catch (err) {
+          console.error("process-package-refund:", err);
+          setMessage(err?.message || "İade işlenemedi.", true);
+          btn.disabled = false;
+        }
+      });
+      actionTd.appendChild(btn);
+      tr.appendChild(actionTd);
+      refundsBody.appendChild(tr);
+    });
+  }
+
+  async function loadPayoutQueue() {
+    if (!payoutsBody) return;
+
+    const { data, error } = await supabase.rpc("get_admin_payout_queue");
+    if (error) {
+      clearTable(payoutsBody, "Ödeme kuyruğu yüklenemedi.", 10);
+      if (countPayouts) countPayouts.textContent = "0";
+      return;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    if (countPayouts) countPayouts.textContent = String(rows.length);
+    payoutsBody.replaceChildren();
+
+    if (!rows.length) {
+      clearTable(payoutsBody, "Ödeme talebi yok.", 10);
+      return;
+    }
+
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      const payoutType = row.payout_type === "influencer" ? "Influencer" : "Mentör";
+      const recipientLabel = row.recipient_name || row.mentor_name || "—";
+      tr.appendChild(createCell(`${payoutType}: ${recipientLabel}`));
+      tr.appendChild(createCell(formatTryMoney(row.amount_requested)));
+      tr.appendChild(createCell(formatTryMoney(row.transfer_fee)));
+      tr.appendChild(createCell(formatTryMoney(row.amount_net)));
+      tr.appendChild(createCell(row.account_holder || "—"));
+      tr.appendChild(createCell(row.bank_name || "—"));
+      const ibanCell = createCell(formatIban(row.iban));
+      ibanCell.className = "admin-iban-cell";
+      tr.appendChild(ibanCell);
+      const statusParts = [mapPayoutStatus(row.status)];
+      if (row.failure_reason) statusParts.push(row.failure_reason);
+      if (row.wise_transfer_id) statusParts.push(`#${row.wise_transfer_id}`);
+      if (row.invoice_number) statusParts.push(row.invoice_number);
+      tr.appendChild(createCell(statusParts.join(" · ")));
+      tr.appendChild(createCell(formatDate(row.created_at)));
+
+      const actionTd = document.createElement("td");
+      if (["pending", "processing"].includes(row.status)) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "secondary";
+        btn.textContent = row.status === "processing" ? "Yeniden dene" : "Wise gönder";
+        btn.addEventListener("click", async () => {
+          btn.disabled = true;
+          try {
+            if (row.payout_type === "influencer") {
+              await processInfluencerPayout(row.id);
+            } else {
+              await processMentorPayout(row.id);
+            }
+            setMessage("Wise transferi başlatıldı.");
+            await loadPayoutQueue();
+          } catch (err) {
+            console.error("process-payout:", err);
+            setMessage(err?.message || "Wise transferi başarısız.", true);
+            btn.disabled = false;
+            await loadPayoutQueue();
+          }
+        });
+        actionTd.appendChild(btn);
+      } else if (row.status === "completed" && row.payout_type !== "influencer") {
+        const invoiceBtn = document.createElement("button");
+        invoiceBtn.type = "button";
+        invoiceBtn.className = "secondary";
+        invoiceBtn.textContent = row.has_self_billed_invoice ? "Gider pusulası" : "Pusula oluştur";
+        invoiceBtn.addEventListener("click", async () => {
+          invoiceBtn.disabled = true;
+          try {
+            const data = await downloadAdminPayoutInvoice(row.id);
+            setMessage(
+              data?.invoice_number
+                ? `Gider pusulası açıldı: ${data.invoice_number}`
+                : "Gider pusulası açıldı.",
+            );
+            await loadPayoutQueue();
+          } catch (err) {
+            console.error("get-mentor-payout-invoice:", err);
+            setMessage(err?.message || "Gider pusulası indirilemedi.", true);
+            invoiceBtn.disabled = false;
+          }
+        });
+        actionTd.appendChild(invoiceBtn);
+      } else {
+        actionTd.textContent = "—";
+      }
+      tr.appendChild(actionTd);
+      payoutsBody.appendChild(tr);
+    });
+  }
+
   async function loadNotalNotes() {
     const { data, error } = await supabase
       .from("notal_saved_notes")
@@ -629,10 +1219,14 @@
       setMessage("Yükleniyor...");
       await Promise.all([
         loadMentorApplications(),
+        loadMentorVitrinReviews(),
         loadMentorshipRequests(),
         loadUsers(),
         loadCommunities(),
         loadCampaignJobs(),
+        loadRefundQueue(),
+        loadPayoutQueue(),
+        loadInfluencerApplications(),
         loadNotalNotes(),
       ]);
       setMessage("");
@@ -730,6 +1324,6 @@
     renderCampaignRecipients();
   });
 
-  setupAccordions();
+  setupAdminNav();
   void bootstrapAdminPanel();
 })();

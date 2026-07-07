@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Danışman Paneli | rekabetli.com</title>
+    <link rel="icon" type="image/png" href="assets/rekabetli_logo.png" />
+    <link rel="apple-touch-icon" href="assets/rekabetli_logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="env-config.js"></script>
+    <script src="env-config.local.js"></script>
+    <script src="supabase-client.js"></script>
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+  </head>
+  <body class="profile-page ogrenci-sayfam-page mentor-sayfam-page">
+    <nav class="profile-page-nav">
+      <a class="brand" href="/">
+        <img src="assets/rekabetli.png" alt="Rekabetli" class="brand-logo" />
+      </a>
+      <div class="profile-page-nav-actions">
+        <div class="notifications-wrap">
+          <button id="notifications-btn" class="nav-btn notifications-btn" type="button" aria-label="Bildirimler" hidden>
+            🔔
+            <span id="notifications-badge" class="notifications-badge" hidden>0</span>
+          </button>
+          <div id="notifications-popup" class="notifications-popup" hidden>
+            <div class="notifications-popup-header">
+              <strong>Bildirimler</strong>
+              <button id="close-notifications" type="button" class="icon-btn" aria-label="Kapat">✕</button>
+            </div>
+            <ul id="notifications-list" class="notifications-list"></ul>
+            <p id="notifications-empty" class="empty notifications-empty">Bildirim yok.</p>
+          </div>
+        </div>
+        <a class="nav-btn nav-btn-home" href="/" aria-label="Ana sayfa">
+          <span class="nav-btn-home-icon" aria-hidden="true">⌂</span>
+          <span class="nav-btn-home-text">Ana Sayfa</span>
+        </a>
+      </div>
+    </nav>
+
+    <div class="mentor-panel-shell">
+      <aside class="mentor-panel-sidebar" aria-label="Danışman paneli menüsü">
+        <p class="mentor-panel-sidebar-title">Danışman Paneli</p>
+        <nav class="mentor-panel-nav">
+          <button
+            type="button"
+            class="mentor-panel-nav-btn"
+            data-student-panel="profil"
+            aria-current="false"
+          >
+            Profil
+          </button>
+          <div class="mentor-panel-nav-group" data-student-nav-group="mentorlerim">
+            <div class="mentor-panel-nav-row">
+              <button
+                type="button"
+                class="mentor-panel-nav-btn mentor-panel-nav-btn--parent"
+                data-student-panel="mentorlerim"
+                aria-current="page"
+              >
+                <span class="mentor-panel-nav-label">Mentörlerim</span>
+              </button>
+              <button
+                type="button"
+                class="mentor-panel-nav-accordion-toggle"
+                data-student-accordion-toggle="mentorlerim"
+                aria-expanded="true"
+                aria-controls="student-enrollment-subnav"
+                aria-label="Mentör paketlerini aç veya kapat"
+              >
+                <span class="mentor-panel-nav-chevron" aria-hidden="true"></span>
+              </button>
+            </div>
+            <div id="student-enrollment-subnav" class="mentor-panel-subnav"></div>
+          </div>
+          <button
+            type="button"
+            class="mentor-panel-nav-btn"
+            data-student-panel="notal"
+            aria-current="false"
+          >
+            NotAl
+          </button>
+          <button
+            type="button"
+            class="mentor-panel-nav-btn"
+            data-student-panel="cuzdanim"
+            aria-current="false"
+          >
+            Cüzdanım
+          </button>
+        </nav>
+      </aside>
+
+      <div class="mentor-panel-content">
+        <p id="ogrenci-sayfam-status" class="mentor-showcase-status">Yükleniyor…</p>
+
+        <section
+          id="student-panel-profil"
+          class="mentor-panel-view"
+          data-student-panel-view="profil"
+          hidden
+          aria-label="Profil"
+        >
+          <main class="layout auth-layout profile-page-layout mentor-panel-profile-layout">
+            <section class="panel auth-panel profile-panel">
+              <h1>Profilim</h1>
+              <p id="profile-email" class="auth-subtitle"></p>
+              <p id="profile-answer-rating" class="profile-answer-rating" hidden></p>
+              <p class="profile-activity-hint">Bölümleri açmak için başlığa tıklayın.</p>
+
+              <div class="activity-accordion profile-page-accordion" id="profile-activity" aria-label="Profil ve aktiviteler">
+                <section class="activity-accordion-section is-open" data-section="profile">
+                  <button
+                    type="button"
+                    class="activity-accordion-trigger"
+                    id="trigger-profile"
+                    aria-expanded="true"
+                    aria-controls="panel-profile"
+                  >
+                    <span class="activity-accordion-title">Profil Bilgileri</span>
+                    <span class="activity-accordion-meta">
+                      <span class="activity-accordion-chevron" aria-hidden="true"></span>
+                    </span>
+                  </button>
+                  <div
+                    id="panel-profile"
+                    class="activity-accordion-panel profile-accordion-panel"
+                    role="region"
+                    aria-labelledby="trigger-profile"
+                  >
+                    <form id="profile-form" class="profile-form">
+                      <div class="profile-avatar-block">
+                        <div class="profile-avatar-wrap">
+                          <img id="avatar-preview" class="profile-avatar-img" alt="Profil fotoğrafı" hidden />
+                          <span id="avatar-fallback" class="profile-avatar-fallback">?</span>
+                        </div>
+                        <div class="profile-avatar-actions">
+                          <label for="avatar-input" class="secondary avatar-upload-label">Fotoğraf Seç</label>
+                          <input id="avatar-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+                          <button id="remove-avatar-btn" class="secondary" type="button" hidden>Fotoğrafı Kaldır</button>
+                          <p class="profile-hint">JPG, PNG veya WebP · En fazla 5 MB</p>
+                        </div>
+                      </div>
+
+                      <label for="displayName">Görünen İsim</label>
+                      <input id="displayName" name="displayName" type="text" maxlength="50" required />
+
+                      <label for="bio">Kendini Tanıt</label>
+                      <textarea id="bio" name="bio" rows="4" maxlength="500" placeholder="İlgi alanların, hedeflerin…"></textarea>
+
+                      <label for="userType">Kullanıcı Tipi</label>
+                      <select id="userType" name="userType">
+                        <option value="">Seçiniz</option>
+                        <option value="Ogrenci">Öğrenci</option>
+                        <option value="Ogretmen">Öğretmen</option>
+                        <option value="Veli">Veli</option>
+                      </select>
+
+                      <label for="school">Okul / Kurum</label>
+                      <input id="school" name="school" type="text" maxlength="120" placeholder="Örn: Ankara Fen Lisesi" />
+
+                      <label for="city">Şehir</label>
+                      <input id="city" name="city" type="text" maxlength="80" placeholder="Örn: İstanbul" />
+
+                      <label for="phone">Telefon</label>
+                      <input id="phone" name="phone" type="tel" maxlength="20" placeholder="05xx xxx xx xx" />
+
+                      <div class="profile-user-code-block">
+                        <label for="profile-user-code">Kullanıcı kodunuz</label>
+                        <div class="profile-user-code-row">
+                          <output id="profile-user-code" class="profile-user-code-value">—</output>
+                          <button id="profile-user-code-copy" class="secondary profile-user-code-copy" type="button" hidden>
+                            Kopyala
+                          </button>
+                        </div>
+                        <p class="profile-hint profile-user-code-hint">
+                          Mentörünüz sizi panele eklemek için bu kodu sizden isteyebilir.
+                        </p>
+                      </div>
+
+                      <button type="submit">Profili Kaydet</button>
+                      <button id="profile-delete-btn" class="secondary profile-delete-btn" type="button">
+                        Profili Sil
+                      </button>
+                    </form>
+                  </div>
+                </section>
+
+                <section class="activity-accordion-section" data-section="questions">
+                  <button type="button" class="activity-accordion-trigger" id="trigger-questions" aria-expanded="false" aria-controls="panel-questions">
+                    <span class="activity-accordion-title">Sorularım</span>
+                    <span class="activity-accordion-meta">
+                      <span id="count-questions" class="activity-accordion-count">0</span>
+                      <span class="activity-accordion-chevron" aria-hidden="true"></span>
+                    </span>
+                  </button>
+                  <div id="panel-questions" class="activity-accordion-panel" role="region" aria-labelledby="trigger-questions"></div>
+                </section>
+
+                <section class="activity-accordion-section" data-section="answers">
+                  <button type="button" class="activity-accordion-trigger" id="trigger-answers" aria-expanded="false" aria-controls="panel-answers">
+                    <span class="activity-accordion-title">Yanıtlarım</span>
+                    <span class="activity-accordion-meta">
+                      <span id="count-answers" class="activity-accordion-count">0</span>
+                      <span class="activity-accordion-chevron" aria-hidden="true"></span>
+                    </span>
+                  </button>
+                  <div id="panel-answers" class="activity-accordion-panel" role="region" aria-labelledby="trigger-answers"></div>
+                </section>
+
+                <section class="activity-accordion-section" data-section="saved">
+                  <button type="button" class="activity-accordion-trigger" id="trigger-saved" aria-expanded="false" aria-controls="panel-saved">
+                    <span class="activity-accordion-title">Kaydettiklerim</span>
+                    <span class="activity-accordion-meta">
+                      <span id="count-saved" class="activity-accordion-count">0</span>
+                      <span class="activity-accordion-chevron" aria-hidden="true"></span>
+                    </span>
+                  </button>
+                  <div id="panel-saved" class="activity-accordion-panel" role="region" aria-labelledby="trigger-saved"></div>
+                </section>
+              </div>
+
+              <div class="auth-actions">
+                <button id="logout-btn" class="secondary full-width" type="button">Çıkış Yap</button>
+              </div>
+              <p id="profile-message" class="profile-message empty"></p>
+            </section>
+          </main>
+        </section>
+
+        <section
+          id="student-panel-mentorlerim"
+          class="mentor-panel-view is-active"
+          data-student-panel-view="mentorlerim"
+          aria-label="Mentörlerim"
+        >
+          <main class="mentor-panel-grid-layout">
+            <div class="mentor-panel-grid">
+              <section class="mentor-panel-card mentor-panel-card--span-full student-mentors-panel">
+                <h1>Mentörlerim</h1>
+                <div id="student-meeting-reviews-host-top" class="student-meeting-reviews-host" hidden></div>
+                <div
+                  id="student-upcoming-meetings-host"
+                  class="upcoming-meetings-box-host"
+                  hidden
+                ></div>
+                <p class="profile-hint student-mentors-hint">
+                  Kayıtlı olduğunuz mentör ve paketler aşağıda. Detay için sol menüden veya kartlara tıklayın.
+                </p>
+                <div id="student-mentors-list" class="student-mentors-list" aria-live="polite"></div>
+                <div
+                  id="student-all-meetings-calendar-host"
+                  class="all-meetings-calendar-host"
+                  hidden
+                ></div>
+                <div id="student-meeting-reviews-host-bottom" class="student-meeting-reviews-host" hidden></div>
+              </section>
+            </div>
+          </main>
+        </section>
+
+        <div id="student-enrollment-panels"></div>
+
+        <section
+          id="student-panel-notal"
+          class="mentor-panel-view"
+          data-student-panel-view="notal"
+          hidden
+          aria-label="NotAl"
+        >
+          <main class="mentor-panel-grid-layout">
+            <div class="mentor-panel-grid">
+              <section class="mentor-panel-card mentor-panel-card--span-full student-notal-panel">
+                <p class="student-notal-badge">Yakında</p>
+                <h1>NotAl</h1>
+                <p class="student-notal-lead">
+                  NotAl, sınav hazırlığında notlarınızı düzenlemenize, tekrar planı oluşturmanıza ve ilerlemenizi
+                  takip etmenize yardımcı olacak kişisel çalışma alanınız olacak.
+                </p>
+                <ul class="student-notal-features">
+                  <li>Konu bazlı not arşivi ve hızlı arama</li>
+                  <li>Tekrar takvimi ve hatırlatmalar</li>
+                  <li>Mentörünüzle paylaşılabilir çalışma özeti</li>
+                </ul>
+                <p class="profile-hint">
+                  Lansman öncesi erken erişim için ön talep bırakın; hazır olduğunda size haber verelim.
+                </p>
+
+                <form id="notal-pre-request-form" class="student-notal-form">
+                  <label for="notal-pre-name">Ad Soyad</label>
+                  <input id="notal-pre-name" name="displayName" type="text" maxlength="80" required />
+
+                  <label for="notal-pre-email">E-posta</label>
+                  <input id="notal-pre-email" name="email" type="email" maxlength="120" required />
+
+                  <label for="notal-pre-note">Notunuz (isteğe bağlı)</label>
+                  <textarea
+                    id="notal-pre-note"
+                    name="note"
+                    rows="3"
+                    maxlength="1000"
+                    placeholder="NotAl'dan beklentileriniz veya kullanım amacınız…"
+                  ></textarea>
+
+                  <button type="submit" id="notal-pre-submit">Ön talep oluştur</button>
+                </form>
+                <p id="notal-pre-message" class="profile-message empty" role="status"></p>
+              </section>
+            </div>
+          </main>
+        </section>
+
+        <section
+          id="student-panel-cuzdanim"
+          class="mentor-panel-view"
+          data-student-panel-view="cuzdanim"
+          hidden
+          aria-label="Cüzdanım"
+        >
+          <main class="mentor-panel-grid-layout">
+            <div class="mentor-panel-grid">
+              <section class="mentor-panel-card mentor-panel-card--span-4 mentor-wallet-balance-panel">
+                <h1>Cüzdanım</h1>
+                <p class="profile-hint mentor-wallet-hint">
+                  Paket satın alma geçmişiniz ve iade talepleriniz burada görünür.
+                </p>
+                <p class="mentor-wallet-balance-label">Toplam harcama</p>
+                <p id="student-wallet-total-spent" class="mentor-wallet-balance-value">0 ₺</p>
+                <div id="student-wallet-stats" class="mentor-wallet-stats" hidden></div>
+                <p id="student-wallet-note" class="mentor-wallet-balance-note">
+                  Satın alma tarihinden itibaren 14 gün içinde gerekçe göstermeden iade talep edebilirsiniz. İadede ödeme
+                  sistemi komisyonu düşülür.
+                  <a href="/iptal-iade-politikasi">İptal ve İade Politikası</a>
+                </p>
+                <div id="student-referral-panel" class="student-referral-panel" hidden>
+                  <h2 class="student-referral-title">Arkadaşını davet et</h2>
+                  <p class="profile-hint student-referral-hint">
+                    Linkinizle kayıt olanların paket alımlarının %5'i indirim bakiyesi olarak hesabınıza eklenir.
+                    İlk görüşme yapıldıktan ve 14 gün geçtikten sonra bir sonraki alışverişinizde otomatik düşülür.
+                  </p>
+                  <div id="student-referral-balance" class="student-referral-balance" hidden>
+                    <p class="student-referral-balance-label">Kullanılabilir indirim bakiyesi</p>
+                    <p id="student-referral-available" class="student-referral-balance-value">0 ₺</p>
+                    <div id="student-referral-balance-stats" class="student-referral-balance-stats"></div>
+                  </div>
+                  <p id="student-referral-credits-empty" class="profile-hint student-referral-credits-empty" hidden>
+                    Henüz davet kazancınız yok. Linkinizi paylaşarak başlayın.
+                  </p>
+                  <ul id="student-referral-credits-list" class="student-referral-credits-list" hidden></ul>
+                  <label for="student-referral-link">Davet linkiniz</label>
+                  <div class="referral-link-row">
+                    <input id="student-referral-link" type="text" readonly class="referral-link-input" />
+                    <button type="button" id="student-referral-copy" class="secondary">Kopyala</button>
+                  </div>
+                  <div id="student-referral-stats" class="referral-program-stats">
+                    <span id="student-referral-signups" class="referral-program-stat">0 kayıt</span>
+                  </div>
+                </div>
+              </section>
+              <section class="mentor-panel-card mentor-panel-card--span-8 mentor-wallet-transactions-panel">
+                <h2 class="mentor-wallet-section-title">İşlem geçmişi</h2>
+                <p id="student-wallet-empty" class="mentor-wallet-empty">Henüz paket satın alımı yok.</p>
+                <ul id="student-wallet-transactions" class="mentor-wallet-transactions student-wallet-transactions" hidden></ul>
+              </section>
+            </div>
+          </main>
+        </section>
+      </div>
+    </div>
+
+    <script src="security-utils.js"></script>
+    <script src="auth-store.js"></script>
+    <script src="avatar-utils.js"></script>
+    <script src="comment-ratings.js"></script>
+    <script src="confirm-dialog.js"></script>
+    <script src="notifications.js"></script>
+    <script src="student-panel-notifications.js"></script>
+    <script src="image-upload-limit.js"></script>
+    <script src="image-compression.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <script src="quill-editor.js"></script>
+    <script src="mentor-vitrin-utils.js"></script>
+    <script src="mentor-package-tasks.js"></script>
+    <script src="mentor-meeting-proposals.js"></script>
+    <script src="mentor-messaging.js"></script>
+    <script src="mentor-panel-shell.js"></script>
+    <script src="profile.js"></script>
+    <script src="ogrenci-sayfam.js"></script>
+    <script src="site-footer.js"></script>
+  </body>
+</html>

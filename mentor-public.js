@@ -6,6 +6,7 @@
 
   const statusEl = document.getElementById("mentor-public-status");
   const showcaseEl = document.getElementById("mentor-public-showcase");
+  let availabilityUi = null;
 
   if (!supabase || !vitrin) {
     if (statusEl) statusEl.textContent = "Sayfa yüklenemedi.";
@@ -21,7 +22,7 @@
     if (statusEl) statusEl.textContent = text;
   }
 
-  function renderPublicPage(page, packageFillCounts = new Map()) {
+  function renderPublicPage(page, packageFillCounts = new Map(), viewOptions = {}) {
     document.title = `${page.displayName} — Mentör | rekabetli.com`;
 
     const nameEl = document.getElementById("mentor-display-name");
@@ -37,6 +38,15 @@
     vitrin.applyVitrinShellAccent(showcaseEl, page.vitrinAccent);
 
     if (nameEl) nameEl.textContent = page.displayName;
+    availabilityUi = vitrin.mountVitrinAvailabilityUI?.(
+      document.getElementById("mentor-vitrin-availability-slot"),
+      {
+        vitrinActive: page.vitrinActive,
+        mentorId: page.userId,
+        mentorName: page.displayName,
+        enableWatch: viewOptions.enableWatch !== false,
+      },
+    );
 
     if (page.photoUrl) {
       vitrin.setSafeImage(photoImg, page.photoUrl, { alt: page.displayName });
@@ -57,6 +67,7 @@
       mentorId: page.userId,
       mentorName: page.displayName,
       packageFillCounts,
+      mentorAcceptsPayments: page.vitrinActive,
     });
 
     if (statusEl) statusEl.hidden = true;
@@ -87,7 +98,7 @@
           .maybeSingle(),
         supabase
           .from("mentor_pages")
-          .select("user_id, photo_url, vitrin_accent, about, branches, private_lessons, packages")
+          .select("user_id, photo_url, vitrin_accent, about, branches, private_lessons, packages, meeting_platform, meeting_link, vitrin_active, vitrin_review_status")
           .eq("user_id", mentorId)
           .maybeSingle(),
       ]);
@@ -103,6 +114,16 @@
       return;
     }
 
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const isOwner = session?.user?.id === mentorId;
+
+    if (!vitrin.isVitrinReviewApproved(pageRow) && !isOwner) {
+      setStatus("Mentör profili bulunamadı.");
+      return;
+    }
+
     const page = vitrin.normalizePageRow({ ...pageRow, profiles: profile });
     if (!page) {
       setStatus("Mentör profili bulunamadı.");
@@ -110,7 +131,31 @@
     }
 
     const fillCounts = await vitrin.fetchPackageFillCounts(supabase, mentorId);
-    renderPublicPage(page, fillCounts);
+    renderPublicPage(page, fillCounts, {
+      enableWatch: session?.user?.id !== page.userId,
+    });
+
+    if (params.get("watchVitrin") === "1" && availabilityUi?.subscribeIfPending) {
+      void availabilityUi.subscribeIfPending();
+    }
+
+    if (params.get("openCheckout") === "1") {
+      const packageId = params.get("packageId");
+      const pending = vitrin.restorePendingPackageCheckoutFromStorage?.();
+      const checkoutContext =
+        pending ||
+        (vitrin.isValidMentorId(mentorId) && packageId
+          ? {
+              mentorId,
+              packageId,
+              title: "Paket",
+              mentorAcceptsPayments: page.vitrinActive,
+            }
+          : null);
+      if (checkoutContext && page.vitrinActive && vitrin.isVitrinReviewApproved(pageRow)) {
+        void vitrin.startPackageCheckout?.(checkoutContext);
+      }
+    }
   }
 
   void boot();

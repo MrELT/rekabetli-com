@@ -3,15 +3,21 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/inject-env.mjs && node scripts/sync-static-to-public.mjs && next dev",
-    "build": "node scripts/inject-env.mjs && node scripts/sync-static-to-public.mjs && next build && node scripts/verify-next-output.mjs",
+    "dev": "node scripts/inject-env.mjs && node scripts/build-turkish-bank-codes.mjs && node scripts/sync-static-to-public.mjs && next dev",
+    "build": "node scripts/inject-env.mjs && node scripts/build-turkish-bank-codes.mjs && node scripts/sync-static-to-public.mjs && next build && node scripts/verify-next-output.mjs",
     "vercel-build": "npm run build",
     "start": "next start",
     "env:build": "node scripts/inject-env.mjs",
     "build:static": "node scripts/inject-env.mjs",
     "deploy:check": "node scripts/deploy-check.mjs",
     "deploy": "node scripts/deploy.mjs",
-    "deploy:preview": "node scripts/deploy.mjs --preview"
+    "deploy:preview": "node scripts/deploy.mjs --preview",
+    "db:sql": "node scripts/run-supabase-sql.mjs",
+    "db:sql:all": "node scripts/run-supabase-sql.mjs all",
+    "db:sql:referral": "node scripts/run-supabase-sql.mjs referral",
+    "db:sql:purchase-notifications": "node scripts/run-supabase-sql.mjs purchase-notifications",
+    "db:sql:remaining": "node scripts/run-supabase-sql.mjs remaining",
+    "db:sql:self-billing": "node scripts/run-supabase-sql.mjs self-billing"
   },
   "dependencies": {
     "@langchain/core": "^1.2.1",

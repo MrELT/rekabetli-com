@@ -417,3 +417,45 @@ entrypoint = "./functions/send-notification-email/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/send-notification-email/*.html" ]
+
+[functions.create-package-checkout]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-package-checkout/deno.json"
+entrypoint = "./functions/create-package-checkout/index.ts"
+
+[functions.stripe-webhook]
+enabled = true
+verify_jwt = false
+import_map = "./functions/stripe-webhook/deno.json"
+entrypoint = "./functions/stripe-webhook/index.ts"
+
+[functions.process-package-refund]
+enabled = true
+verify_jwt = true
+import_map = "./functions/process-package-refund/deno.json"
+entrypoint = "./functions/process-package-refund/index.ts"
+
+[functions.process-mentor-payout]
+enabled = true
+verify_jwt = true
+import_map = "./functions/process-mentor-payout/deno.json"
+entrypoint = "./functions/process-mentor-payout/index.ts"
+
+[functions.estimate-mentor-payout]
+enabled = true
+verify_jwt = true
+import_map = "./functions/estimate-mentor-payout/deno.json"
+entrypoint = "./functions/estimate-mentor-payout/index.ts"
+
+[functions.create-mentor-payout]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-mentor-payout/deno.json"
+entrypoint = "./functions/create-mentor-payout/index.ts"
+
+[functions.get-mentor-payout-invoice]
+enabled = true
+verify_jwt = true
+import_map = "./functions/get-mentor-payout-invoice/deno.json"
+entrypoint = "./functions/get-mentor-payout-invoice/index.ts"

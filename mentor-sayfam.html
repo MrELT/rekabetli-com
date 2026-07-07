@@ -13,6 +13,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="env-config.js"></script>
     <script src="env-config.local.js"></script>
@@ -42,7 +43,10 @@
             <p id="notifications-empty" class="empty notifications-empty">Bildirim yok.</p>
           </div>
         </div>
-        <a class="nav-btn" href="/">← Ana Sayfa</a>
+        <a class="nav-btn nav-btn-home" href="/" aria-label="Ana sayfa">
+          <span class="nav-btn-home-icon" aria-hidden="true">⌂</span>
+          <span class="nav-btn-home-text">Ana Sayfa</span>
+        </a>
       </div>
     </nav>
 
@@ -67,18 +71,26 @@
             Sayfam
           </button>
           <div class="mentor-panel-nav-group" data-mentor-nav-group="ogrenciler">
-            <button
-              type="button"
-              class="mentor-panel-nav-btn mentor-panel-nav-btn--parent"
-              data-mentor-panel="ogrenciler"
-              data-mentor-accordion="ogrenciler"
-              aria-current="false"
-              aria-expanded="false"
-              aria-controls="mentor-package-subnav"
-            >
-              <span class="mentor-panel-nav-label">Danışman / Öğrenciler</span>
-              <span class="mentor-panel-nav-chevron" aria-hidden="true"></span>
-            </button>
+            <div class="mentor-panel-nav-row">
+              <button
+                type="button"
+                class="mentor-panel-nav-btn mentor-panel-nav-btn--parent"
+                data-mentor-panel="ogrenciler"
+                aria-current="false"
+              >
+                <span class="mentor-panel-nav-label">Danışman / Öğrenciler</span>
+              </button>
+              <button
+                type="button"
+                class="mentor-panel-nav-accordion-toggle"
+                data-mentor-accordion-toggle="ogrenciler"
+                aria-expanded="false"
+                aria-controls="mentor-package-subnav"
+                aria-label="Paket listesini aç veya kapat"
+              >
+                <span class="mentor-panel-nav-chevron" aria-hidden="true"></span>
+              </button>
+            </div>
             <div id="mentor-package-subnav" class="mentor-panel-subnav" hidden></div>
           </div>
           <button
@@ -171,6 +183,19 @@
                       <label for="phone">Telefon</label>
                       <input id="phone" name="phone" type="tel" maxlength="20" placeholder="05xx xxx xx xx" />
 
+                      <div class="profile-user-code-block">
+                        <label for="profile-user-code">Kullanıcı kodunuz</label>
+                        <div class="profile-user-code-row">
+                          <output id="profile-user-code" class="profile-user-code-value" for="profile-user-code-display">—</output>
+                          <button id="profile-user-code-copy" class="secondary profile-user-code-copy" type="button" hidden>
+                            Kopyala
+                          </button>
+                        </div>
+                        <p class="profile-hint profile-user-code-hint">
+                          Bu kod değiştirilemez. Mentörünüz sizi panele eklemek için bu kodu sizden isteyebilir.
+                        </p>
+                      </div>
+
                       <button type="submit">Profili Kaydet</button>
                       <button id="profile-delete-btn" class="secondary profile-delete-btn" type="button">
                         Profili Sil
@@ -246,18 +271,206 @@
           hidden
           aria-label="Danışman ve öğrenciler"
         >
-          <main class="mentor-panel-students-layout">
-            <section class="panel auth-panel mentor-students-panel">
-              <h1 id="mentor-inbox-title">Danışman / Öğrenciler</h1>
-              <p class="profile-hint mentor-inbox-hint">
-                Genel mesajlar ve tüm ön talepler burada. Paket bazlı öğrenciler için sol menüdeki paketlere tıklayın.
-              </p>
-              <div id="mentor-inbox-root" class="mentor-inbox-root"></div>
+          <main class="mentor-panel-grid-layout">
+            <div class="mentor-panel-grid">
+              <div class="mentor-ogrenciler-column mentor-panel-card--span-5">
+                <section class="mentor-panel-card mentor-students-panel">
+                  <div
+                    id="mentor-upcoming-meetings-host"
+                    class="upcoming-meetings-box-host"
+                    hidden
+                  ></div>
+                  <h1 id="mentor-inbox-title">Danışman / Öğrenciler</h1>
+                  <p class="profile-hint mentor-inbox-hint">
+                    Genel mesajlar ve tüm ön talepler burada. Paket bazlı öğrenciler için sol menüdeki paketlere tıklayın.
+                  </p>
+                  <div id="mentor-inbox-root" class="mentor-inbox-root"></div>
+                </section>
+
+                <section
+                  class="mentor-panel-card mentor-meeting-link-panel mentor-meeting-link-panel--compact"
+                  aria-labelledby="mentor-meeting-link-title"
+                >
+                <div class="mentor-meeting-link-head">
+                  <h2 id="mentor-meeting-link-title">Görüşme bağlantısı</h2>
+                  <span
+                    id="mentor-meeting-link-status"
+                    class="mentor-meeting-link-status"
+                    aria-live="polite"
+                  ></span>
+                </div>
+                <p
+                  id="mentor-meeting-link-passive-note"
+                  class="profile-hint mentor-meeting-link-passive-note mentor-meeting-link-passive-note--compact"
+                >
+                  Vitrin için görüşme linki ve <strong>Cüzdanım</strong> hesap bilgileri gerekli.
+                </p>
+
+                <form id="mentor-meeting-link-form" class="mentor-meeting-link-form mentor-meeting-link-form--compact">
+                  <div class="mentor-meeting-link-platform-row">
+                    <p class="mentor-meeting-link-field-label">Platform</p>
+                    <div
+                      class="mentor-meeting-platform-toggle mentor-meeting-platform-toggle--compact"
+                      role="radiogroup"
+                      aria-label="Görüşme platformu"
+                    >
+                      <label class="mentor-meeting-platform-chip">
+                        <input
+                          type="radio"
+                          name="mentorMeetingPlatform"
+                          value="google_meet"
+                          checked
+                        />
+                        <span>Google Meet</span>
+                        <span class="mentor-meeting-platform-badge">Tavsiye</span>
+                      </label>
+                      <label class="mentor-meeting-platform-chip">
+                        <input type="radio" name="mentorMeetingPlatform" value="zoom" />
+                        <span>Zoom</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="mentor-meeting-link-save-row">
+                    <label for="mentor-meeting-link-input">Bağlantı</label>
+                    <input
+                      id="mentor-meeting-link-input"
+                      name="meetingLink"
+                      type="url"
+                      inputmode="url"
+                      autocomplete="url"
+                      maxlength="500"
+                      placeholder="https://meet.google.com/xxx-xxxx-xxx"
+                    />
+                    <button type="submit" id="mentor-meeting-link-save">Kaydet</button>
+                  </div>
+                  <p id="mentor-meeting-link-hint" class="profile-hint mentor-meeting-link-hint">
+                    Google Meet veya Zoom HTTPS bağlantısı girin.
+                  </p>
+                </form>
+                <p
+                  id="mentor-meeting-link-message"
+                  class="profile-message empty mentor-meeting-link-message"
+                  role="status"
+                ></p>
+
+                <details class="mentor-meeting-link-guides mentor-meeting-link-guides--compact">
+                  <summary>Bağlantı nasıl oluşturulur?</summary>
+                  <div class="mentor-meeting-link-guide-blocks">
+                    <div class="mentor-meeting-link-guide">
+                      <p class="mentor-meeting-link-guide-title">Google Meet</p>
+                      <ol>
+                        <li>
+                          <a href="https://meet.google.com" target="_blank" rel="noopener noreferrer">meet.google.com</a>
+                          → <strong>Yeni toplantı</strong> → <strong>Anlık toplantı</strong>
+                        </li>
+                        <li>Bağlantıyı kopyalayıp yukarıya yapıştırın (ücretsiz planda 60 dk).</li>
+                      </ol>
+                    </div>
+                    <div class="mentor-meeting-link-guide">
+                      <p class="mentor-meeting-link-guide-title">Zoom</p>
+                      <ol>
+                        <li>
+                          <a href="https://zoom.us" target="_blank" rel="noopener noreferrer">zoom.us</a>
+                          veya uygulama → <strong>Yeni Toplantı</strong>
+                        </li>
+                        <li>Katılma bağlantısını (https://zoom.us/j/…) kopyalayıp kaydedin.</li>
+                      </ol>
+                    </div>
+                  </div>
+                </details>
+                </section>
+
+                <section
+                  class="mentor-panel-card mentor-audience-referral-panel"
+                  aria-labelledby="mentor-audience-referral-title"
+                >
+                  <h2 id="mentor-audience-referral-title">Kitleni davet et</h2>
+                  <p class="profile-hint mentor-audience-referral-hint">
+                    Bu link ile kayıt olan kullanıcılar size bağlanır. Kendi paketinizi satın alırlarsa platform
+                    komisyonu %15 olur; başka mentörlerden alışverişlerinde 1 yıl boyunca satışların %5'i cüzdanınıza
+                    yazılır.
+                  </p>
+                  <label for="mentor-referral-link">Davet linkiniz</label>
+                  <div class="referral-link-row">
+                    <input id="mentor-referral-link" type="text" readonly class="referral-link-input" />
+                    <button type="button" id="mentor-referral-copy" class="secondary">Kopyala</button>
+                  </div>
+                  <div id="mentor-referral-stats" class="referral-program-stats" hidden>
+                    <span id="mentor-referral-signups" class="referral-program-stat">0 kayıt</span>
+                    <span id="mentor-referral-clicks" class="referral-program-stat">0 tıklama</span>
+                  </div>
+                  <p id="mentor-referral-message" class="profile-message empty" role="status"></p>
+                </section>
+              </div>
+
+              <section class="mentor-panel-card mentor-panel-card--span-7 mentor-invite-panel" aria-labelledby="mentor-invite-title">
+                <h2 id="mentor-invite-title">Kendi öğrencinizi ekleyin</h2>
+
+                <details class="mentor-invite-warning-accordion" open>
+                  <summary class="mentor-invite-warning-summary">
+                    <span class="mentor-invite-warning-badge" aria-hidden="true">!</span>
+                    <span class="mentor-invite-warning-summary-text">Önemli uyarı — öğrenci ekleme kuralları</span>
+                    <span class="mentor-invite-warning-chevron" aria-hidden="true"></span>
+                  </summary>
+                  <div class="mentor-invite-warning-body">
+                    <p>
+                      Bu bölüm yalnızca <strong>ödemesi zaten alınmış</strong> öğrenci ve danışanlarınızı
+                      sisteme bağlamanız içindir. Platform üzerinden satın alma yapmadan, yalnızca kod ile panele
+                      eklenen kayıtlar bu amaçla kullanılmalıdır.
+                    </p>
+                    <p>
+                      Yeni görüşmeler için öğrencileri bu yolla davet etmek, ödeme sistemini atlamak veya platform
+                      dışı ödemeyi gizlemek <strong>kesinlikle yasaktır</strong> ve
+                      <a href="/kullanici-sozlesmesi" target="_blank" rel="noopener noreferrer">Kullanım Şartları</a
+                      >’na aykırıdır.
+                    </p>
+                    <p>
+                      Kullanım Şartları gereği, öğrenci ve danışanlarınızdan ödemeyi farklı yollarla aldığınız tespit
+                      edilirse <strong>hesabınız kapatılır</strong> ve <strong>cüzdanınız bloke edilir</strong>.
+                    </p>
+                  </div>
+                </details>
+
+                <p class="profile-hint mentor-invite-hint">
+                  Öğrenciniz <strong>rekabetli.com</strong> üzerinde kayıt olsun ve profilindeki kullanıcı kodunu size iletsin.
+                  Kodu aşağıya girince öğrenci panele eklenir.
+                </p>
+                <form id="mentor-invite-student-form" class="mentor-invite-form">
+                  <label for="mentor-invite-code">Öğrenci kodu</label>
+                  <input
+                    id="mentor-invite-code"
+                    name="mentorInviteCode"
+                    type="text"
+                    inputmode="text"
+                    autocomplete="off"
+                    maxlength="12"
+                    placeholder="RKL-XXXXXX"
+                    spellcheck="false"
+                  />
+                  <button type="submit" id="mentor-invite-submit">Öğrenciyi ekle</button>
+                </form>
+                <p id="mentor-invite-message" class="profile-message empty mentor-invite-message" role="status"></p>
+
+                <div class="mentor-linked-students">
+                  <h3 class="mentor-linked-students-title">Eklenen öğrenciler</h3>
+                  <p id="mentor-linked-students-empty" class="mentor-linked-students-empty">Henüz öğrenci eklenmedi.</p>
+                  <div id="mentor-linked-students-list-host" class="mentor-linked-students-list-host" hidden></div>
+                </div>
+              </section>
+            </div>
+            <section class="mentor-panel-card mentor-panel-card--span-full mentor-all-meetings-panel">
+              <div
+                id="mentor-all-meetings-calendar-host"
+                class="all-meetings-calendar-host"
+                hidden
+              ></div>
             </section>
           </main>
         </section>
 
         <div id="mentor-package-panels"></div>
+        <div id="mentor-package-student-panels"></div>
 
         <section
           id="mentor-panel-cuzdanim"
@@ -266,25 +479,249 @@
           hidden
           aria-label="Cüzdanım"
         >
-          <main class="mentor-panel-wallet-layout">
-            <section class="panel auth-panel mentor-wallet-panel">
-              <h1>Cüzdanım</h1>
-              <p class="profile-hint mentor-wallet-hint">
-                Mentörlük gelirlerinizi ve ödemelerinizi buradan takip edeceksiniz.
-              </p>
+          <main class="mentor-panel-grid-layout">
+            <div class="mentor-wallet-layout">
+              <div class="mentor-wallet-layout-main">
+                <section class="mentor-panel-card mentor-wallet-balance-panel" aria-label="Bakiye özeti">
+                  <h1>Cüzdanım</h1>
+                  <p class="profile-hint mentor-wallet-hint">
+                    Mentörlük gelirlerinizi ve ödemelerinizi buradan takip edeceksiniz.
+                  </p>
+                  <p class="mentor-wallet-balance-label">Kullanılabilir bakiye</p>
+                  <p id="mentor-wallet-balance" class="mentor-wallet-balance-value">0 ₺</p>
+                  <div id="mentor-wallet-held-wrap" class="mentor-wallet-held-panel" hidden>
+                    <div class="mentor-wallet-held-head">
+                      <span id="mentor-wallet-held-label" class="mentor-wallet-held-label">Bekleyen bakiye</span>
+                      <strong id="mentor-wallet-held-balance" class="mentor-wallet-held-value">0 ₺</strong>
+                    </div>
+                    <ul id="mentor-wallet-held-list" class="mentor-wallet-held-list"></ul>
+                  </div>
+                  <div id="mentor-wallet-stats" class="mentor-wallet-stats" hidden></div>
+                  <p id="mentor-wallet-balance-note" class="mentor-wallet-balance-note">
+                    Brüt tutardan platform komisyonu ve tahmini ödeme işlem ücreti düşülür.
+                  </p>
+                  <div id="mentor-wallet-payout-request" class="mentor-wallet-payout-request" hidden>
+                    <div class="mentor-wallet-payout-amount-field">
+                      <label for="mentor-wallet-payout-amount">Çekilecek tutar (₺)</label>
+                      <div class="mentor-wallet-payout-amount-row">
+                        <input
+                          type="number"
+                          id="mentor-wallet-payout-amount"
+                          class="mentor-wallet-payout-amount-input"
+                          min="500"
+                          step="0.01"
+                          inputmode="decimal"
+                          placeholder="500"
+                          autocomplete="off"
+                        />
+                        <button
+                          type="button"
+                          id="mentor-wallet-payout-max-btn"
+                          class="nav-btn mentor-wallet-payout-max-btn"
+                        >
+                          Tümünü çek
+                        </button>
+                      </div>
+                      <p id="mentor-wallet-payout-amount-hint" class="profile-hint mentor-wallet-payout-amount-hint">
+                        Minimum 500 ₺. Talep tutarından Wise banka transfer ücreti düşülür.
+                      </p>
+                    </div>
+                    <label class="mentor-self-billing-agreement" for="mentor-wallet-self-billing-agree">
+                      <input
+                        type="checkbox"
+                        id="mentor-wallet-self-billing-agree"
+                        name="selfBillingAgree"
+                      />
+                      <span class="mentor-self-billing-agreement-text">
+                        Öz faturalandırma sözleşmesini kabul ediyorum. Bu ödemenin ELT Global LTD tarafından adıma düzenlenen yasal bir gider pusulası olduğunu onaylıyorum.
+                      </span>
+                    </label>
+                    <button type="button" id="mentor-wallet-payout-btn" class="nav-btn mentor-wallet-payout-btn" disabled>
+                      Ödeme talep et
+                    </button>
+                    <p id="mentor-wallet-payout-hint" class="profile-hint mentor-wallet-payout-hint"></p>
+                    <p id="mentor-wallet-payout-message" class="profile-message empty mentor-wallet-payout-message" role="status"></p>
+                  </div>
+                </section>
 
-              <div class="mentor-wallet-balance-card" aria-label="Bakiye özeti">
-                <p class="mentor-wallet-balance-label">Kullanılabilir bakiye</p>
-                <p id="mentor-wallet-balance" class="mentor-wallet-balance-value">0 ₺</p>
-                <p class="mentor-wallet-balance-note">Ödeme altyapısı yakında aktif edilecek.</p>
+                <section
+                  class="mentor-panel-card mentor-wallet-referral-panel"
+                  aria-labelledby="mentor-wallet-referral-title"
+                >
+                  <h2 id="mentor-wallet-referral-title" class="mentor-wallet-section-title">Davet Komisyonu</h2>
+                  <p class="profile-hint mentor-wallet-referral-hint">
+                    Davet linkinizle kayıt olanların alışverişlerinden kazandığınız tutarları buradan takip edin.
+                  </p>
+                  <div id="mentor-wallet-referral-stats" class="mentor-wallet-referral-stats" hidden></div>
+                  <p id="mentor-wallet-referral-loading" class="mentor-wallet-empty">Yükleniyor…</p>
+                  <p id="mentor-wallet-referral-error" class="profile-message profile-message-error empty" role="status" hidden></p>
+                </section>
               </div>
 
-              <div class="mentor-wallet-section">
-                <h2 class="mentor-wallet-section-title">İşlem geçmişi</h2>
-                <p id="mentor-wallet-empty" class="mentor-wallet-empty">Henüz işlem yok.</p>
-                <ul id="mentor-wallet-transactions" class="mentor-wallet-transactions" hidden></ul>
+              <div id="mentor-wallet-layout-side" class="mentor-wallet-layout-side">
+                <section
+                  id="mentor-payout-accordion"
+                  class="mentor-panel-card mentor-payout-panel"
+                  aria-labelledby="mentor-payout-title"
+                >
+                  <button
+                    type="button"
+                    id="mentor-payout-trigger"
+                    class="mentor-payout-trigger"
+                    aria-expanded="false"
+                    aria-controls="mentor-payout-panel-body"
+                  >
+                    <span class="mentor-payout-trigger-text">
+                      <span id="mentor-payout-title" class="mentor-payout-trigger-title">Hesap bilgileri</span>
+                      <span id="mentor-payout-summary" class="mentor-payout-summary" hidden></span>
+                      <span id="mentor-payout-edit-hint" class="mentor-payout-edit-hint" hidden>
+                        Düzenlemek için tıklayın
+                      </span>
+                    </span>
+                    <span class="mentor-payout-trigger-meta">
+                      <span
+                        id="mentor-payout-status"
+                        class="mentor-payout-status"
+                        aria-live="polite"
+                      ></span>
+                      <span class="mentor-payout-chevron" aria-hidden="true"></span>
+                    </span>
+                  </button>
+
+                  <div id="mentor-payout-panel-body" class="mentor-payout-panel-body" hidden>
+                  <div class="mentor-payout-panel-inner">
+                  <p class="mentor-payout-passive-note">
+                    Hesap bilgileri ve <strong>Danışman/Öğrenciler</strong> bölümündeki görüşme bağlantısı
+                    tamamlanmadan profiliniz <strong>pasif</strong> kalır; ödeme alamazsınız ve vitrin
+                    listesinde görünmezsiniz.
+                  </p>
+
+                  <form id="mentor-payout-form" class="mentor-payout-form">
+                    <label for="mentor-payout-account-holder">Hesap sahibi adı soyadı</label>
+                    <input
+                      id="mentor-payout-account-holder"
+                      name="accountHolder"
+                      type="text"
+                      autocomplete="name"
+                      maxlength="120"
+                      placeholder="Ad Soyad (banka kaydıyla aynı)"
+                      required
+                    />
+
+                    <label for="mentor-payout-iban">IBAN</label>
+                    <input
+                      id="mentor-payout-iban"
+                      name="iban"
+                      type="text"
+                      inputmode="text"
+                      autocomplete="off"
+                      maxlength="34"
+                      placeholder="TR00 0000 0000 0000 0000 0000 00"
+                      required
+                    />
+                    <p id="mentor-payout-hint" class="profile-hint mentor-payout-hint">
+                      Türkiye IBAN formatı: TR ile başlar, toplam 26 karakter (24 rakam).
+                    </p>
+
+                    <p class="mentor-payout-field-label">Banka adı</p>
+                    <p
+                      id="mentor-payout-bank-display"
+                      class="mentor-payout-bank-display is-empty"
+                      aria-live="polite"
+                    >
+                      IBAN girildiğinde otomatik belirlenir.
+                    </p>
+
+                    <button type="submit" id="mentor-payout-save">Hesap bilgilerini kaydet</button>
+                  </form>
+                  <p id="mentor-payout-message" class="profile-message empty mentor-payout-message" role="status"></p>
+
+                  <details class="mentor-payout-guide">
+                    <summary>IBAN bilgimi nereden bulurum?</summary>
+                    <ol>
+                      <li>Mobil bankacılık veya internet şubesine giriş yapın.</li>
+                      <li><strong>Hesaplarım</strong> veya <strong>Hesap bilgileri</strong> bölümünü açın.</li>
+                      <li>TL vadesiz hesabınızın <strong>IBAN</strong> numarasını kopyalayın.</li>
+                      <li>Hesap sahibi adının bankadaki kayıtla birebir aynı olduğundan emin olun.</li>
+                    </ol>
+                  </details>
+                  </div>
+                  </div>
+                </section>
+
+                <section class="mentor-panel-card mentor-wallet-transactions-panel">
+                  <div class="mentor-wallet-list-block">
+                    <div class="mentor-wallet-list-head">
+                      <h2 class="mentor-wallet-section-title">Satış geçmişi</h2>
+                      <nav
+                        id="mentor-wallet-transactions-pager"
+                        class="mentor-wallet-list-pager"
+                        aria-label="Satış geçmişi sayfaları"
+                        hidden
+                      >
+                        <button
+                          type="button"
+                          id="mentor-wallet-transactions-prev"
+                          class="mentor-wallet-list-pager-btn"
+                          aria-label="Önceki satışlar"
+                        >
+                          &lt;
+                        </button>
+                        <span id="mentor-wallet-transactions-page" class="mentor-wallet-list-pager-label">1 / 1</span>
+                        <button
+                          type="button"
+                          id="mentor-wallet-transactions-next"
+                          class="mentor-wallet-list-pager-btn"
+                          aria-label="Sonraki satışlar"
+                        >
+                          &gt;
+                        </button>
+                      </nav>
+                    </div>
+                    <p id="mentor-wallet-empty" class="mentor-wallet-empty">Henüz paket satışı yok.</p>
+                    <ul id="mentor-wallet-transactions" class="mentor-wallet-transactions" hidden></ul>
+                  </div>
+
+                  <div class="mentor-wallet-list-block mentor-wallet-list-block--sub">
+                    <div class="mentor-wallet-list-head">
+                      <h2 class="mentor-wallet-section-title mentor-wallet-section-title--sub">Ödeme talepleri</h2>
+                      <nav
+                        id="mentor-wallet-payout-pager"
+                        class="mentor-wallet-list-pager"
+                        aria-label="Ödeme talepleri sayfaları"
+                        hidden
+                      >
+                        <button
+                          type="button"
+                          id="mentor-wallet-payout-prev"
+                          class="mentor-wallet-list-pager-btn"
+                          aria-label="Önceki ödeme talepleri"
+                        >
+                          &lt;
+                        </button>
+                        <span id="mentor-wallet-payout-page" class="mentor-wallet-list-pager-label">1 / 1</span>
+                        <button
+                          type="button"
+                          id="mentor-wallet-payout-next"
+                          class="mentor-wallet-list-pager-btn"
+                          aria-label="Sonraki ödeme talepleri"
+                        >
+                          &gt;
+                        </button>
+                      </nav>
+                    </div>
+                    <p
+                      id="mentor-wallet-payout-list-message"
+                      class="profile-message empty mentor-wallet-payout-list-message"
+                      role="status"
+                      hidden
+                    ></p>
+                    <p id="mentor-wallet-payout-empty" class="mentor-wallet-empty">Henüz ödeme talebi yok.</p>
+                    <ul id="mentor-wallet-payout-requests" class="mentor-wallet-payout-requests" hidden></ul>
+                  </div>
+                </section>
               </div>
-            </section>
+            </div>
           </main>
         </section>
 
@@ -322,7 +759,23 @@
         <div class="mentor-intro-block">
           <div class="mentor-intro-head">
             <p class="eyebrow">Mentör</p>
-            <h1 id="mentor-display-name" class="mentor-display-name">Mentör</h1>
+            <div class="mentor-intro-name-row">
+              <h1 id="mentor-display-name" class="mentor-display-name">Mentör</h1>
+              <span
+                id="mentor-vitrin-availability-badge"
+                class="mentor-vitrin-availability-badge"
+                hidden
+                aria-live="polite"
+              ></span>
+              <button
+                type="button"
+                id="mentor-vitrin-availability-toggle"
+                class="secondary mentor-vitrin-availability-toggle"
+                hidden
+              >
+                Pasif yap
+              </button>
+            </div>
             <p class="mentor-name-hint">
               Görünen adınız
               <a href="#profil" data-open-mentor-panel="profil">Profil</a>
@@ -430,13 +883,73 @@
           <div class="mentor-editor-zone">
             <p class="mentor-editor-label">Düzenle</p>
             <p class="profile-hint mentor-section-hint">
-              Sunduğunuz mentörlük paketlerini ekleyin. Her paket için başlık, içerik ve liste fiyatı girin.
+              Sunduğunuz mentörlük paketlerini ekleyin. Başlık, içerik, görüşme sıklığı ve liste fiyatı girin.
             </p>
             <div id="mentor-packages-list" class="mentor-items-list"></div>
             <button type="button" id="mentor-add-package" class="secondary mentor-add-item-btn">
               + Paket ekle
             </button>
           </div>
+        </section>
+
+        <section
+          id="mentor-vitrin-publish"
+          class="mentor-vitrin-publish-panel"
+          aria-labelledby="mentor-vitrin-publish-title"
+        >
+          <div class="mentor-vitrin-publish-head">
+            <h2 id="mentor-vitrin-publish-title">Vitrin yayını</h2>
+            <span
+              id="mentor-vitrin-review-badge"
+              class="mentor-vitrin-review-badge is-draft"
+              hidden
+            ></span>
+          </div>
+          <p id="mentor-vitrin-publish-desc" class="profile-hint mentor-section-hint">
+            Sayfanızı kaydedebilir ve düzenleyebilirsiniz. Vitrinde yayınlanması için koşulları kabul edip
+            incelemeye göndermeniz gerekir; admin onayından sonra profiliniz mentör listesinde görünür.
+          </p>
+          <fieldset id="mentor-vitrin-consents" class="legal-consents" hidden>
+            <legend class="legal-consents-legend">Vitrin yayın koşulları</legend>
+
+            <label class="legal-consent-item" for="mentor-consent-kvkk">
+              <input id="mentor-consent-kvkk" name="mentorConsentKvkk" type="checkbox" />
+              <span>
+                <a href="/kvkk" target="_blank" rel="noopener noreferrer">KVKK Aydınlatma Metni</a>’ni
+                okudum ve anladım.
+              </span>
+            </label>
+
+            <label class="legal-consent-item" for="mentor-consent-acik-riza">
+              <input id="mentor-consent-acik-riza" name="mentorConsentAcikRiza" type="checkbox" />
+              <span>
+                <a href="/acik-riza" target="_blank" rel="noopener noreferrer">Açık Rıza Metni</a>’ni
+                okudum ve onaylıyorum.
+              </span>
+            </label>
+
+            <label class="legal-consent-item" for="mentor-consent-sozlesme">
+              <input id="mentor-consent-sozlesme" name="mentorConsentSozlesme" type="checkbox" />
+              <span>
+                <a href="/kullanici-sozlesmesi" target="_blank" rel="noopener noreferrer">Kullanıcı Sözleşmesi</a>’ni
+                okudum ve kabul ediyorum.
+              </span>
+            </label>
+
+            <label class="legal-consent-item" for="mentor-consent-kosullar">
+              <input id="mentor-consent-kosullar" name="mentorConsentKosullar" type="checkbox" />
+              <span>
+                <a href="/kullanim-kosullari" target="_blank" rel="noopener noreferrer">Kullanım Koşulları</a>’nı
+                (mentör hükümleri dahil) okudum ve kabul ediyorum.
+              </span>
+            </label>
+          </fieldset>
+
+          <p id="mentor-vitrin-review-note" class="mentor-vitrin-review-note" hidden role="status"></p>
+
+          <button type="button" id="mentor-vitrin-submit-review" class="mentor-vitrin-submit-review" hidden>
+            Vitrini incelemeye gönder
+          </button>
         </section>
 
         <p id="mentor-page-message" class="profile-message empty" role="status"></p>
@@ -493,9 +1006,14 @@
     <script src="image-upload-limit.js"></script>
     <script src="image-compression.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <script src="quill-editor.js"></script>
+    <script src="turkish-bank-codes.js"></script>
     <script src="mentor-vitrin-utils.js"></script>
+    <script src="mentor-package-tasks.js"></script>
+    <script src="mentor-meeting-proposals.js"></script>
     <script src="mentor-messaging.js"></script>
+    <script src="mentor-panel-shell.js"></script>
     <script src="profile.js"></script>
     <script src="mentor-sayfam.js"></script>
       <script src="site-footer.js"></script>

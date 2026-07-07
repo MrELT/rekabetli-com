@@ -1,17 +1,15 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import Stripe from "stripe";
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 const FROM_EMAIL = "rekabetli.com <info@rekabetli.com>";
-const LOGO_URL =
-  "https://xtggaelcgimohftfupvo.supabase.co/storage/v1/object/public/logos/rekabetli.png";
-const LOGO_FALLBACK_URL =
-  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=160&q=80";
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
-const RATE_LIMIT_MAX_EMAILS = 2;
 const DEFAULT_SITE_URL = "https://rekabetli.com";
 /** Resend varsayılan: 5 istek/saniye (Settings → Usage). Secret: RESEND_MAX_PER_SECOND */
 const DEFAULT_RESEND_MAX_PER_SECOND = 5;
+const DEFAULT_MAX_NOTIFICATION_AGE_HOURS = 24;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const RATE_LIMIT_MAX_EMAILS = 2;
 const RATE_LIMIT_RETRY_MS = 30 * 60 * 1000;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -45,6 +43,21 @@ function getQueueBatchSize(): number {
   return getResendMaxPerSecond() * 55;
 }
 
+function getMaxNotificationAgeHours(): number {
+  const raw = Deno.env.get("NOTIFICATION_EMAIL_MAX_AGE_HOURS")?.trim();
+  if (!raw) return DEFAULT_MAX_NOTIFICATION_AGE_HOURS;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_MAX_NOTIFICATION_AGE_HOURS;
+  return Math.min(n, 24 * 30);
+}
+
+function isNotificationTooOld(record: NotificationRecord): boolean {
+  const createdAt = new Date(record.created_at).getTime();
+  if (!Number.isFinite(createdAt)) return true;
+  const maxAgeMs = getMaxNotificationAgeHours() * 60 * 60 * 1000;
+  return Date.now() - createdAt > maxAgeMs;
+}
+
 class ResendRateLimitError extends Error {
   retryAfterSec: number;
 
@@ -60,6 +73,17 @@ function getSiteUrl(): string {
   return siteUrl.replace(/\/$/, "");
 }
 
+/** E-posta şablonları: önce EMAIL_LOGO_URL, yoksa kendi domainimizdeki statik asset */
+function getEmailLogoUrl(siteUrl: string): string {
+  const override = Deno.env.get("EMAIL_LOGO_URL")?.trim();
+  if (override) return override.replace(/\/$/, "");
+  return `${siteUrl.replace(/\/$/, "")}/assets/rekabetli.png`;
+}
+
+function getEmailLogoFallbackUrl(siteUrl: string): string {
+  return `${siteUrl.replace(/\/$/, "")}/assets/rekabetli_logo.png`;
+}
+
 type NotificationType =
   | "comment"
   | "like"
@@ -69,7 +93,13 @@ type NotificationType =
   | "community_post"
   | "mentor_package_request"
   | "mentor_student_message"
-  | "mentor_mentor_reply";
+  | "mentor_mentor_reply"
+  | "mentor_meeting_proposal"
+  | "mentor_meeting_confirmed"
+  | "mentor_meeting_reminder_1d"
+  | "mentor_meeting_reminder_30m"
+  | "mentor_package_purchased"
+  | "mentor_package_sale";
 
 interface NotificationRecord {
   id: string;
@@ -85,6 +115,9 @@ interface NotificationRecord {
   package_request_id: string | null;
   conversation_id: string | null;
   message_id: string | null;
+  meeting_proposal_id?: string | null;
+  enrollment_id?: string | null;
+  body_text?: string | null;
   read_at: string | null;
   created_at: string;
   email_sent?: boolean;
@@ -161,17 +194,6 @@ function verifyServiceRole(req: Request): boolean {
   return auth === `Bearer ${serviceRoleKey}`;
 }
 
-function verifySupabaseAnonKey(req: Request): boolean {
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")?.trim();
-  if (!anonKey) return false;
-
-  const apikey = req.headers.get("apikey")?.trim();
-  if (apikey === anonKey) return true;
-
-  const auth = req.headers.get("Authorization")?.trim();
-  return auth === `Bearer ${anonKey}`;
-}
-
 /** Dashboard Cron / pg_cron — service role yerine CRON_SECRET secret kullanın */
 function verifyCronSecret(req: Request, body: unknown): boolean {
   const expected = Deno.env.get("CRON_SECRET")?.trim();
@@ -188,12 +210,8 @@ function verifyCronSecret(req: Request, body: unknown): boolean {
   return false;
 }
 
-function canProcessQueue(req: Request, body: unknown): boolean {
-  return (
-    verifyServiceRole(req) ||
-    verifySupabaseAnonKey(req) ||
-    verifyCronSecret(req, body)
-  );
+function canInvokePrivilegedEmailEndpoint(req: Request, body: unknown): boolean {
+  return verifyServiceRole(req) || verifyCronSecret(req, body);
 }
 
 function parseNotificationFromRequest(body: unknown): NotificationRecord | null {
@@ -253,6 +271,9 @@ function joinSitePath(siteUrl: string, path: string): string {
 }
 
 function buildNotificationMessage(record: NotificationRecord): string {
+  const custom = record.body_text?.trim();
+  if (custom) return custom;
+
   const name = record.actor_name?.trim() || "Biri";
 
   switch (record.type) {
@@ -272,6 +293,26 @@ function buildNotificationMessage(record: NotificationRecord): string {
       return `${name} size bir soru sordu.`;
     case "mentor_mentor_reply":
       return `${name} sorunuza yanıt verdi.`;
+    case "mentor_meeting_proposal":
+      return `${name} size görüşme zamanı teklifi gönderdi.`;
+    case "mentor_meeting_confirmed":
+      return `${name} görüşme zamanınızı onayladı.`;
+    case "mentor_meeting_postpone":
+      return record.body_text || `${name} görüşmeyi ertelemek istiyor.`;
+    case "mentor_meeting_refund_requested":
+      return record.body_text || "Görüşme için iade talebi oluşturuldu.";
+    case "mentor_meeting_reminder_1d":
+      return "Yarın görüşmeniz var.";
+    case "mentor_meeting_reminder_30m":
+      return "Görüşmeniz 30 dakika sonra.";
+    case "mentor_package_purchased":
+      return "Paket satın alımınız tamamlandı. Danışman panelinizden ilk görüşmenizi planlayabilirsiniz.";
+    case "mentor_package_sale":
+      return `${name} paketinizi satın aldı. Lütfen en kısa sürede ilk görüşmeyi planlayın.`;
+    case "mentor_package_refund_requested":
+      return record.body_text || `${name} paketiniz için iade talep etti.`;
+    case "mentor_package_refunded":
+      return record.body_text || "Paket iadeniz işlendi.";
     case "like":
       return `${name} sorunuzu beğendi.`;
     default:
@@ -280,6 +321,27 @@ function buildNotificationMessage(record: NotificationRecord): string {
 }
 
 function buildNotificationLink(record: NotificationRecord, siteUrl: string): string {
+  if (record.type === "mentor_package_purchased") {
+    const enrollmentId = record.enrollment_id;
+    if (isSafeUuid(enrollmentId)) {
+      return joinSitePath(
+        siteUrl,
+        `/ogrenci-sayfam#kayit-${encodeURIComponent(enrollmentId)}`,
+      );
+    }
+    return joinSitePath(siteUrl, "/ogrenci-sayfam");
+  }
+
+  if (record.type === "mentor_package_sale") {
+    const params = new URLSearchParams({ openSchedule: "1", fromSale: "1" });
+    if (isSafeUuid(record.enrollment_id)) {
+      params.set("enrollment", record.enrollment_id);
+    } else if (isSafeUuid(record.actor_id)) {
+      params.set("scheduleStudent", record.actor_id);
+    }
+    return joinSitePath(siteUrl, `/mentor-sayfam?${params.toString()}`);
+  }
+
   if (record.type === "mentor_package_request") {
     const params = new URLSearchParams({ inbox: "requests" });
     if (isSafeUuid(record.package_request_id)) {
@@ -300,19 +362,50 @@ function buildNotificationLink(record: NotificationRecord, siteUrl: string): str
   }
 
   if (record.type === "mentor_mentor_reply") {
-    const params = new URLSearchParams({ openMessaging: "1" });
-    if (isSafeUuid(record.mentor_id)) {
-      params.set("id", record.mentor_id);
-    }
+    const params = new URLSearchParams({ openMessages: "1" });
     if (isSafeUuid(record.conversation_id)) {
       params.set("conversation", record.conversation_id);
     }
     if (isSafeUuid(record.message_id)) {
       params.set("message", record.message_id);
     }
-    return isSafeUuid(record.mentor_id)
-      ? joinSitePath(siteUrl, `/mentor?${params.toString()}`)
-      : joinSitePath(siteUrl, "/mentors");
+    if (isSafeUuid(record.enrollment_id)) {
+      const query = params.toString();
+      return joinSitePath(
+        siteUrl,
+        query
+          ? `/ogrenci-sayfam?${query}#kayit-${encodeURIComponent(record.enrollment_id)}`
+          : `/ogrenci-sayfam#kayit-${encodeURIComponent(record.enrollment_id)}`,
+      );
+    }
+    const query = params.toString();
+    return joinSitePath(siteUrl, query ? `/ogrenci-sayfam?${query}` : "/ogrenci-sayfam");
+  }
+
+  if (record.type === "mentor_package_refund_requested") {
+    return joinSitePath(siteUrl, "/mentor-sayfam#ogrenciler");
+  }
+
+  if (record.type === "mentor_package_refunded") {
+    return joinSitePath(siteUrl, "/ogrenci-sayfam#cuzdanim");
+  }
+
+  if (
+    record.type === "mentor_meeting_proposal" ||
+    record.type === "mentor_meeting_confirmed" ||
+    record.type === "mentor_meeting_postpone" ||
+    record.type === "mentor_meeting_refund_requested" ||
+    record.type === "mentor_meeting_reminder_1d" ||
+    record.type === "mentor_meeting_reminder_30m"
+  ) {
+    const enrollmentId = record.enrollment_id;
+    if (isSafeUuid(enrollmentId)) {
+      return joinSitePath(
+        siteUrl,
+        `/ogrenci-sayfam#kayit-${encodeURIComponent(enrollmentId)}`,
+      );
+    }
+    return joinSitePath(siteUrl, "/ogrenci-sayfam");
   }
 
   if (record.type === "community_join_request") {
@@ -366,6 +459,323 @@ function buildNotificationLink(record: NotificationRecord, siteUrl: string): str
   return joinSitePath(siteUrl, "/");
 }
 
+function isPackagePurchaseType(type: NotificationType): boolean {
+  return type === "mentor_package_purchased" || type === "mentor_package_sale";
+}
+
+function isSafeExternalUrl(url: string | null | undefined): url is string {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+interface PackageOrderInvoiceContext {
+  hostedUrl: string | null;
+  pdfUrl: string | null;
+  invoiceId: string | null;
+  packageTitle: string | null;
+}
+
+interface ResendAttachment {
+  filename: string;
+  content: string;
+}
+
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function isPdfBytes(bytes: Uint8Array): boolean {
+  return bytes.length >= 4 &&
+    bytes[0] === 0x25 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x44 &&
+    bytes[3] === 0x46;
+}
+
+function sanitizePdfFilename(value: string): string {
+  const cleaned = value
+    .trim()
+    .replace(/[^\w\u00C0-\u024F\s.-]+/g, "")
+    .replace(/\s+/g, "-")
+    .slice(0, 80);
+  return cleaned || "paket";
+}
+
+async function downloadPdfFromUrl(url: string): Promise<Uint8Array | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    return isPdfBytes(bytes) ? bytes : null;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn("invoice pdf download failed:", url, message);
+    return null;
+  }
+}
+
+async function downloadStripeInvoicePdfForEmail(
+  context: PackageOrderInvoiceContext,
+): Promise<ResendAttachment | null> {
+  let bytes: Uint8Array | null = null;
+
+  if (context.pdfUrl) {
+    bytes = await downloadPdfFromUrl(context.pdfUrl);
+  }
+
+  if (!bytes && context.invoiceId) {
+    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY")?.trim();
+    if (stripeSecretKey?.startsWith("sk_")) {
+      try {
+        const stripe = new Stripe(stripeSecretKey);
+        const invoice = await stripe.invoices.retrieve(context.invoiceId);
+        if (invoice.invoice_pdf) {
+          bytes = await downloadPdfFromUrl(invoice.invoice_pdf);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn("stripe invoice pdf retrieve failed:", context.invoiceId, message);
+      }
+    }
+  }
+
+  if (!bytes) return null;
+
+  const titlePart = context.packageTitle
+    ? sanitizePdfFilename(context.packageTitle)
+    : "paket";
+  const invoicePart = context.invoiceId
+    ? context.invoiceId.replace(/^in_/, "")
+    : "fatura";
+
+  return {
+    filename: `rekabetli-fatura-${titlePart}-${invoicePart}.pdf`,
+    content: uint8ArrayToBase64(bytes),
+  };
+}
+
+async function fetchPackageOrderInvoiceContext(
+  supabase: SupabaseClient,
+  notification: NotificationRecord,
+): Promise<PackageOrderInvoiceContext> {
+  if (notification.type !== "mentor_package_purchased" || !isSafeUuid(notification.enrollment_id)) {
+    return { hostedUrl: null, pdfUrl: null, invoiceId: null, packageTitle: null };
+  }
+
+  const { data, error } = await supabase
+    .from("package_orders")
+    .select(
+      "stripe_invoice_id, stripe_hosted_invoice_url, stripe_invoice_pdf_url, package_title",
+    )
+    .eq("user_id", notification.user_id)
+    .eq("enrollment_id", notification.enrollment_id)
+    .eq("status", "paid")
+    .order("paid_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{
+      stripe_invoice_id: string | null;
+      stripe_hosted_invoice_url: string | null;
+      stripe_invoice_pdf_url: string | null;
+      package_title: string | null;
+    }>();
+
+  if (error) {
+    console.warn("package_orders invoice lookup failed:", notification.id, error.message);
+    return { hostedUrl: null, pdfUrl: null, invoiceId: null, packageTitle: null };
+  }
+
+  return {
+    hostedUrl: isSafeExternalUrl(data?.stripe_hosted_invoice_url)
+      ? data!.stripe_hosted_invoice_url
+      : null,
+    pdfUrl: isSafeExternalUrl(data?.stripe_invoice_pdf_url) ? data!.stripe_invoice_pdf_url : null,
+    invoiceId: data?.stripe_invoice_id?.trim() || null,
+    packageTitle: data?.package_title?.trim() || null,
+  };
+}
+
+function buildEmailSubject(record: NotificationRecord, invoicePdfAttached = false): string {
+  switch (record.type) {
+    case "mentor_package_purchased":
+      return invoicePdfAttached
+        ? "rekabetli.com — Paket satın alımınız tamamlandı (fatura ektedir)"
+        : "rekabetli.com — Paket satın alımınız tamamlandı";
+    case "mentor_package_sale":
+      return "rekabetli.com — Yeni paket satışı: ilk görüşmeyi planlayın";
+    default:
+      return "rekabetli.com — Yeni bildiriminiz var";
+  }
+}
+
+function buildPurchaseEmailHtml(options: {
+  recipientName: string;
+  record: NotificationRecord;
+  message: string;
+  actionUrl: string;
+  siteUrl: string;
+  unsubscribeUrl: string;
+  invoiceHostedUrl?: string | null;
+  invoicePdfUrl?: string | null;
+  invoicePdfAttached?: boolean;
+}): string {
+  const kullaniciAdi = escapeHtml(options.recipientName || "Kullanıcı");
+  const bildirimIcerigi = escapeHtml(options.message);
+  const platformUrl = escapeHtml(options.actionUrl);
+  const homeUrl = escapeHtml(options.siteUrl.replace(/\/$/, ""));
+  const unsubscribeUrl = escapeHtml(options.unsubscribeUrl);
+  const safeLogoUrl = escapeHtml(getEmailLogoUrl(options.siteUrl));
+  const safeLogoFallback = escapeHtml(getEmailLogoFallbackUrl(options.siteUrl));
+
+  const isStudentPurchase = options.record.type === "mentor_package_purchased";
+  const heading = isStudentPurchase
+    ? "Paket satın alımınız tamamlandı 🎉"
+    : "Yeni paket satışı 🔔";
+  const intro = isStudentPurchase
+    ? "Ödemeniz başarıyla alındı. Mentörünüzle iletişime geçebilir ve ilk görüşme zamanınızı planlayabilirsiniz."
+    : "Bir danışman paketinizi satın aldı. Lütfen en kısa sürede ilk görüşmenizi planlayın.";
+  const ctaLabel = isStudentPurchase ? "Danışman Paneline Git" : "Öğrencilerime Git";
+  const invoiceUrl = isSafeExternalUrl(options.invoiceHostedUrl)
+    ? options.invoiceHostedUrl
+    : isSafeExternalUrl(options.invoicePdfUrl)
+      ? options.invoicePdfUrl
+      : null;
+  const safeInvoiceUrl = invoiceUrl ? escapeHtml(invoiceUrl) : "";
+  const invoicePdfAttached = options.invoicePdfAttached === true;
+  const invoiceSection = isStudentPurchase && (invoicePdfAttached || invoiceUrl)
+    ? `<table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
+                <tr>
+                  <td style="background-color: #052e16; border: 1px solid #166534; border-radius: 8px; padding: 16px 20px;">
+                    <p style="margin: 0 0 12px 0; color: #86efac; font-size: 14px; line-height: 1.5; text-align: center;">
+                      ${
+    invoicePdfAttached
+      ? "Ödemenize ait faturanız bu e-postanın ekinde PDF olarak gönderilmiştir."
+      : "Ödemenize ait faturanız hazır. Aşağıdaki bağlantıdan görüntüleyebilir veya indirebilirsiniz."
+  }
+                      ${
+    invoicePdfAttached && invoiceUrl
+      ? " İsterseniz çevrimiçi görüntülemek için aşağıdaki bağlantıyı da kullanabilirsiniz."
+      : ""
+  }
+                    </p>
+                    ${
+    invoiceUrl
+      ? `<table width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td align="center">
+                          <a href="${safeInvoiceUrl}" target="_blank" style="display: inline-block; padding: 12px 28px; background-color: #16a34a; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 8px;">
+                            ${invoicePdfAttached ? "Faturayı Çevrimiçi Görüntüle" : "Faturanızı Görüntüleyin"}
+                          </a>
+                        </td>
+                      </tr>
+                    </table>`
+      : ""
+  }
+                  </td>
+                </tr>
+              </table>`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rekabetli.com — ${escapeHtml(heading)}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0f172a; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0f172a; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 500px; background-color: #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3); border: 1px solid #334155;">
+
+          <tr>
+            <td align="center" style="padding: 40px 40px 20px 40px;">
+              <a href="${homeUrl}" target="_blank" style="text-decoration: none;">
+                <img src="${safeLogoUrl}" alt="Rekabetli Logo" width="160" style="display: block; border: 0; outline: none; text-decoration: none; margin: 0 auto;" onerror="this.src='${safeLogoFallback}'">
+              </a>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 0 40px;">
+              <div style="height: 1px; background-color: #334155;"></div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 30px 40px 40px 40px;">
+              <h2 style="margin: 0 0 16px 0; color: #f8fafc; font-size: 24px; font-weight: 700; text-align: center; letter-spacing: -0.5px;">
+                ${escapeHtml(heading)}
+              </h2>
+              <p style="margin: 0 0 12px 0; color: #94a3b8; font-size: 15px; line-height: 1.6; text-align: center;">
+                Merhaba <strong style="color: #e2e8f0;">${kullaniciAdi}</strong>, ${escapeHtml(intro)}
+              </p>
+
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
+                <tr>
+                  <td style="background-color: #0f172a; border: 1px solid #334155; border-left: 4px solid ${isStudentPurchase ? "#22c55e" : "#3b82f6"}; border-radius: 0 8px 8px 0; padding: 16px 20px;">
+                    <p style="margin: 0; color: #cbd5e1; font-size: 15px; line-height: 1.6; text-align: center;">
+                      ${bildirimIcerigi}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              ${invoiceSection}
+
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
+                <tr>
+                  <td align="center" style="padding: 4px 0;">
+                    <a href="${platformUrl}" target="_blank" style="display: inline-block; padding: 14px 32px; background-color: #2563eb; color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 8px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); letter-spacing: 0.3px;">
+                      ${escapeHtml(ctaLabel)}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0 0 8px 0; color: #64748b; font-size: 13px; line-height: 1.5; text-align: center;">
+                Buton çalışmıyorsa aşağıdaki bağlantıyı tarayıcına yapıştırabilirsin:
+              </p>
+              <p style="margin: 0; font-size: 12px; text-align: center; word-break: break-all;">
+                <a href="${platformUrl}" target="_blank" style="color: #3b82f6; text-decoration: underline;">${platformUrl}</a>
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 20px 40px; background-color: #0f172a; text-align: center; border-top: 1px solid #334155;">
+              <p style="margin: 0 0 4px 0; color: #475569; font-size: 12px; font-weight: 500;">
+                © 2026 rekabetli.com. Tüm hakları saklıdır.
+              </p>
+              <p style="margin: 0; color: #334155; font-size: 11px;">
+                Bu e-posta, rekabetli.com bildirim sisteminden otomatik olarak gönderilmiştir.
+                <a href="${homeUrl}" target="_blank" style="color: #3b82f6; text-decoration: underline;">${homeUrl}</a>
+              </p>
+              <p style="margin: 6px 0 0; color: #475569; font-size: 11px;">
+                Bildirim e-postalarını kapatmak için
+                <a href="${unsubscribeUrl}" target="_blank" style="color: #3b82f6; text-decoration: underline;">abonelikten çık</a>.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
 function buildEmailHtml(options: {
   recipientName: string;
   message: string;
@@ -378,8 +788,8 @@ function buildEmailHtml(options: {
   const platformUrl = escapeHtml(options.actionUrl);
   const homeUrl = escapeHtml(options.siteUrl.replace(/\/$/, ""));
   const unsubscribeUrl = escapeHtml(options.unsubscribeUrl);
-  const safeLogoUrl = escapeHtml(LOGO_URL);
-  const safeLogoFallback = escapeHtml(LOGO_FALLBACK_URL);
+  const safeLogoUrl = escapeHtml(getEmailLogoUrl(options.siteUrl));
+  const safeLogoFallback = escapeHtml(getEmailLogoFallbackUrl(options.siteUrl));
 
   return `<!DOCTYPE html>
 <html lang="tr">
@@ -507,11 +917,11 @@ async function countRecentEmailsSent(
   const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
 
   const { count, error } = await supabase
-    .from("notifications")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("email_sent", true)
-    .gte("created_at", since);
+    .from("notification_email_queue")
+    .select("id, notifications!inner(user_id)", { count: "exact", head: true })
+    .eq("status", "sent")
+    .eq("notifications.user_id", userId)
+    .gte("processed_at", since);
 
   if (error) {
     throw new Error(`Rate limit sayımı başarısız: ${error.message}`);
@@ -525,19 +935,26 @@ async function sendEmailViaResend(options: {
   to: string;
   subject: string;
   html: string;
+  attachments?: ResendAttachment[];
 }): Promise<void> {
+  const payload: Record<string, unknown> = {
+    from: FROM_EMAIL,
+    to: [options.to],
+    subject: options.subject,
+    html: options.html,
+  };
+
+  if (options.attachments?.length) {
+    payload.attachments = options.attachments;
+  }
+
   const response = await fetch(RESEND_API_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${options.apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: [options.to],
-      subject: options.subject,
-      html: options.html,
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -661,6 +1078,18 @@ async function processNotificationEmail(options: {
     `Bildirim işleniyor: id=${notification.id}, user_id=${notification.user_id}, type=${notification.type}`,
   );
 
+  if (isNotificationTooOld(notification)) {
+    console.log(
+      `Eski bildirim e-postası atlandı: notification_id=${notification.id}, created_at=${notification.created_at}`,
+    );
+    return {
+      ok: true,
+      skipped: true,
+      reason: "too_old",
+      notificationId: notification.id,
+    };
+  }
+
   const recentEmailCount = await countRecentEmailsSent(supabase, notification.user_id);
   if (recentEmailCount >= RATE_LIMIT_MAX_EMAILS) {
     console.log(
@@ -701,24 +1130,53 @@ async function processNotificationEmail(options: {
     : `${siteUrl}/unsubscribe?type=notifications`;
   console.log(`E-posta linkleri siteUrl=${siteUrl}, actionUrl=${actionUrl}`);
 
-  const html = buildEmailHtml({
-    recipientName: displayName,
-    message,
-    actionUrl,
-    siteUrl,
-    unsubscribeUrl,
-  });
+  const invoiceContext = notification.type === "mentor_package_purchased"
+    ? await fetchPackageOrderInvoiceContext(supabase, notification)
+    : { hostedUrl: null, pdfUrl: null, invoiceId: null, packageTitle: null };
+
+  const invoiceAttachment = notification.type === "mentor_package_purchased"
+    ? await downloadStripeInvoicePdfForEmail(invoiceContext).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn("invoice pdf attachment skipped:", notification.id, message);
+      return null;
+    })
+    : null;
+
+  const html = isPackagePurchaseType(notification.type)
+    ? buildPurchaseEmailHtml({
+        recipientName: displayName,
+        record: notification,
+        message,
+        actionUrl,
+        siteUrl,
+        unsubscribeUrl,
+        invoiceHostedUrl: invoiceContext.hostedUrl,
+        invoicePdfUrl: invoiceContext.pdfUrl,
+        invoicePdfAttached: Boolean(invoiceAttachment),
+      })
+    : buildEmailHtml({
+        recipientName: displayName,
+        message,
+        actionUrl,
+        siteUrl,
+        unsubscribeUrl,
+      });
 
   await sendEmailViaResend({
     apiKey: resendApiKey,
     to: email,
-    subject: "rekabetli.com — Yeni bildiriminiz var",
+    subject: buildEmailSubject(notification, Boolean(invoiceAttachment)),
     html,
+    attachments: invoiceAttachment ? [invoiceAttachment] : undefined,
   });
 
   await markNotificationEmailSent(supabase, notification.id);
 
-  console.log(`E-posta gönderildi: notification_id=${notification.id}, to=${email}`);
+  console.log(
+    `E-posta gönderildi: notification_id=${notification.id}, to=${email}, invoice_attachment=${
+      invoiceAttachment ? invoiceAttachment.filename : "none"
+    }`,
+  );
 
   return {
     ok: true,
@@ -906,11 +1364,11 @@ Deno.serve(async (req) => {
     }
 
     if (isProcessQueueRequest(body)) {
-      if (!canProcessQueue(req, body)) {
+      if (!canInvokePrivilegedEmailEndpoint(req, body)) {
         return jsonResponse(
           {
             error:
-              "process_queue için Authorization (service role / anon), apikey veya CRON_SECRET gerekli.",
+              "process_queue için Authorization (service role) veya CRON_SECRET gerekli.",
           },
           401,
         );
@@ -922,6 +1380,16 @@ Deno.serve(async (req) => {
         siteUrl,
       });
       return jsonResponse(result);
+    }
+
+    if (!canInvokePrivilegedEmailEndpoint(req, body)) {
+      return jsonResponse(
+        {
+          error:
+            "Bildirim kuyruğu için Authorization (service role) veya CRON_SECRET gerekli.",
+        },
+        401,
+      );
     }
 
     const notifications = parseNotificationsFromRequest(body);
