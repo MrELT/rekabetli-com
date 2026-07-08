@@ -91,6 +91,10 @@
             <span class="admin-nav-btn-label">NotAl Notları</span>
             <span id="admin-count-notal-notes" class="admin-nav-count">0</span>
           </button>
+          <button type="button" class="admin-nav-btn" data-admin-section="panel-error-reports">
+            <span class="admin-nav-btn-label">Hata Bildirimleri</span>
+            <span id="admin-count-panel-error-reports" class="admin-nav-count">0</span>
+          </button>
         </nav>
       </aside>
 
@@ -432,6 +436,31 @@
         <section class="admin-section-view" data-admin-section="notal-notes" id="admin-section-notal-notes" hidden>
           <div class="admin-section-card">
             <div id="admin-notal-notes-list" class="admin-notal-notes-list"></div>
+          </div>
+        </section>
+
+        <section
+          class="admin-section-view"
+          data-admin-section="panel-error-reports"
+          id="admin-section-panel-error-reports"
+          hidden
+        >
+          <div class="admin-section-card">
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="admin-panel-error-reports-table">
+                <thead>
+                  <tr>
+                    <th>Tarih</th>
+                    <th>Kullanıcı</th>
+                    <th>E-posta</th>
+                    <th>Panel</th>
+                    <th>Hata kodu</th>
+                    <th>Açıklama</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-panel-error-reports-body"></tbody>
+              </table>
+            </div>
           </div>
         </section>
       </main>

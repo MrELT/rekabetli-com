@@ -42,6 +42,9 @@
           <button type="button" class="mentor-panel-nav-btn" data-influencer-panel="cuzdanim" aria-current="false">
             Cüzdanım
           </button>
+          <button type="button" class="mentor-panel-nav-btn" data-influencer-panel="hata-bildir" aria-current="false">
+            Hata Bildir
+          </button>
           <a class="mentor-panel-nav-btn mentor-panel-nav-link" href="/profile">Profil</a>
         </nav>
       </aside>
@@ -138,13 +141,62 @@
             </div>
           </div>
         </section>
+
+        <section
+          id="influencer-panel-hata-bildir"
+          class="mentor-panel-view"
+          data-influencer-panel-view="hata-bildir"
+          hidden
+          aria-label="Hata bildir"
+        >
+          <div class="mentor-students-panel panel-bug-report-panel">
+            <h1>Hata Bildir</h1>
+            <p class="mentor-inbox-hint panel-bug-report-lead">
+              <strong>Rekabetli.com</strong> geliştirme aşamasındadır. Bir hata veya beklenmedik bir durum
+              fark ederseniz lütfen aşağıdaki formu doldurarak bizimle paylaşın. Geri bildirimleriniz platformu
+              iyileştirmemize yardımcı olur.
+            </p>
+            <form
+              id="influencer-bug-report-form"
+              class="profile-form panel-bug-report-form"
+              data-bug-report-form
+              data-bug-report-role="influencer"
+              data-message-target="influencer-bug-report-message"
+            >
+              <label for="influencer-bug-report-code">
+                Hata kodu <span class="label-optional">(isteğe bağlı)</span>
+              </label>
+              <input
+                id="influencer-bug-report-code"
+                name="error_code"
+                type="text"
+                maxlength="120"
+                autocomplete="off"
+                placeholder="Örn. CHECKOUT_FAILED, 500, PGRST203"
+              />
+              <label for="influencer-bug-report-desc">Hata açıklaması</label>
+              <textarea
+                id="influencer-bug-report-desc"
+                name="description"
+                rows="6"
+                maxlength="2000"
+                required
+                placeholder="Ne yapmaya çalışıyordunuz? Ne oldu? Mümkünse adımları sırayla yazın."
+              ></textarea>
+              <button type="submit">Gönder</button>
+            </form>
+            <p id="influencer-bug-report-message" class="profile-message empty" role="status" hidden></p>
+          </div>
+        </section>
       </div>
     </div>
 
     <script src="turkish-bank-codes.js"></script>
     <script src="mentor-vitrin-utils.js"></script>
     <script src="confirm-dialog.js"></script>
+    <script src="security-utils.js"></script>
     <script src="mentor-panel-shell.js"></script>
+    <script src="panel-bug-report.js"></script>
     <script src="influencer-sayfam.js"></script>
     <script src="site-footer.js"></script>
   </body>

@@ -57,6 +57,7 @@ const ROOT_JS = new Set([
   "student-panel-notifications.js",
   "odeme-basarili.js",
   "package-request.js",
+  "panel-bug-report.js",
   "profile.js",
   "quill-editor.js",
   "referral-tracking.js",

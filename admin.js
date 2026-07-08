@@ -19,11 +19,13 @@
   const countCommunities = document.getElementById("admin-count-communities");
   const countCampaignJobs = document.getElementById("admin-count-campaign-jobs");
   const countNotalNotes = document.getElementById("admin-count-notal-notes");
+  const countPanelErrorReports = document.getElementById("admin-count-panel-error-reports");
   const countRefunds = document.getElementById("admin-count-refunds");
   const countPayouts = document.getElementById("admin-count-payouts");
   const refundsBody = document.getElementById("admin-refunds-body");
   const payoutsBody = document.getElementById("admin-payouts-body");
   const notalNotesList = document.getElementById("admin-notal-notes-list");
+  const panelErrorReportsBody = document.getElementById("admin-panel-error-reports-body");
   const adminNavButtons = document.querySelectorAll("[data-admin-section].admin-nav-btn");
   const adminSectionViews = document.querySelectorAll(".admin-section-view");
   const adminSectionTitle = document.getElementById("admin-section-title");
@@ -175,6 +177,10 @@
     "notal-notes": {
       title: "NotAl Notları",
       desc: "Kaydedilen notları ve geri bildirimleri inceleyin.",
+    },
+    "panel-error-reports": {
+      title: "Hata Bildirimleri",
+      desc: "Mentör, danışman ve influencer panellerinden gönderilen hata bildirimlerini inceleyin.",
     },
   };
 
@@ -1211,6 +1217,49 @@
     });
   }
 
+  function panelErrorRoleLabel(role) {
+    const value = String(role || "").trim().toLowerCase();
+    if (value === "mentor") return "Mentör";
+    if (value === "student") return "Danışman";
+    if (value === "influencer") return "Influencer";
+    return value || "—";
+  }
+
+  async function loadPanelErrorReports() {
+    const { data, error } = await supabase.rpc("get_admin_panel_error_reports");
+    if (error) throw error;
+
+    const rows = Array.isArray(data) ? data : [];
+    if (countPanelErrorReports) countPanelErrorReports.textContent = String(rows.length);
+
+    panelErrorReportsBody?.replaceChildren();
+    if (!panelErrorReportsBody) return;
+
+    if (!rows.length) {
+      clearTable(panelErrorReportsBody, "Henüz hata bildirimi yok.", 6);
+      return;
+    }
+
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      tr.appendChild(createCell(formatDate(row.created_at)));
+      tr.appendChild(createCell(row.reporter_name?.trim() || "Kullanıcı"));
+      tr.appendChild(createCell(row.reporter_email?.trim() || "—"));
+      tr.appendChild(createCell(panelErrorRoleLabel(row.panel_role)));
+
+      const codeTd = createCell(row.error_code?.trim() || "—");
+      codeTd.className = "panel-error-code-cell";
+      tr.appendChild(codeTd);
+
+      const descTd = document.createElement("td");
+      descTd.className = "panel-error-desc-cell";
+      descTd.textContent = row.description?.trim() || "—";
+      tr.appendChild(descTd);
+
+      panelErrorReportsBody.appendChild(tr);
+    });
+  }
+
   async function bootstrapAdminPanel() {
     try {
       const adminUser = await ensureAdminAccess();
@@ -1228,6 +1277,7 @@
         loadPayoutQueue(),
         loadInfluencerApplications(),
         loadNotalNotes(),
+        loadPanelErrorReports(),
       ]);
       setMessage("");
     } catch (error) {

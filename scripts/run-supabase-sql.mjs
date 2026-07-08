@@ -80,6 +80,8 @@ const BATCHES = {
 
   "package-order-fix": ["supabase-package-orders-create-overload-fix.sql"],
 
+  "panel-error-reports": ["supabase-panel-error-reports.sql"],
+
   "cleanup-test-payments": ["supabase-cleanup-test-payments.sql"],
 
   security: [

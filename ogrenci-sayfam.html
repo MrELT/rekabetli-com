@@ -101,6 +101,14 @@
           >
             Cüzdanım
           </button>
+          <button
+            type="button"
+            class="mentor-panel-nav-btn"
+            data-student-panel="hata-bildir"
+            aria-current="false"
+          >
+            Hata Bildir
+          </button>
         </nav>
       </aside>
 
@@ -378,6 +386,53 @@
             </div>
           </main>
         </section>
+
+        <section
+          id="student-panel-hata-bildir"
+          class="mentor-panel-view"
+          data-student-panel-view="hata-bildir"
+          hidden
+          aria-label="Hata bildir"
+        >
+          <div class="mentor-students-panel panel-bug-report-panel">
+            <h1>Hata Bildir</h1>
+            <p class="mentor-inbox-hint panel-bug-report-lead">
+              <strong>Rekabetli.com</strong> geliştirme aşamasındadır. Bir hata veya beklenmedik bir durum
+              fark ederseniz lütfen aşağıdaki formu doldurarak bizimle paylaşın. Geri bildirimleriniz platformu
+              iyileştirmemize yardımcı olur.
+            </p>
+            <form
+              id="student-bug-report-form"
+              class="profile-form panel-bug-report-form"
+              data-bug-report-form
+              data-bug-report-role="student"
+              data-message-target="student-bug-report-message"
+            >
+              <label for="student-bug-report-code">
+                Hata kodu <span class="label-optional">(isteğe bağlı)</span>
+              </label>
+              <input
+                id="student-bug-report-code"
+                name="error_code"
+                type="text"
+                maxlength="120"
+                autocomplete="off"
+                placeholder="Örn. CHECKOUT_FAILED, 500, PGRST203"
+              />
+              <label for="student-bug-report-desc">Hata açıklaması</label>
+              <textarea
+                id="student-bug-report-desc"
+                name="description"
+                rows="6"
+                maxlength="2000"
+                required
+                placeholder="Ne yapmaya çalışıyordunuz? Ne oldu? Mümkünse adımları sırayla yazın."
+              ></textarea>
+              <button type="submit">Gönder</button>
+            </form>
+            <p id="student-bug-report-message" class="profile-message empty" role="status" hidden></p>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -398,6 +453,7 @@
     <script src="mentor-meeting-proposals.js"></script>
     <script src="mentor-messaging.js"></script>
     <script src="mentor-panel-shell.js"></script>
+    <script src="panel-bug-report.js"></script>
     <script src="profile.js"></script>
     <script src="ogrenci-sayfam.js"></script>
     <script src="site-footer.js"></script>

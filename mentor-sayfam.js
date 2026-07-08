@@ -1190,6 +1190,7 @@
     const panel = document.getElementById("mentor-vitrin-publish");
     const badgeEl = document.getElementById("mentor-vitrin-review-badge");
     const descEl = document.getElementById("mentor-vitrin-publish-desc");
+    const infoEl = document.getElementById("mentor-vitrin-publish-info");
     const consentsEl = document.getElementById("mentor-vitrin-consents");
     const submitBtn = document.getElementById("mentor-vitrin-submit-review");
     const noteEl = document.getElementById("mentor-vitrin-review-note");
@@ -1227,7 +1228,50 @@
           "Sayfanız reddedildi. Gerekli düzenlemeleri yapıp koşulları tekrar kabul ederek incelemeye gönderebilirsiniz.";
       } else {
         descEl.textContent =
-          "Sayfanızı kaydedebilir ve düzenleyebilirsiniz. Vitrinde yayınlanması için koşulları kabul edip incelemeye göndermeniz gerekir; admin onayından sonra profiliniz mentör listesinde görünür.";
+          "Vitrin alanlarını doldurduktan sonra koşulları kabul edip sayfanızı incelemeye gönderin.";
+      }
+    }
+
+    if (infoEl) {
+      if (status === "pending") {
+        infoEl.hidden = false;
+        infoEl.className = "mentor-vitrin-publish-info is-pending";
+        infoEl.innerHTML =
+          "<p class=\"mentor-vitrin-publish-info-title\">İnceleme süreci</p>" +
+          "<p class=\"mentor-vitrin-publish-info-note\">Sayfanız admin ekibimiz tarafından inceleniyor. " +
+          "Onaylandıktan sonra otomatik olarak aktive edilir ve mentör listesinde yayınlanır. " +
+          "Bu süreçte düzenlemeye devam edebilirsiniz.</p>";
+      } else if (status === "approved") {
+        infoEl.hidden = false;
+        infoEl.className = "mentor-vitrin-publish-info is-approved";
+        infoEl.innerHTML =
+          "<p class=\"mentor-vitrin-publish-info-title\">Sayfanız onaylandı</p>" +
+          "<p class=\"mentor-vitrin-publish-info-note\">Vitrin sayfanız admin tarafından onaylandı. " +
+          "Ödeme hesabı ve görüşme bağlantınız tamamlandığında mentör listesinde görünür; " +
+          "öğrenciler paketlerinizi satın alabilir.</p>";
+      } else if (status === "rejected") {
+        infoEl.hidden = false;
+        infoEl.className = "mentor-vitrin-publish-info is-rejected";
+        infoEl.innerHTML =
+          "<p class=\"mentor-vitrin-publish-info-title\">Tekrar gönderim</p>" +
+          "<ol class=\"mentor-vitrin-publish-info-steps\">" +
+          "<li>Red gerekçesine göre vitrininizi güncelleyin.</li>" +
+          "<li>Koşulları tekrar kabul edin.</li>" +
+          "<li><strong>Vitrini incelemeye gönder</strong> butonuna tıklayın.</li>" +
+          "</ol>" +
+          "<p class=\"mentor-vitrin-publish-info-note\">Onaylandıktan sonra sayfanız aktive edilir.</p>";
+      } else {
+        infoEl.hidden = false;
+        infoEl.className = "mentor-vitrin-publish-info is-draft";
+        infoEl.innerHTML =
+          "<p class=\"mentor-vitrin-publish-info-title\">Nasıl yayınlanır?</p>" +
+          "<ol class=\"mentor-vitrin-publish-info-steps\">" +
+          "<li>Vitrin bilgilerinizi (fotoğraf, hakkında, branş, paket vb.) doldurup kaydedin.</li>" +
+          "<li>Aşağıdaki koşulları okuyup kabul edin.</li>" +
+          "<li><strong>Vitrini incelemeye gönder</strong> butonuna tıklayın.</li>" +
+          "</ol>" +
+          "<p class=\"mentor-vitrin-publish-info-note\">Admin onayından sonra sayfanız aktive edilir; " +
+          "mentör listesinde görünür ve öğrenciler paketlerinizi satın alabilir.</p>";
       }
     }
 
@@ -3954,7 +3998,8 @@
       panelId === "profil" ||
       panelId === "sayfam" ||
       panelId === "ogrenciler" ||
-      panelId === "cuzdanim"
+      panelId === "cuzdanim" ||
+      panelId === "hata-bildir"
     ) {
       return true;
     }

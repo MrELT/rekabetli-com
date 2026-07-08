@@ -101,6 +101,14 @@
           >
             Cüzdanım
           </button>
+          <button
+            type="button"
+            class="mentor-panel-nav-btn"
+            data-mentor-panel="hata-bildir"
+            aria-current="false"
+          >
+            Hata Bildir
+          </button>
         </nav>
       </aside>
 
@@ -726,6 +734,53 @@
         </section>
 
         <section
+          id="mentor-panel-hata-bildir"
+          class="mentor-panel-view"
+          data-mentor-panel-view="hata-bildir"
+          hidden
+          aria-label="Hata bildir"
+        >
+          <div class="mentor-students-panel panel-bug-report-panel">
+            <h1>Hata Bildir</h1>
+            <p class="mentor-inbox-hint panel-bug-report-lead">
+              <strong>Rekabetli.com</strong> geliştirme aşamasındadır. Bir hata veya beklenmedik bir durum
+              fark ederseniz lütfen aşağıdaki formu doldurarak bizimle paylaşın. Geri bildirimleriniz platformu
+              iyileştirmemize yardımcı olur.
+            </p>
+            <form
+              id="mentor-bug-report-form"
+              class="profile-form panel-bug-report-form"
+              data-bug-report-form
+              data-bug-report-role="mentor"
+              data-message-target="mentor-bug-report-message"
+            >
+              <label for="mentor-bug-report-code">
+                Hata kodu <span class="label-optional">(isteğe bağlı)</span>
+              </label>
+              <input
+                id="mentor-bug-report-code"
+                name="error_code"
+                type="text"
+                maxlength="120"
+                autocomplete="off"
+                placeholder="Örn. CHECKOUT_FAILED, 500, PGRST203"
+              />
+              <label for="mentor-bug-report-desc">Hata açıklaması</label>
+              <textarea
+                id="mentor-bug-report-desc"
+                name="description"
+                rows="6"
+                maxlength="2000"
+                required
+                placeholder="Ne yapmaya çalışıyordunuz? Ne oldu? Mümkünse adımları sırayla yazın."
+              ></textarea>
+              <button type="submit">Gönder</button>
+            </form>
+            <p id="mentor-bug-report-message" class="profile-message empty" role="status" hidden></p>
+          </div>
+        </section>
+
+        <section
           id="mentor-panel-sayfam"
           class="mentor-panel-view is-active"
           data-mentor-panel-view="sayfam"
@@ -909,6 +964,23 @@
             Sayfanızı kaydedebilir ve düzenleyebilirsiniz. Vitrinde yayınlanması için koşulları kabul edip
             incelemeye göndermeniz gerekir; admin onayından sonra profiliniz mentör listesinde görünür.
           </p>
+          <div
+            id="mentor-vitrin-publish-info"
+            class="mentor-vitrin-publish-info"
+            role="note"
+            aria-live="polite"
+          >
+            <p class="mentor-vitrin-publish-info-title">Nasıl yayınlanır?</p>
+            <ol class="mentor-vitrin-publish-info-steps">
+              <li>Vitrin bilgilerinizi (fotoğraf, hakkında, branş, paket vb.) doldurup kaydedin.</li>
+              <li>Aşağıdaki koşulları okuyup kabul edin.</li>
+              <li><strong>Vitrini incelemeye gönder</strong> butonuna tıklayın.</li>
+            </ol>
+            <p class="mentor-vitrin-publish-info-note">
+              Admin onayından sonra sayfanız aktive edilir; mentör listesinde görünür ve öğrenciler paketlerinizi
+              satın alabilir.
+            </p>
+          </div>
           <fieldset id="mentor-vitrin-consents" class="legal-consents" hidden>
             <legend class="legal-consents-legend">Vitrin yayın koşulları</legend>
 
@@ -947,7 +1019,7 @@
 
           <p id="mentor-vitrin-review-note" class="mentor-vitrin-review-note" hidden role="status"></p>
 
-          <button type="button" id="mentor-vitrin-submit-review" class="mentor-vitrin-submit-review" hidden>
+          <button type="button" id="mentor-vitrin-submit-review" class="mentor-vitrin-submit-review primary" hidden>
             Vitrini incelemeye gönder
           </button>
         </section>
@@ -1014,6 +1086,7 @@
     <script src="mentor-meeting-proposals.js"></script>
     <script src="mentor-messaging.js"></script>
     <script src="mentor-panel-shell.js"></script>
+    <script src="panel-bug-report.js"></script>
     <script src="profile.js"></script>
     <script src="mentor-sayfam.js"></script>
       <script src="site-footer.js"></script>

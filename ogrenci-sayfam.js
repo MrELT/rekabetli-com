@@ -50,7 +50,13 @@
   }
 
   function isKnownPanelId(panelId) {
-    if (panelId === "profil" || panelId === "mentorlerim" || panelId === "notal" || panelId === "cuzdanim") {
+    if (
+      panelId === "profil" ||
+      panelId === "mentorlerim" ||
+      panelId === "notal" ||
+      panelId === "cuzdanim" ||
+      panelId === "hata-bildir"
+    ) {
       return true;
     }
     return Boolean(parseEnrollmentPanelId(panelId));

@@ -122,7 +122,7 @@
 
   window.addEventListener("hashchange", () => {
     const panelId = location.hash.replace(/^#/, "") || "programim";
-    if (["programim", "cuzdanim"].includes(panelId)) showPanel(panelId);
+    if (["programim", "cuzdanim", "hata-bildir"].includes(panelId)) showPanel(panelId);
   });
 
   async function ensureApprovedInfluencer() {
@@ -389,7 +389,7 @@
     const user = await ensureApprovedInfluencer();
     if (!user) return;
 
-    const initialPanel = ["programim", "cuzdanim"].includes(location.hash.replace(/^#/, ""))
+    const initialPanel = ["programim", "cuzdanim", "hata-bildir"].includes(location.hash.replace(/^#/, ""))
       ? location.hash.replace(/^#/, "")
       : "programim";
     showPanel(initialPanel);

@@ -30,8 +30,31 @@ const CLASS_OPTIONS = {
   Lise: ["9. Sinif", "10. Sinif", "11. Sinif", "12. Sinif"],
 };
 
-function setMessage(text) {
-  registerMessage.textContent = text;
+function setMessage(text, type = "") {
+  registerMessage.textContent = text || "";
+  registerMessage.classList.toggle("empty", !text);
+  registerMessage.classList.toggle("register-message--success", type === "success");
+  registerMessage.classList.toggle("register-message--error", type === "error");
+}
+
+function setVerificationSentMessage(email) {
+  registerMessage.textContent = "";
+  registerMessage.classList.remove("empty", "register-message--error");
+  registerMessage.classList.add("register-message--success");
+
+  const title = document.createElement("strong");
+  title.className = "register-message-title";
+  title.textContent = "Doğrulama e-postası gönderildi";
+
+  const body = document.createElement("span");
+  body.className = "register-message-body";
+  const emailText = email ? ` (${email})` : "";
+  body.textContent =
+    `Kaydınızı tamamlamak için e-posta adresinize${emailText} bir doğrulama bağlantısı gönderdik. ` +
+    "Lütfen gelen kutunuzu (ve Spam/Gereksiz klasörünü) kontrol edip bağlantıya tıklayın. " +
+    "Doğrulamadan sonra giriş yapabilirsiniz.";
+
+  registerMessage.append(title, body);
 }
 
 function getRegisterCooldownRemainingMs() {
@@ -254,7 +277,7 @@ registerForm.addEventListener("submit", async (event) => {
     startRegisterCooldown();
 
     if (error) {
-      setMessage(`Kayıt başarısız: ${error.message}`);
+      setMessage(`Kayıt başarısız: ${error.message}`, "error");
       syncRegisterCooldownUi(true);
       return;
     }
@@ -262,11 +285,9 @@ registerForm.addEventListener("submit", async (event) => {
     const needsEmailConfirmation = Boolean(data?.user && !data?.session);
 
     if (needsEmailConfirmation) {
-      setMessage(
-        "Kayıt tamamlandı. Lütfen e-postanızı doğrulayınız, ardından giriş yapabilirsiniz."
-      );
+      setVerificationSentMessage(email);
     } else {
-      setMessage("Kayıt başarılı. Giriş yapabilirsin.");
+      setMessage("Kayıt başarılı. Giriş yapabilirsin.", "success");
       void window.RekabetliReferral?.claimReferralAttribution?.();
     }
 
@@ -277,7 +298,7 @@ registerForm.addEventListener("submit", async (event) => {
   } catch (submitError) {
     console.error("Register submit error:", submitError);
     startRegisterCooldown();
-    setMessage("Kayıt başarısız: Bağlantı hatası. Lütfen bir süre sonra tekrar dene.");
+    setMessage("Kayıt başarısız: Bağlantı hatası. Lütfen bir süre sonra tekrar dene.", "error");
     syncRegisterCooldownUi(true);
   }
 });
