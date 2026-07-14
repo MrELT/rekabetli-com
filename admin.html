@@ -69,6 +69,10 @@
           </button>
 
           <p class="admin-nav-group-label">Finans</p>
+          <button type="button" class="admin-nav-btn" data-admin-section="package-sales">
+            <span class="admin-nav-btn-label">Satılan Paketler</span>
+            <span id="admin-count-package-sales" class="admin-nav-count">0</span>
+          </button>
           <button type="button" class="admin-nav-btn" data-admin-section="package-refunds">
             <span class="admin-nav-btn-label">Paket İadeleri</span>
             <span id="admin-count-refunds" class="admin-nav-count">0</span>
@@ -220,6 +224,46 @@
                   </tr>
                 </thead>
                 <tbody id="admin-communities-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section
+          class="admin-section-view"
+          data-admin-section="package-sales"
+          id="admin-section-package-sales"
+          hidden
+        >
+          <div class="admin-section-card">
+            <div id="admin-package-sales-summary" class="admin-finance-summary" hidden>
+              <div class="admin-finance-summary-item">
+                <span class="admin-finance-summary-label">Satış adedi</span>
+                <strong id="admin-package-sales-count-total">0</strong>
+              </div>
+              <div class="admin-finance-summary-item">
+                <span class="admin-finance-summary-label">Toplam satış</span>
+                <strong id="admin-package-sales-amount-total">—</strong>
+              </div>
+              <div class="admin-finance-summary-item">
+                <span class="admin-finance-summary-label">Platform komisyonu</span>
+                <strong id="admin-package-sales-commission-total">—</strong>
+              </div>
+            </div>
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="admin-package-sales-table">
+                <thead>
+                  <tr>
+                    <th>Tarih</th>
+                    <th>Satıcı (Mentör)</th>
+                    <th>Alıcı (Öğrenci)</th>
+                    <th>Paket</th>
+                    <th>Satış tutarı</th>
+                    <th>Komisyonumuz</th>
+                    <th>Durum</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-package-sales-body"></tbody>
               </table>
             </div>
           </div>

@@ -37,6 +37,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const submitBtn = document.getElementById("community-form-submit");
   const communityList = document.getElementById("community-list");
   const addBtn = document.getElementById("community-add-btn");
+  const communitiesSortBar = document.getElementById("communities-sort-bar");
+  const communitiesVisibilityBar = document.getElementById("communities-visibility-bar");
+
+  /** @type {'trending' | 'new' | 'old'} */
+  let communitySortMode = "trending";
+  /** @type {'all' | 'public' | 'private'} */
+  let communityVisibilityFilter = "all";
+  /** @type {Array<Record<string, unknown>>} */
+  let cachedCommunityRows = [];
 
   function showCommunityListMessage(text, isError = false) {
     if (!communityList) return;
@@ -379,6 +388,87 @@ document.addEventListener("DOMContentLoaded", () => {
     window.history.replaceState({}, "", query ? `${cleanUrl.pathname}?${query}` : cleanUrl.pathname);
   }
 
+  function syncCommunitySortButtons() {
+    communitiesSortBar?.querySelectorAll("[data-community-sort]").forEach((btn) => {
+      const mode = btn.getAttribute("data-community-sort");
+      const active = mode === communitySortMode;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  function syncCommunityVisibilityButtons() {
+    communitiesVisibilityBar?.querySelectorAll("[data-community-visibility]").forEach((btn) => {
+      const mode = btn.getAttribute("data-community-visibility");
+      const active = mode === communityVisibilityFilter;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  function filterCommunityRows(rows, visibility = communityVisibilityFilter) {
+    if (visibility === "public") {
+      return (rows ?? []).filter((row) => row.visibility === "public");
+    }
+    if (visibility === "private") {
+      return (rows ?? []).filter((row) => row.visibility === "private");
+    }
+    return [...(rows ?? [])];
+  }
+
+  function sortCommunityRows(rows, mode = communitySortMode) {
+    const sorted = [...(rows ?? [])];
+    if (mode === "new") {
+      sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      return sorted;
+    }
+    if (mode === "old") {
+      sorted.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      return sorted;
+    }
+    // revaçta: üye sayısı çoktan aza, eşitlikte yeniler önde
+    sorted.sort((a, b) => {
+      const memberDiff = (Number(b.member_count) || 0) - (Number(a.member_count) || 0);
+      if (memberDiff !== 0) return memberDiff;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+    return sorted;
+  }
+
+  function renderCommunityCards(rows) {
+    if (!communityList) return;
+
+    communityList.querySelectorAll("[data-dynamic-community]").forEach((node) => node.remove());
+    let emptyEl = communityList.querySelector("[data-communities-empty]");
+
+    const visibleRows = sortCommunityRows(filterCommunityRows(rows));
+
+    if (!visibleRows.length) {
+      if (!emptyEl) {
+        emptyEl = document.createElement("p");
+        emptyEl.className = "empty communities-empty";
+        emptyEl.dataset.communitiesEmpty = "true";
+        communityList.appendChild(emptyEl);
+      }
+      emptyEl.hidden = false;
+      emptyEl.textContent = rows?.length
+        ? "Bu filtreye uyan topluluk yok."
+        : "Henüz topluluk yok. İlk topluluğu sen oluştur.";
+      return;
+    }
+
+    if (emptyEl) emptyEl.hidden = true;
+
+    visibleRows.forEach((row) => {
+      communityList.appendChild(buildCommunityCard(row));
+    });
+
+    communityList.querySelectorAll("[data-dynamic-community]").forEach((card) => {
+      refreshCardAction(card);
+    });
+    focusCommunityFromUrl();
+  }
+
   async function fetchAndRenderCommunitiesList() {
     if (!communityList) return;
 
@@ -410,8 +500,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    communityList.querySelectorAll("[data-dynamic-community]").forEach((node) => node.remove());
-
     const rows = data ?? [];
     const memberCountByCommunityId = new Map();
 
@@ -427,31 +515,47 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (memberCountRpcError) {
       console.warn("[rekabetli][community-member-count-rpc-failed]", memberCountRpcError);
     }
-    let emptyEl = communityList.querySelector("[data-communities-empty]");
 
-    if (!rows.length) {
-      if (!emptyEl) {
-        emptyEl = document.createElement("p");
-        emptyEl.className = "empty communities-empty";
-        emptyEl.dataset.communitiesEmpty = "true";
-        emptyEl.textContent = "Henüz topluluk yok. İlk topluluğu sen oluştur.";
-        communityList.appendChild(emptyEl);
-      }
-      emptyEl.hidden = false;
-      return;
-    }
+    cachedCommunityRows = rows.map((row) => ({
+      ...row,
+      member_count: memberCountByCommunityId.get(row.id) ?? 0,
+    }));
 
-    if (emptyEl) emptyEl.hidden = true;
+    syncCommunitySortButtons();
+    syncCommunityVisibilityButtons();
+    renderCommunityCards(cachedCommunityRows);
+  }
 
-    rows.forEach((row) => {
-      const rowWithMemberCount = {
-        ...row,
-        member_count: memberCountByCommunityId.get(row.id) ?? 0,
-      };
-      communityList.prepend(buildCommunityCard(rowWithMemberCount));
+  function bindCommunitySortBar() {
+    if (!communitiesSortBar || communitiesSortBar.dataset.bound === "1") return;
+    communitiesSortBar.dataset.bound = "1";
+
+    communitiesSortBar.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-community-sort]");
+      if (!btn || !communitiesSortBar.contains(btn)) return;
+      const mode = btn.getAttribute("data-community-sort");
+      if (mode !== "new" && mode !== "trending" && mode !== "old") return;
+      if (mode === communitySortMode) return;
+      communitySortMode = mode;
+      syncCommunitySortButtons();
+      renderCommunityCards(cachedCommunityRows);
     });
+  }
 
-    focusCommunityFromUrl();
+  function bindCommunityVisibilityBar() {
+    if (!communitiesVisibilityBar || communitiesVisibilityBar.dataset.bound === "1") return;
+    communitiesVisibilityBar.dataset.bound = "1";
+
+    communitiesVisibilityBar.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-community-visibility]");
+      if (!btn || !communitiesVisibilityBar.contains(btn)) return;
+      const mode = btn.getAttribute("data-community-visibility");
+      if (mode !== "all" && mode !== "public" && mode !== "private") return;
+      if (mode === communityVisibilityFilter) return;
+      communityVisibilityFilter = mode;
+      syncCommunityVisibilityButtons();
+      renderCommunityCards(cachedCommunityRows);
+    });
   }
 
   async function hydrateCommunityCardActions(user) {
@@ -481,6 +585,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function bootstrapCommunitiesPage() {
     try {
+      bindCommunitySortBar();
+      bindCommunityVisibilityBar();
+      syncCommunitySortButtons();
+      syncCommunityVisibilityButtons();
       await fetchAndRenderCommunitiesList();
       bindCommunitiesAuthListener();
     } catch (err) {

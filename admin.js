@@ -22,8 +22,14 @@
   const countPanelErrorReports = document.getElementById("admin-count-panel-error-reports");
   const countRefunds = document.getElementById("admin-count-refunds");
   const countPayouts = document.getElementById("admin-count-payouts");
+  const countPackageSales = document.getElementById("admin-count-package-sales");
   const refundsBody = document.getElementById("admin-refunds-body");
   const payoutsBody = document.getElementById("admin-payouts-body");
+  const packageSalesBody = document.getElementById("admin-package-sales-body");
+  const packageSalesSummary = document.getElementById("admin-package-sales-summary");
+  const packageSalesCountTotal = document.getElementById("admin-package-sales-count-total");
+  const packageSalesAmountTotal = document.getElementById("admin-package-sales-amount-total");
+  const packageSalesCommissionTotal = document.getElementById("admin-package-sales-commission-total");
   const notalNotesList = document.getElementById("admin-notal-notes-list");
   const panelErrorReportsBody = document.getElementById("admin-panel-error-reports-body");
   const adminNavButtons = document.querySelectorAll("[data-admin-section].admin-nav-btn");
@@ -157,6 +163,10 @@
     communities: {
       title: "Topluluklar",
       desc: "Toplulukları görüntüleyin ve gizli topluluklara mentör ekleyin.",
+    },
+    "package-sales": {
+      title: "Satılan Paketler",
+      desc: "Tamamlanan paket satışlarını, alıcı/satıcı bilgilerini ve platform komisyonunu görüntüleyin.",
     },
     "package-refunds": {
       title: "Paket İade Talepleri",
@@ -937,6 +947,101 @@
     await loadInfluencerApplications();
   });
 
+  function mapPackageSaleStatus(status) {
+    const map = {
+      paid: "Ödendi",
+      refunded: "İade edildi",
+    };
+    return map[String(status || "")] || String(status || "—");
+  }
+
+  async function loadPackageSales() {
+    if (!packageSalesBody) return;
+
+    const { data: orders, error } = await supabase
+      .from("package_orders")
+      .select(
+        "id, user_id, mentor_id, package_title, list_price, amount_paid, platform_fee, stripe_fee, currency, status, paid_at, created_at",
+      )
+      .in("status", ["paid", "refunded"])
+      .order("paid_at", { ascending: false, nullsFirst: false })
+      .limit(300);
+
+    if (error) {
+      console.error("package sales load:", error.message);
+      clearTable(packageSalesBody, "Satışlar yüklenemedi.", 7);
+      if (countPackageSales) countPackageSales.textContent = "0";
+      if (packageSalesSummary) packageSalesSummary.hidden = true;
+      return;
+    }
+
+    const rows = orders ?? [];
+    const paidRows = rows.filter((row) => row.status === "paid");
+    if (countPackageSales) countPackageSales.textContent = String(paidRows.length);
+
+    let totalGross = 0;
+    let totalCommission = 0;
+    paidRows.forEach((row) => {
+      totalGross += Number(row.amount_paid ?? row.list_price) || 0;
+      totalCommission += Number(row.platform_fee) || 0;
+    });
+
+    if (packageSalesSummary) {
+      packageSalesSummary.hidden = !paidRows.length;
+      if (packageSalesCountTotal) packageSalesCountTotal.textContent = String(paidRows.length);
+      if (packageSalesAmountTotal) packageSalesAmountTotal.textContent = formatTryMoney(totalGross);
+      if (packageSalesCommissionTotal) {
+        packageSalesCommissionTotal.textContent = formatTryMoney(totalCommission);
+      }
+    }
+
+    packageSalesBody.replaceChildren();
+    if (!rows.length) {
+      clearTable(packageSalesBody, "Henüz satılan paket yok.", 7);
+      return;
+    }
+
+    const profileIds = [
+      ...new Set(rows.flatMap((row) => [row.user_id, row.mentor_id]).filter(Boolean)),
+    ];
+    const profileById = new Map();
+    if (profileIds.length) {
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, display_name, email")
+        .in("id", profileIds);
+      if (profilesError) {
+        console.error("package sales profiles:", profilesError.message);
+      } else {
+        (profiles ?? []).forEach((profile) => profileById.set(profile.id, profile));
+      }
+    }
+
+    rows.forEach((row) => {
+      const mentor = profileById.get(row.mentor_id);
+      const student = profileById.get(row.user_id);
+      const mentorLabel =
+        mentor?.display_name?.trim() || mentor?.email?.trim() || "Mentör";
+      const studentLabel =
+        student?.display_name?.trim() || student?.email?.trim() || "Öğrenci";
+      const saleAmount = row.amount_paid ?? row.list_price;
+      const commission = Number(row.platform_fee);
+      const commissionLabel = Number.isFinite(commission)
+        ? formatTryMoney(commission)
+        : "—";
+
+      const tr = document.createElement("tr");
+      tr.appendChild(createCell(formatDate(row.paid_at || row.created_at)));
+      tr.appendChild(createCell(mentorLabel));
+      tr.appendChild(createCell(studentLabel));
+      tr.appendChild(createCell(row.package_title || "—"));
+      tr.appendChild(createCell(formatTryMoney(saleAmount)));
+      tr.appendChild(createCell(commissionLabel));
+      tr.appendChild(createCell(mapPackageSaleStatus(row.status)));
+      packageSalesBody.appendChild(tr);
+    });
+  }
+
   async function loadRefundQueue() {
     if (!refundsBody) return;
 
@@ -1273,6 +1378,7 @@
         loadUsers(),
         loadCommunities(),
         loadCampaignJobs(),
+        loadPackageSales(),
         loadRefundQueue(),
         loadPayoutQueue(),
         loadInfluencerApplications(),

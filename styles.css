@@ -3982,6 +3982,44 @@ body.notifications-open {
   padding: 1.15rem 1.25rem 1.25rem;
 }
 
+.admin-finance-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.admin-finance-summary[hidden] {
+  display: none !important;
+}
+
+.admin-finance-summary-item {
+  border: 1px solid rgba(124, 155, 214, 0.18);
+  border-radius: 12px;
+  background: rgba(17, 30, 49, 0.72);
+  padding: 0.85rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.admin-finance-summary-label {
+  color: #98acd0;
+  font-size: 0.8rem;
+}
+
+.admin-finance-summary-item strong {
+  color: #f3f7ff;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+@media (max-width: 800px) {
+  .admin-finance-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-subsection-title {
   margin: 0 0 0.85rem;
   font-size: 1rem;
@@ -10904,10 +10942,99 @@ html.has-cookie-consent body {
 
 /* Genel Liste Yapısı (Yarışma listesiyle aynı) */
 .community-list {
-  margin-top: 1.5rem;
+  margin-top: 1.15rem;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.2rem;
+}
+
+.communities-panel-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.communities-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.communities-sort-bar {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0;
+  padding: 0.2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(124, 155, 214, 0.28);
+  background: rgba(10, 18, 32, 0.72);
+}
+
+.communities-sort-btn {
+  appearance: none;
+  width: auto !important;
+  min-width: 0;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #9fb2d4;
+  padding: 0.4rem 0.95rem;
+  font-size: 0.84rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.communities-sort-btn:hover {
+  color: #eef4ff;
+  background: rgba(255, 255, 255, 0.04);
+  transform: none;
+  filter: none;
+  box-shadow: none;
+}
+
+.communities-sort-btn.is-active {
+  color: #fff4e4;
+  background: linear-gradient(135deg, rgba(255, 138, 30, 0.34), rgba(255, 170, 70, 0.22));
+  box-shadow: inset 0 0 0 1px rgba(255, 170, 70, 0.28);
+}
+
+.communities-sort-btn:focus-visible {
+  outline: 2px solid rgba(45, 140, 255, 0.65);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .communities-panel-header {
+    align-items: stretch;
+  }
+
+  .communities-panel-heading {
+    width: 100%;
+  }
+
+  .communities-toolbar {
+    width: 100%;
+  }
+
+  .communities-sort-bar {
+    width: 100%;
+  }
+
+  .communities-sort-btn {
+    flex: 1 1 0;
+    text-align: center;
+  }
 }
 
 /* Kart Yapısı */

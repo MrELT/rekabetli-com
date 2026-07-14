@@ -90,8 +90,54 @@
 
     <main class="layout">
       <section class="panel">
-        <div class="panel-header">
-          <h2>Aktif Topluluklar</h2>
+        <div class="panel-header communities-panel-header">
+          <div class="communities-panel-heading">
+            <h2>Aktif Topluluklar</h2>
+            <div class="communities-toolbar">
+              <div
+                class="communities-sort-bar"
+                id="communities-sort-bar"
+                role="group"
+                aria-label="Topluluk sıralaması"
+              >
+                <button type="button" class="communities-sort-btn" data-community-sort="new">
+                  Yeni
+                </button>
+                <button
+                  type="button"
+                  class="communities-sort-btn is-active"
+                  data-community-sort="trending"
+                  aria-pressed="true"
+                >
+                  Revaçta
+                </button>
+                <button type="button" class="communities-sort-btn" data-community-sort="old">
+                  Eski
+                </button>
+              </div>
+              <div
+                class="communities-sort-bar"
+                id="communities-visibility-bar"
+                role="group"
+                aria-label="Topluluk görünürlüğü"
+              >
+                <button
+                  type="button"
+                  class="communities-sort-btn is-active"
+                  data-community-visibility="all"
+                  aria-pressed="true"
+                >
+                  Tümü
+                </button>
+                <button type="button" class="communities-sort-btn" data-community-visibility="public">
+                  Açık
+                </button>
+                <button type="button" class="communities-sort-btn" data-community-visibility="private">
+                  Gizli
+                </button>
+              </div>
+            </div>
+          </div>
           <button
             type="button"
             id="community-add-btn"
