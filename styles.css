@@ -1861,6 +1861,31 @@ button:hover {
   overflow-wrap: anywhere;
 }
 
+.question-community-banner {
+  display: block;
+  margin: -0.92rem -0.92rem 0.75rem;
+  padding: 0.45rem 0.92rem;
+  border-radius: 14px 14px 0 0;
+  background: linear-gradient(90deg, rgba(45, 140, 255, 0.22), rgba(255, 138, 30, 0.14));
+  border-bottom: 1px solid rgba(116, 155, 227, 0.28);
+  color: #d7e6ff;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  line-height: 1.35;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.question-community-banner:hover {
+  color: #fff;
+  background: linear-gradient(90deg, rgba(45, 140, 255, 0.32), rgba(255, 138, 30, 0.2));
+}
+
+.question-community-banner[hidden] {
+  display: none !important;
+}
+
 .question-accordion-toggle {
   flex: 0 0 auto;
   align-self: flex-start;

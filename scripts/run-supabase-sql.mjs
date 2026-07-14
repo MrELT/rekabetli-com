@@ -78,6 +78,8 @@ const BATCHES = {
 
   "vitrin-review": ["supabase-mentor-vitrin-review.sql"],
 
+  "vitrin-review-fix": ["supabase-mentor-vitrin-review-protect-fix.sql"],
+
   "package-order-fix": ["supabase-package-orders-create-overload-fix.sql"],
 
   "panel-error-reports": ["supabase-panel-error-reports.sql"],

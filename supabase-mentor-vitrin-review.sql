@@ -72,6 +72,10 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  IF coalesce(current_setting('request.bypass_mentor_pages_review_protect', true), '') = 'on' THEN
+    RETURN NEW;
+  END IF;
+
   IF TG_OP = 'INSERT' THEN
     IF auth.uid() IS NULL OR NOT public.is_admin_user(auth.uid()) THEN
       NEW.vitrin_review_status := 'draft';
@@ -185,6 +189,8 @@ BEGIN
     RAISE EXCEPTION 'vitrin_content_required';
   END IF;
 
+  PERFORM set_config('request.bypass_mentor_pages_review_protect', 'on', true);
+
   UPDATE public.mentor_pages AS mp
   SET
     vitrin_review_status = 'pending',
@@ -254,6 +260,8 @@ BEGIN
   IF v_status = 'rejected' AND v_note IS NULL THEN
     RAISE EXCEPTION 'vitrin_review_note_required';
   END IF;
+
+  PERFORM set_config('request.bypass_mentor_pages_review_protect', 'on', true);
 
   UPDATE public.mentor_pages AS mp
   SET

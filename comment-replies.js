@@ -155,20 +155,34 @@
 
     form.append(label, editorHost, submit);
 
-    toggleBtn.addEventListener("click", () => {
-      if (!ctx.requireLogin?.()) return;
-      const willOpen = form.hidden;
-      form.hidden = !willOpen;
-      toggleBtn.textContent = willOpen ? "Vazgeç" : "Yorum yap";
-      if (willOpen) {
-        const quill = window.RekabetliQuill?.ensureAnswerEditor(form);
-        quill?.focus?.();
+    async function ensureCommunityAccess() {
+      if (typeof ctx.requireCommunityAccess !== "function") return true;
+      try {
+        return Boolean(await ctx.requireCommunityAccess(postId));
+      } catch (error) {
+        console.error("Community access check error:", error);
+        return false;
       }
+    }
+
+    toggleBtn.addEventListener("click", () => {
+      void (async () => {
+        if (!ctx.requireLogin?.()) return;
+        if (!(await ensureCommunityAccess())) return;
+        const willOpen = form.hidden;
+        form.hidden = !willOpen;
+        toggleBtn.textContent = willOpen ? "Vazgeç" : "Yorum yap";
+        if (willOpen) {
+          const quill = window.RekabetliQuill?.ensureAnswerEditor(form);
+          quill?.focus?.();
+        }
+      })();
     });
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!ctx.requireLogin?.()) return;
+      if (!(await ensureCommunityAccess())) return;
 
       const quill = window.RekabetliQuill?.ensureAnswerEditor(form);
       if (!quill) {

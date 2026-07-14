@@ -30,6 +30,7 @@ Supabase Dashboard → **SQL Editor** → New query. Aşağıdaki dosyaları **b
 | 8 | `supabase-community-bento-stats.sql` | Ana sayfa bento topluluk / üye sayıları |
 | 9 | `supabase-community-join-reject.sql` | Katılma isteği reddi + bildirim |
 | 10 | `supabase-community-member-leave.sql` | Üyenin topluluktan ayrılması |
+| 11 | `supabase-community-comment-membership.sql` | Açık topluluk gönderileri ana akışta + gerçek üye sayısı RPC + yanıt için üyelik |
 
 **500 hatası:** Console’da `infinite recursion detected in policy for relation "communities"` görüyorsanız yalnızca **`supabase-community-rls-fix.sql`** dosyasını SQL Editor’da çalıştırmanız yeterli; sayfayı yenileyin.
 

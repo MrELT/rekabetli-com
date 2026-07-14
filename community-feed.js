@@ -297,24 +297,7 @@ async function joinPublicCommunity() {
   if (communityJoinBtn) communityJoinBtn.disabled = true;
 
   try {
-    const { error } = await getSb().from("community_members").upsert(
-      [{ community_id: communityId, user_id: currentUserId }],
-      { onConflict: "community_id,user_id" }
-    );
-    if (error) throw error;
-
-    isCommunityMember = true;
-    updateAccessFlags();
-    renderCommunityHeader();
-    await loadMembers();
-    if (canViewFeed) await loadPosts();
-
-    await rekabetliAlert({
-      title: "Topluluğa katıldın",
-      message: "Artık bu topluluğun üyesisin.",
-      showCancel: false,
-      confirmLabel: "Tamam",
-    });
+    await joinPublicCommunityCore({ silent: false });
   } catch (error) {
     console.error("Public join error:", error.message);
     await rekabetliAlert({
@@ -323,6 +306,76 @@ async function joinPublicCommunity() {
       showCancel: false,
       confirmLabel: "Tamam",
     });
+  } finally {
+    updateJoinActions();
+  }
+}
+
+async function joinPublicCommunityCore({ silent = false, reloadFeed = true } = {}) {
+  const { error } = await getSb().from("community_members").upsert(
+    [{ community_id: communityId, user_id: currentUserId }],
+    { onConflict: "community_id,user_id" }
+  );
+  if (error) throw error;
+
+  isCommunityMember = true;
+  updateAccessFlags();
+  renderCommunityHeader();
+  await loadMembers();
+  if (reloadFeed && canViewFeed) await loadPosts();
+
+  if (!silent) {
+    await rekabetliAlert({
+      title: "Topluluğa katıldın",
+      message: "Artık bu topluluğun üyesisin.",
+      showCancel: false,
+      confirmLabel: "Tamam",
+    });
+  }
+}
+
+/**
+ * Yanıt / yorum için üyelik. Açık toplulukta değilse Katıl / Vazgeç pop'u.
+ * Beğeni ve faydalılık derecesi bu kapıdan geçmez.
+ */
+async function ensureCommunityMembershipForInteraction() {
+  if (!requireLoginForAction()) return false;
+  if (canPostInCommunity) return true;
+
+  const isPublic = community?.visibility === "public";
+  if (!isPublic) {
+    await rekabetliAlert({
+      title: "Üye olmalısın",
+      message: "Yanıt vermek, yorum yapmak için bu topluluğa üye olman gerekir.",
+      showCancel: false,
+      confirmLabel: "Tamam",
+    });
+    return false;
+  }
+
+  const confirmed = await rekabetliConfirm({
+    title: "Topluluğa katıl",
+    message:
+      "Yanıt vermek, yorum yapmak için bu topluluğa katılmanız gerekmektedir.",
+    confirmLabel: "Katıl",
+    cancelLabel: "Vazgeç",
+  });
+  if (!confirmed) return false;
+
+  try {
+    if (communityJoinBtn) communityJoinBtn.disabled = true;
+    // Akışı yeniden çizme — yanıt formu açık kalabilsin
+    await joinPublicCommunityCore({ silent: true, reloadFeed: false });
+    return canPostInCommunity;
+  } catch (error) {
+    console.error("Community interact join error:", error.message);
+    await rekabetliAlert({
+      title: "Katılınamadı",
+      message: "Üyelik eklenemedi. Topluluğun açık olduğundan emin olun.",
+      showCancel: false,
+      confirmLabel: "Tamam",
+    });
+    return false;
   } finally {
     updateJoinActions();
   }
@@ -858,9 +911,24 @@ async function loadMembers() {
 
   if (seq !== membersLoadSeq) return;
 
+  // Görünen liste RLS ile kısıtlı olabilir; sayı DEFINER RPC ile gerçek toplam
+  let totalMembers = memberRows.length;
+  try {
+    const { data: countData, error: countError } = await getSb().rpc(
+      "get_community_member_count",
+      { p_community_id: community.id },
+    );
+    if (!countError && countData != null) {
+      totalMembers = Math.max(totalMembers, Number(countData) || 0);
+    }
+  } catch (countErr) {
+    console.warn("Member count RPC unavailable:", countErr);
+  }
+
+  if (seq !== membersLoadSeq) return;
+
   panelMembers.replaceChildren();
 
-  const totalMembers = memberRows.length;
   if (countMembers) countMembers.textContent = String(totalMembers);
   updateCommunityMetaLine(totalMembers);
 
@@ -883,6 +951,16 @@ async function loadMembers() {
   });
 }
 
+function redirectToCommunityCard() {
+  if (!communityId) {
+    window.location.replace("/communities");
+    return;
+  }
+  window.location.replace(
+    `/communities?community=${encodeURIComponent(communityId)}`,
+  );
+}
+
 function updateAccessFlags() {
   if (!community) return;
 
@@ -891,16 +969,14 @@ function updateAccessFlags() {
     isCommunityMember = true;
   }
 
-  const isPublic = community.visibility === "public";
-  canViewFeed = isPublic || isCommunityAdmin || isCommunityMember;
+  // Akış yalnızca üye/kurucuya; üye değilse topluluklar kutucuğuna yönlendirilir
+  canViewFeed = Boolean(isCommunityAdmin || isCommunityMember);
   canPostInCommunity = Boolean(currentUserId && (isCommunityAdmin || isCommunityMember));
 
   if (feedGate) {
     if (!canViewFeed) {
       feedGate.hidden = false;
-      feedGate.textContent = isPublic
-        ? "Akışı görmek için giriş yapmalısın."
-        : "Bu gizli topluluğun akışını yalnızca üyeler görebilir.";
+      feedGate.textContent = "Bu topluluğun akışını görmek için üye olmalısın.";
       if (questionList) questionList.replaceChildren();
     } else {
       feedGate.hidden = true;
@@ -951,6 +1027,12 @@ async function loadCommunity() {
 
     await loadMyJoinRequestStatus();
     updateAccessFlags();
+
+    if (!canViewFeed) {
+      redirectToCommunityCard();
+      return false;
+    }
+
     renderCommunityHeader();
     await loadMembers();
     setupCommunityPanelAccordion();
@@ -988,6 +1070,12 @@ async function applyAuthToCommunityAccess(user) {
 
   await loadMyJoinRequestStatus();
   updateAccessFlags();
+
+  if (!canViewFeed) {
+    redirectToCommunityCard();
+    return;
+  }
+
   renderCommunityHeader();
   await loadMembers();
   setupCommunityPanelAccordion();
@@ -1064,6 +1152,7 @@ function buildAnswerRenderContext() {
       window.location.href = "/login";
     },
     requireLogin: requireLoginForAction,
+    requireCommunityAccess: async () => ensureCommunityMembershipForInteraction(),
     alertDialog: rekabetliAlert,
     onEditAnswer: async (answer, postId, content) => {
       const row = await window.RekabetliFeedEdit.updateComment(
@@ -1652,47 +1741,41 @@ function renderQuestions() {
     window.RekabetliFeedAccordion?.bind(cardEl, question);
 
     answerToggleBtn.addEventListener("click", () => {
-      if (!requireLoginForAction()) return;
-      if (!canPostInCommunity) {
-        void rekabetliAlert({
-          title: "Üye olmalısın",
-          message: "Yanıt yazmak için topluluğa üye olman gerekir.",
-          showCancel: false,
-          confirmLabel: "Tamam",
-        });
-        return;
-      }
+      void (async () => {
+        if (!requireLoginForAction()) return;
+        if (!(await ensureCommunityMembershipForInteraction())) return;
 
-      const shouldShowForm = answerForm.hidden;
-      if (shouldShowForm) {
-        question._setAccordionExpanded?.(true);
-      }
-      answerForm.hidden = !shouldShowForm;
-      answerToggleBtn.textContent = shouldShowForm ? "Vazgeç" : "Cevapla";
+        const shouldShowForm = answerForm.hidden;
+        if (shouldShowForm) {
+          question._setAccordionExpanded?.(true);
+        }
+        answerForm.hidden = !shouldShowForm;
+        answerToggleBtn.textContent = shouldShowForm ? "Vazgeç" : "Cevapla";
 
-      if (shouldShowForm) {
-        if (communityId) {
-          answerForm.dataset.draftKey =
-            window.RekabetliFeedDrafts?.buildKey({
-              page: "community",
-              communityId,
-              kind: "answer",
-              id: question.id,
-            }) || "";
+        if (shouldShowForm) {
+          if (communityId) {
+            answerForm.dataset.draftKey =
+              window.RekabetliFeedDrafts?.buildKey({
+                page: "community",
+                communityId,
+                kind: "answer",
+                id: question.id,
+              }) || "";
+          }
+          const editor = window.RekabetliQuill?.ensureAnswerEditor(answerForm);
+          if (!editor) {
+            answerForm.hidden = true;
+            answerToggleBtn.textContent = "Cevapla";
+            void editorUnavailableAlert();
+          }
         }
-        const editor = window.RekabetliQuill?.ensureAnswerEditor(answerForm);
-        if (!editor) {
-          answerForm.hidden = true;
-          answerToggleBtn.textContent = "Cevapla";
-          void editorUnavailableAlert();
-        }
-      }
+      })();
     });
 
     answerForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!requireLoginForAction()) return;
-      if (!canPostInCommunity) return;
+      if (!(await ensureCommunityMembershipForInteraction())) return;
 
       const answerQuill = window.RekabetliQuill?.ensureAnswerEditor(answerForm);
       if (!answerQuill) {
