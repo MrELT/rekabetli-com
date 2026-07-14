@@ -362,7 +362,7 @@
 
       const previewLink = document.createElement("a");
       previewLink.className = "secondary admin-table-btn";
-      previewLink.href = `/mentor?id=${encodeURIComponent(row.user_id)}`;
+      previewLink.href = `/mentor?id=${encodeURIComponent(row.user_id)}&adminPreview=1`;
       previewLink.target = "_blank";
       previewLink.rel = "noopener noreferrer";
       previewLink.textContent = "Görüntüle";

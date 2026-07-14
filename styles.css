@@ -8711,6 +8711,18 @@ body.mentor-panel-menu-open {
   font-size: 0.95rem;
 }
 
+.mentor-admin-preview-banner {
+  margin: 0 0 0.35rem;
+  padding: 0.72rem 0.95rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 170, 60, 0.45);
+  background: rgba(255, 152, 30, 0.14);
+  color: #ffd9a8;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .mentor-showcase {
   display: flex;
   flex-direction: column;

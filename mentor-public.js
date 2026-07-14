@@ -85,6 +85,36 @@
     }
   }
 
+  async function isCurrentUserAdmin(userId) {
+    if (!userId) return false;
+    const { data, error } = await supabase
+      .from("admin_users")
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      console.warn("admin check:", error.message);
+      return false;
+    }
+    return Boolean(data?.user_id);
+  }
+
+  function showAdminPreviewBanner(reviewStatus) {
+    if (!showcaseEl) return;
+    let banner = document.getElementById("mentor-admin-preview-banner");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "mentor-admin-preview-banner";
+      banner.className = "mentor-admin-preview-banner";
+      showcaseEl.prepend(banner);
+    }
+    const label =
+      window.RekabetliMentorVitrin?.vitrinReviewStatusLabel?.(reviewStatus) ||
+      String(reviewStatus || "pending");
+    banner.textContent = `Admin önizleme — bu vitrin henüz halka açık değil (${label}).`;
+    banner.hidden = false;
+  }
+
   async function boot() {
     setStatus("Mentör profili yükleniyor…");
 
@@ -117,9 +147,12 @@
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    const isOwner = session?.user?.id === mentorId;
+    const viewerId = session?.user?.id ?? null;
+    const isOwner = viewerId === mentorId;
+    const isAdmin = await isCurrentUserAdmin(viewerId);
+    const isApproved = vitrin.isVitrinReviewApproved(pageRow);
 
-    if (!vitrin.isVitrinReviewApproved(pageRow) && !isOwner) {
+    if (!isApproved && !isOwner && !isAdmin) {
       setStatus("Mentör profili bulunamadı.");
       return;
     }
@@ -132,8 +165,12 @@
 
     const fillCounts = await vitrin.fetchPackageFillCounts(supabase, mentorId);
     renderPublicPage(page, fillCounts, {
-      enableWatch: session?.user?.id !== page.userId,
+      enableWatch: Boolean(viewerId) && viewerId !== page.userId && isApproved,
     });
+
+    if (isAdmin && !isApproved) {
+      showAdminPreviewBanner(pageRow.vitrin_review_status);
+    }
 
     if (params.get("watchVitrin") === "1" && availabilityUi?.subscribeIfPending) {
       void availabilityUi.subscribeIfPending();
@@ -152,7 +189,7 @@
               mentorAcceptsPayments: page.vitrinActive,
             }
           : null);
-      if (checkoutContext && page.vitrinActive && vitrin.isVitrinReviewApproved(pageRow)) {
+      if (checkoutContext && page.vitrinActive && isApproved) {
         void vitrin.startPackageCheckout?.(checkoutContext);
       }
     }

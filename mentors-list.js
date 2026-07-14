@@ -125,6 +125,7 @@
       .select(
         "user_id, photo_url, vitrin_accent, about, branches, private_lessons, packages, meeting_platform, meeting_link, payout_ready, updated_at, vitrin_review_status",
       )
+      .eq("vitrin_review_status", "approved")
       .order("updated_at", { ascending: false })
       .limit(60);
 

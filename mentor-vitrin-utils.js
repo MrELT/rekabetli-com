@@ -1014,9 +1014,8 @@
   function isListableMentorPage(row) {
     const page = normalizePageRow(row);
     if (!page || !page.isMentor || !page.displayName) return false;
+    // Admin onayı yeterli; görüşme linki / ödeme hesabı satış için ayrıca kontrol edilir
     if (!isVitrinReviewApproved(page)) return false;
-    if (!hasConsultationMeetingLink(page)) return false;
-    if (!hasPayoutBankDetails(page)) return false;
     const branchTitles = itemTitles(page.branches);
     const lessonTitles = itemTitles(page.lessons);
     return Boolean(

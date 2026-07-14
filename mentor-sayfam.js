@@ -1222,7 +1222,7 @@
           "Sayfanız admin incelemesinde. Onaylanana kadar vitrin listesinde görünmez; düzenlemeye devam edebilirsiniz.";
       } else if (status === "approved") {
         descEl.textContent =
-          "Sayfanız onaylandı. Hesap bilgileri ve görüşme bağlantısı tamamlandığında vitrin listesinde görünür; aşağıdan Aktif/Meşgul durumunu yönetebilirsiniz.";
+          "Sayfanız onaylandı ve vitrin listesinde görünür. Ödeme hesabı ve görüşme bağlantısı paket satışları için gereklidir; aşağıdan Aktif/Meşgul durumunu yönetebilirsiniz.";
       } else if (status === "rejected") {
         descEl.textContent =
           "Sayfanız reddedildi. Gerekli düzenlemeleri yapıp koşulları tekrar kabul ederek incelemeye gönderebilirsiniz.";
