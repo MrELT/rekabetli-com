@@ -134,15 +134,6 @@ AS $$
     FROM public.mentor_package_students AS mps
     WHERE mps.mentor_id = p_mentor_id
       AND mps.package_id = p_package_id
-
-    UNION ALL
-
-    SELECT COUNT(*)::integer AS cnt
-    FROM public.package_orders AS po
-    WHERE po.mentor_id = p_mentor_id
-      AND po.package_id = p_package_id
-      AND po.status = 'pending'
-      AND (po.expires_at IS NULL OR po.expires_at > now())
   ) AS src;
 $$;
 
@@ -742,17 +733,6 @@ AS $$
     FROM public.mentor_package_students AS mps
     WHERE mps.mentor_id = p_mentor_id
     GROUP BY mps.package_id
-
-    UNION ALL
-
-    SELECT
-      po.package_id,
-      COUNT(*)::integer AS cnt
-    FROM public.package_orders AS po
-    WHERE po.mentor_id = p_mentor_id
-      AND po.status = 'pending'
-      AND (po.expires_at IS NULL OR po.expires_at > now())
-    GROUP BY po.package_id
   ) AS combined
   GROUP BY combined.package_id;
 $$;
