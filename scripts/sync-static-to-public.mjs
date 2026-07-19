@@ -117,6 +117,14 @@ if (fs.existsSync(assetsPath)) {
   copyDir(assetsPath, path.join(publicDir, "assets"));
 }
 
+const ROOT_SEO_FILES = ["robots.txt", "sitemap.xml", "llms.txt"];
+for (const name of ROOT_SEO_FILES) {
+  const src = path.join(root, name);
+  if (fs.existsSync(src)) {
+    copyFile(src, path.join(publicDir, name));
+  }
+}
+
 const envLocal = path.join(root, "env-config.local.js");
 if (fs.existsSync(envLocal)) {
   copyFile(envLocal, path.join(publicDir, "env-config.local.js"));

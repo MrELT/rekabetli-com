@@ -1,0 +1,111 @@
+# rekabetli.com — robots.txt
+# Public content may be crawled by search and AI answer engines.
+# Private panels and checkout flows stay blocked.
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /mentor-sayfam
+Disallow: /ogrenci-sayfam
+Disallow: /influencer-sayfam
+Disallow: /profile
+Disallow: /odeme
+Disallow: /notal-admin
+Disallow: /unsubscribe
+
+# OpenAI (ChatGPT browsing / training-related crawlers)
+User-agent: GPTBot
+Allow: /
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /mentor-sayfam
+Disallow: /ogrenci-sayfam
+Disallow: /odeme
+Disallow: /notal-admin
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /mentor-sayfam
+Disallow: /ogrenci-sayfam
+Disallow: /odeme
+Disallow: /notal-admin
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /mentor-sayfam
+Disallow: /ogrenci-sayfam
+Disallow: /odeme
+Disallow: /notal-admin
+
+# Anthropic
+User-agent: ClaudeBot
+Allow: /
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /mentor-sayfam
+Disallow: /ogrenci-sayfam
+Disallow: /odeme
+Disallow: /notal-admin
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /mentor-sayfam
+Disallow: /ogrenci-sayfam
+Disallow: /odeme
+Disallow: /notal-admin
+
+User-agent: Claude-Web
+Allow: /
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /mentor-sayfam
+Disallow: /ogrenci-sayfam
+Disallow: /odeme
+Disallow: /notal-admin
+
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /mentor-sayfam
+Disallow: /ogrenci-sayfam
+Disallow: /odeme
+Disallow: /notal-admin
+
+User-agent: Perplexity-User
+Allow: /
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /mentor-sayfam
+Disallow: /ogrenci-sayfam
+Disallow: /odeme
+Disallow: /notal-admin
+
+# Google Gemini grounding (separate from Googlebot / AI Overviews)
+User-agent: Google-Extended
+Allow: /
+
+# Apple
+User-agent: Applebot-Extended
+Allow: /
+
+Sitemap: https://rekabetli.com/sitemap.xml
