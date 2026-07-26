@@ -88,14 +88,6 @@
           <button
             type="button"
             class="mentor-panel-nav-btn"
-            data-student-panel="notal"
-            aria-current="false"
-          >
-            NotAl
-          </button>
-          <button
-            type="button"
-            class="mentor-panel-nav-btn"
             data-student-panel="cuzdanim"
             aria-current="false"
           >
@@ -281,55 +273,6 @@
         </section>
 
         <div id="student-enrollment-panels"></div>
-
-        <section
-          id="student-panel-notal"
-          class="mentor-panel-view"
-          data-student-panel-view="notal"
-          hidden
-          aria-label="NotAl"
-        >
-          <main class="mentor-panel-grid-layout">
-            <div class="mentor-panel-grid">
-              <section class="mentor-panel-card mentor-panel-card--span-full student-notal-panel">
-                <p class="student-notal-badge">Yakında</p>
-                <h1>NotAl</h1>
-                <p class="student-notal-lead">
-                  NotAl, sınav hazırlığında notlarınızı düzenlemenize, tekrar planı oluşturmanıza ve ilerlemenizi
-                  takip etmenize yardımcı olacak kişisel çalışma alanınız olacak.
-                </p>
-                <ul class="student-notal-features">
-                  <li>Konu bazlı not arşivi ve hızlı arama</li>
-                  <li>Tekrar takvimi ve hatırlatmalar</li>
-                  <li>Mentörünüzle paylaşılabilir çalışma özeti</li>
-                </ul>
-                <p class="profile-hint">
-                  Lansman öncesi erken erişim için ön talep bırakın; hazır olduğunda size haber verelim.
-                </p>
-
-                <form id="notal-pre-request-form" class="student-notal-form">
-                  <label for="notal-pre-name">Ad Soyad</label>
-                  <input id="notal-pre-name" name="displayName" type="text" maxlength="80" required />
-
-                  <label for="notal-pre-email">E-posta</label>
-                  <input id="notal-pre-email" name="email" type="email" maxlength="120" required />
-
-                  <label for="notal-pre-note">Notunuz (isteğe bağlı)</label>
-                  <textarea
-                    id="notal-pre-note"
-                    name="note"
-                    rows="3"
-                    maxlength="1000"
-                    placeholder="NotAl'dan beklentileriniz veya kullanım amacınız…"
-                  ></textarea>
-
-                  <button type="submit" id="notal-pre-submit">Ön talep oluştur</button>
-                </form>
-                <p id="notal-pre-message" class="profile-message empty" role="status"></p>
-              </section>
-            </div>
-          </main>
-        </section>
 
         <section
           id="student-panel-cuzdanim"

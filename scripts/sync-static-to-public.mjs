@@ -1,6 +1,6 @@
 /**
  * Kök dizindeki statik site dosyalarını Next.js public/ klasörüne kopyalar.
- * Vercel build ve yerel `next dev` ile rekabetli.com/ + /notal birlikte çalışır.
+ * Vercel build ve yerel `next dev` ile rekabetli.com static + Next birlikte çalışır.
  */
 import fs from "fs";
 import path from "path";

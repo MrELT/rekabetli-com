@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="env-config.js"></script>
+    <script src="env-config.local.js"></script>
     <script src="supabase-client.js"></script>
     <script src="auth-store.js"></script>
     <script>
@@ -90,10 +91,6 @@
           <button type="button" class="admin-nav-btn" data-admin-section="campaign-mails">
             <span class="admin-nav-btn-label">Fırsat Maili</span>
             <span id="admin-count-campaign-jobs" class="admin-nav-count">0</span>
-          </button>
-          <button type="button" class="admin-nav-btn" data-admin-section="notal-notes">
-            <span class="admin-nav-btn-label">NotAl Notları</span>
-            <span id="admin-count-notal-notes" class="admin-nav-count">0</span>
           </button>
           <button type="button" class="admin-nav-btn" data-admin-section="panel-error-reports">
             <span class="admin-nav-btn-label">Hata Bildirimleri</span>
@@ -474,12 +471,6 @@
                 <tbody id="admin-campaign-jobs-body"></tbody>
               </table>
             </div>
-          </div>
-        </section>
-
-        <section class="admin-section-view" data-admin-section="notal-notes" id="admin-section-notal-notes" hidden>
-          <div class="admin-section-card">
-            <div id="admin-notal-notes-list" class="admin-notal-notes-list"></div>
           </div>
         </section>
 

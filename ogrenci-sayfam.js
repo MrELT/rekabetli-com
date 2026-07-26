@@ -10,12 +10,6 @@
   const meetingReviewsBottomHost = document.getElementById("student-meeting-reviews-host-bottom");
   const subnavEl = document.getElementById("student-enrollment-subnav");
   const panelsRoot = document.getElementById("student-enrollment-panels");
-  const notalForm = document.getElementById("notal-pre-request-form");
-  const notalMessage = document.getElementById("notal-pre-message");
-  const notalNameInput = document.getElementById("notal-pre-name");
-  const notalEmailInput = document.getElementById("notal-pre-email");
-  const notalNoteInput = document.getElementById("notal-pre-note");
-  const notalSubmitBtn = document.getElementById("notal-pre-submit");
 
   const ENROLLMENT_PREFIX = "kayit-";
   const UUID_RE =
@@ -53,7 +47,6 @@
     if (
       panelId === "profil" ||
       panelId === "mentorlerim" ||
-      panelId === "notal" ||
       panelId === "cuzdanim" ||
       panelId === "hata-bildir"
     ) {
@@ -1084,85 +1077,7 @@
     });
   }
 
-  function setNotalMessage(text, isError = false) {
-    if (!notalMessage) return;
-    notalMessage.textContent = text || "";
-    notalMessage.classList.toggle("empty", !text);
-    notalMessage.classList.toggle("is-error", Boolean(text && isError));
-  }
-
-  async function loadNotalPreRequest() {
-    if (!currentUser || !notalForm) return;
-
-    const [{ data: profile }, { data: existing }] = await Promise.all([
-      supabase.from("profiles").select("display_name").eq("id", currentUser.id).maybeSingle(),
-      supabase.from("notal_pre_requests").select("id, note").eq("user_id", currentUser.id).maybeSingle(),
-    ]);
-
-    if (notalNameInput && profile?.display_name) {
-      notalNameInput.value = profile.display_name.trim();
-    }
-    if (notalEmailInput && currentUser.email) {
-      notalEmailInput.value = currentUser.email;
-    }
-    if (existing && notalSubmitBtn) {
-      notalSubmitBtn.textContent = "Ön talebi güncelle";
-      if (notalNoteInput && existing.note) notalNoteInput.value = existing.note;
-      setNotalMessage("Ön talebiniz kayıtlı. İsterseniz notunuzu güncelleyebilirsiniz.");
-    }
-  }
-
-  function initNotalPreRequestForm() {
-    if (!notalForm) return;
-
-    notalForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      if (!currentUser) return;
-
-      const displayName = notalNameInput?.value?.trim() || "";
-      const email = notalEmailInput?.value?.trim() || "";
-      const note = notalNoteInput?.value?.trim() || "";
-
-      if (!displayName || !email) {
-        setNotalMessage("Ad ve e-posta zorunludur.", true);
-        return;
-      }
-
-      if (notalSubmitBtn) notalSubmitBtn.disabled = true;
-      setNotalMessage("Kaydediliyor…");
-
-      const payload = {
-        user_id: currentUser.id,
-        display_name: displayName,
-        email,
-        note,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error } = await supabase.from("notal_pre_requests").upsert(payload, {
-        onConflict: "user_id",
-      });
-
-      if (notalSubmitBtn) notalSubmitBtn.disabled = false;
-
-      if (error) {
-        console.error("notal pre request:", error.message);
-        setNotalMessage(
-          error.message.includes("notal_pre_requests")
-            ? "Ön talep için veritabanı kurulumu gerekli."
-            : "Ön talep kaydedilemedi.",
-          true,
-        );
-        return;
-      }
-
-      if (notalSubmitBtn) notalSubmitBtn.textContent = "Ön talebi güncelle";
-      setNotalMessage("Ön talebiniz alındı. NotAl hazır olduğunda size haber vereceğiz.");
-    });
-  }
-
   initStudentPanelNav();
-  initNotalPreRequestForm();
 
   async function boot() {
     const {
@@ -1223,7 +1138,6 @@
     window.addEventListener("rekabetli:student-open-meeting", (event) => {
       openStudentMeeting(event.detail?.meeting);
     });
-    await loadNotalPreRequest();
 
     const initialPanel = resolveInitialPanelId();
     showPanel(initialPanel, {

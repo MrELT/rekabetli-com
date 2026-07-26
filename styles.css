@@ -579,29 +579,6 @@ a.menu-btn:hover {
   border: 1px solid transparent;
 }
 
-.nav-btn-notal {
-  text-decoration: none;
-}
-
-.notal-mark {
-  display: inline;
-  font: inherit;
-  line-height: inherit;
-}
-
-.notal-word-not,
-.notal-word-al {
-  display: inline;
-}
-
-.notal-word-not {
-  color: inherit;
-}
-
-.notal-word-al {
-  color: var(--action);
-}
-
 .menu-toggle {
   display: none;
   width: auto;
@@ -4179,82 +4156,6 @@ body.notifications-open {
   max-height: none;
 }
 
-.admin-notal-notes-list {
-  display: grid;
-  gap: 0.85rem;
-}
-
-.admin-notal-note-card {
-  border: 1px solid rgba(124, 155, 214, 0.22);
-  border-radius: 12px;
-  background: rgba(8, 14, 26, 0.45);
-  padding: 0.85rem 0.95rem;
-}
-
-.admin-notal-note-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.45rem 0.75rem;
-  margin-bottom: 0.55rem;
-}
-
-.admin-notal-note-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.admin-notal-note-meta {
-  margin: 0.2rem 0 0;
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-
-.admin-notal-note-stats {
-  margin: 0;
-  font-size: 0.84rem;
-  color: #cbd5e1;
-  white-space: nowrap;
-}
-
-.admin-notal-note-stats strong {
-  color: var(--action);
-}
-
-.admin-notal-feedback-list {
-  list-style: none;
-  margin: 0.55rem 0 0;
-  padding: 0;
-  display: grid;
-  gap: 0.45rem;
-}
-
-.admin-notal-feedback-item {
-  border-top: 1px solid rgba(124, 155, 214, 0.16);
-  padding-top: 0.45rem;
-  font-size: 0.84rem;
-  color: #dbe4f5;
-}
-
-.admin-notal-feedback-item:first-child {
-  border-top: none;
-  padding-top: 0;
-}
-
-.admin-notal-feedback-score {
-  font-weight: 700;
-  color: var(--action);
-}
-
-.admin-notal-feedback-empty {
-  margin: 0.35rem 0 0;
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-
 .profile-page {
   padding-top: 4.5rem;
 }
@@ -6333,46 +6234,6 @@ body.mentor-panel-menu-open {
   font-size: 1.05rem;
   font-weight: 700;
   color: #e8f0ff;
-}
-
-.student-notal-panel {
-  max-width: 42rem;
-}
-
-.student-notal-badge {
-  display: inline-block;
-  margin: 0 0 0.65rem;
-  padding: 0.28rem 0.65rem;
-  border-radius: 999px;
-  background: rgba(251, 146, 60, 0.18);
-  border: 1px solid rgba(251, 146, 60, 0.45);
-  color: #ffedd5;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.student-notal-lead {
-  margin: 0 0 0.85rem;
-  font-size: 1rem;
-  line-height: 1.55;
-  color: #dbeafe;
-}
-
-.student-notal-features {
-  margin: 0 0 1rem;
-  padding-left: 1.15rem;
-  color: var(--muted);
-  line-height: 1.55;
-}
-
-.student-notal-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  margin-top: 0.75rem;
-  max-width: 28rem;
 }
 
 .mentor-package-students-actions {

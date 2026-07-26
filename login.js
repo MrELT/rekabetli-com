@@ -54,7 +54,6 @@ function getSafeRedirectAfterLogin() {
   return normalized;
 }
 
-// Giriş yapmış kullanıcı — NotAl için otomatik yönlendirme YOK (login↔notal döngüsünü önler)
 async function ensureLoggedOutRedirect() {
   const { data } = await supabaseClient.auth.getSession();
   if (!data.session) return;
@@ -62,14 +61,6 @@ async function ensureLoggedOutRedirect() {
   const target = getSafeRedirectAfterLogin();
   const here = `${window.location.pathname}${window.location.search}`;
   if (target === here || target === window.location.pathname) return;
-
-  const pathOnly = target.split("?")[0].split("#")[0];
-  if (pathOnly.startsWith("/notal")) {
-    setMessage(
-      "Zaten giriş yaptınız. NotAl sayfasına gitmek için tarayıcı adres çubuğuna /notal yazın veya ana menüden NotAl'a tıklayın.",
-    );
-    return;
-  }
 
   window.location.replace(target);
 }
@@ -90,7 +81,6 @@ if (loginForm && supabaseClient) {
       return;
     }
 
-    sessionStorage.removeItem("rekabetli_notal_login_redirect_ts");
     void window.RekabetliReferral?.claimReferralAttribution?.();
     window.location.href = getSafeRedirectAfterLogin();
   });

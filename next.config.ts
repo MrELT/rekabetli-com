@@ -16,7 +16,6 @@ function staticHtmlRewrites(): { source: string; destination: string }[] {
 }
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pdfjs-dist", "sharp", "@napi-rs/canvas"],
   async redirects() {
     return [
       {

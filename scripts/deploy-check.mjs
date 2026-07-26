@@ -126,10 +126,7 @@ if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
 ok("Supabase URL + anon key mevcut");
 
 if (!env.SUPABASE_SERVICE_ROLE_KEY) {
-  warn("SUPABASE_SERVICE_ROLE_KEY yok — NotAl sunucu API'leri çalışmaz");
-}
-if (!env.OPENAI_API_KEY) {
-  warn("OPENAI_API_KEY yok — NotAl / exam-prep üretimi çalışmaz");
+  warn("SUPABASE_SERVICE_ROLE_KEY yok — bazı sunucu API'leri çalışmaz");
 }
 
 ensureGitignoredSecrets();
@@ -143,9 +140,7 @@ console.log("\n=== Ön kontrol tamam ===\n");
 console.log("Vercel ortam değişkenleri (Production):");
 console.log("  - SUPABASE_URL");
 console.log("  - SUPABASE_ANON_KEY");
-console.log("  - SUPABASE_SERVICE_ROLE_KEY (NotAl API)");
-console.log("  - OPENAI_API_KEY (NotAl / exam-prep)");
-console.log("  - OPENAI_MODEL (isteğe bağlı)");
+console.log("  - SUPABASE_SERVICE_ROLE_KEY (sunucu API'leri)");
 console.log("\nSupabase SQL (henüz çalıştırmadıysanız):");
 console.log("  - supabase-community-bento-stats.sql (ana sayfa bento)");
 console.log("\nDeploy: npm run deploy\n");

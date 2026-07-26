@@ -93,10 +93,18 @@ function upsertEnvLocal(supabaseUrl, anonKey, fileVars) {
   const serviceRole = pick("SUPABASE_SERVICE_ROLE_KEY");
   const openaiKey = pick("OPENAI_API_KEY");
   const openaiModel = pick("OPENAI_MODEL");
+  const googleClientId = pick("GOOGLE_CLIENT_ID");
+  const googleClientSecret = pick("GOOGLE_CLIENT_SECRET");
+  const googleRedirect = pick("GOOGLE_REDIRECT_URI");
+  const siteUrl = pick("NEXT_PUBLIC_SITE_URL");
 
   if (serviceRole) inject.SUPABASE_SERVICE_ROLE_KEY = serviceRole;
   if (openaiKey) inject.OPENAI_API_KEY = openaiKey;
   if (openaiModel) inject.OPENAI_MODEL = openaiModel;
+  if (googleClientId) inject.GOOGLE_CLIENT_ID = googleClientId;
+  if (googleClientSecret) inject.GOOGLE_CLIENT_SECRET = googleClientSecret;
+  if (googleRedirect) inject.GOOGLE_REDIRECT_URI = googleRedirect;
+  if (siteUrl) inject.NEXT_PUBLIC_SITE_URL = siteUrl;
 
   const lines = fs.existsSync(envLocalPath)
     ? fs.readFileSync(envLocalPath, "utf8").split(/\r?\n/)
@@ -119,14 +127,6 @@ function upsertEnvLocal(supabaseUrl, anonKey, fileVars) {
     `${kept.filter((line) => line !== "").join("\n")}\n`,
     "utf8",
   );
-
-  if (!openaiKey) {
-    console.warn(
-      "[rekabetli] OPENAI_API_KEY tanımlı değil — NotAl ve PDF işlemleri çalışmaz.\n" +
-        "  Yerel: .env dosyasına ekleyin\n" +
-        "  Vercel: Project Settings → Environment Variables",
-    );
-  }
 }
 
 upsertEnvLocal(url, key, fileVars);

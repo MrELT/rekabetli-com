@@ -1,4 +1,4 @@
--- Öğrenci / danışan paneli: kayıtlı paketler, görev okuma, NotAl ön talebi
+-- Öğrenci / danışan paneli: kayıtlı paketler, görev okuma
 -- supabase-mentor-package-enrollments.sql ve supabase-mentor-package-tasks.sql sonrasında çalıştırın.
 
 DROP POLICY IF EXISTS "mentor_package_students_select_student" ON public.mentor_package_students;
@@ -74,53 +74,3 @@ $$;
 
 REVOKE ALL ON FUNCTION public.get_student_enrolled_packages () FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_student_enrolled_packages () TO authenticated;
-
-CREATE TABLE IF NOT EXISTS public.notal_pre_requests (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
-  display_name text NOT NULL DEFAULT '',
-  email text NOT NULL DEFAULT '',
-  note text NOT NULL DEFAULT '',
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT notal_pre_requests_note_len CHECK (char_length(note) <= 1000),
-  CONSTRAINT notal_pre_requests_unique_user UNIQUE (user_id)
-);
-
-CREATE INDEX IF NOT EXISTS notal_pre_requests_created_idx
-ON public.notal_pre_requests (created_at DESC);
-
-ALTER TABLE public.notal_pre_requests ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "notal_pre_requests_select_own" ON public.notal_pre_requests;
-
-CREATE POLICY "notal_pre_requests_select_own"
-ON public.notal_pre_requests
-FOR SELECT
-TO authenticated
-USING (auth.uid () = user_id);
-
-DROP POLICY IF EXISTS "notal_pre_requests_insert_own" ON public.notal_pre_requests;
-
-CREATE POLICY "notal_pre_requests_insert_own"
-ON public.notal_pre_requests
-FOR INSERT
-TO authenticated
-WITH CHECK (auth.uid () = user_id);
-
-DROP POLICY IF EXISTS "notal_pre_requests_update_own" ON public.notal_pre_requests;
-
-CREATE POLICY "notal_pre_requests_update_own"
-ON public.notal_pre_requests
-FOR UPDATE
-TO authenticated
-USING (auth.uid () = user_id)
-WITH CHECK (auth.uid () = user_id);
-
-DROP POLICY IF EXISTS "notal_pre_requests_select_admin" ON public.notal_pre_requests;
-
-CREATE POLICY "notal_pre_requests_select_admin"
-ON public.notal_pre_requests
-FOR SELECT
-TO authenticated
-USING (public.is_admin_user (auth.uid ()));
