@@ -106,6 +106,14 @@ export async function getGoogleTokens(
   return (data as StoredGoogleTokens | null) ?? null;
 }
 
+export async function isUserGoogleCalendarConnected(
+  userId: string,
+): Promise<boolean> {
+  if (!isGoogleCalendarConfigured()) return false;
+  const tokens = await getGoogleTokens(userId);
+  return Boolean(tokens?.access_token);
+}
+
 export async function deleteGoogleTokens(userId: string): Promise<void> {
   const supabase = createSupabaseServerClient();
   if (!supabase) throw new Error("supabase_not_configured");

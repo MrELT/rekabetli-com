@@ -16,6 +16,12 @@ function staticHtmlRewrites(): { source: string; destination: string }[] {
 }
 
 const nextConfig: NextConfig = {
+  // Cold start / bellek: tüm route entry'lerini başta preload etme
+  experimental: {
+    preloadEntriesOnStart: false,
+  },
+  // Ağır paketleri server bundle'ına gömme
+  serverExternalPackages: ["openai", "googleapis", "katex"],
   async redirects() {
     return [
       {

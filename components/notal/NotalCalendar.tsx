@@ -46,11 +46,23 @@ function dayKey(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function formatDayLabel(date: Date): string {
+function isSameDay(a: Date, b: Date): boolean {
+  return dayKey(a) === dayKey(b);
+}
+
+function formatWeekdayShort(date: Date): string {
+  return date.toLocaleDateString("tr-TR", { weekday: "short" }).replace(".", "");
+}
+
+function formatDayNumber(date: Date): string {
+  return String(date.getDate());
+}
+
+function formatFullDayLabel(date: Date): string {
   return date.toLocaleDateString("tr-TR", {
-    weekday: "short",
+    weekday: "long",
     day: "numeric",
-    month: "short",
+    month: "long",
   });
 }
 
@@ -64,15 +76,37 @@ function formatTimeRange(startIso: string, endIso: string): string {
   return `${s} – ${e}`;
 }
 
+function formatDurationMinutes(startIso: string, endIso: string): string {
+  const mins = Math.round(
+    (new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000,
+  );
+  if (mins < 60) return `${mins} dk`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h} sa ${m} dk` : `${h} sa`;
+}
+
+function sourceLabel(source: string): string {
+  switch (source) {
+    case "google":
+      return "Google";
+    case "manual":
+      return "Manuel";
+    default:
+      return "Planner";
+  }
+}
+
 export default function NotalCalendar({
   authFetch,
 }: {
   authFetch: AuthFetch;
 }) {
+  const today = useMemo(() => new Date(), []);
   const [weekStart, setWeekStart] = useState(() =>
     startOfWeekMonday(new Date()),
   );
-  const [expandedDay, setExpandedDay] = useState<string | null>(() =>
+  const [selectedDay, setSelectedDay] = useState<string>(() =>
     dayKey(new Date()),
   );
   const [blocks, setBlocks] = useState<CalendarBlock[]>([]);
@@ -81,6 +115,7 @@ export default function NotalCalendar({
   const [googleConnected, setGoogleConnected] = useState(false);
   const [status, setStatus] = useState("");
   const [creating, setCreating] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -92,6 +127,19 @@ export default function NotalCalendar({
     const to = addDays(weekStart, 7);
     return { from: from.toISOString(), to: to.toISOString() };
   }, [weekStart]);
+
+  const selectedDate = useMemo(() => {
+    const found = days.find((day) => dayKey(day) === selectedDay);
+    return found || days[0] || new Date();
+  }, [days, selectedDay]);
+
+  useEffect(() => {
+    const keys = days.map((day) => dayKey(day));
+    if (!keys.includes(selectedDay)) {
+      const todayKey = dayKey(new Date());
+      setSelectedDay(keys.includes(todayKey) ? todayKey : keys[0]!);
+    }
+  }, [days, selectedDay]);
 
   const loadBlocks = useCallback(async () => {
     setLoading(true);
@@ -134,7 +182,7 @@ export default function NotalCalendar({
       }
       await loadBlocks();
       setStatus(
-        `Google senkron: ${payload.imported ?? 0} yeni, ${payload.updated ?? 0} güncellendi.`,
+        `Senkron tamam: ${payload.imported ?? 0} yeni, ${payload.updated ?? 0} güncellendi.`,
       );
     } catch {
       setStatus("Google’dan çekilemedi.");
@@ -156,6 +204,14 @@ export default function NotalCalendar({
       return false;
     }
   }, [authFetch]);
+
+  useEffect(() => {
+    const handler = () => {
+      void loadBlocks();
+    };
+    window.addEventListener("notal-calendar-refresh", handler);
+    return () => window.removeEventListener("notal-calendar-refresh", handler);
+  }, [loadBlocks]);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,6 +255,12 @@ export default function NotalCalendar({
     window.history.replaceState({}, "", next);
   }, [loadGoogleStatus, pullFromGoogle]);
 
+  function goToToday() {
+    const now = new Date();
+    setWeekStart(startOfWeekMonday(now));
+    setSelectedDay(dayKey(now));
+  }
+
   async function connectGoogle() {
     setStatus("Google’a yönlendiriliyor…");
     try {
@@ -235,7 +297,6 @@ export default function NotalCalendar({
     const startLocal = String(form.get("start_at") || "");
     const endLocal = String(form.get("end_at") || "");
     const notes = String(form.get("notes") || "").trim();
-    const syncGoogle = form.get("sync_google") === "on";
 
     if (!title || !startLocal || !endLocal) return;
 
@@ -248,7 +309,6 @@ export default function NotalCalendar({
           notes,
           start_at: fromLocalInputValue(startLocal),
           end_at: fromLocalInputValue(endLocal),
-          sync_google: syncGoogle,
         }),
       });
       if (!response.ok) {
@@ -257,7 +317,8 @@ export default function NotalCalendar({
       }
       event.currentTarget.reset();
       await loadBlocks();
-      setStatus("Plan bloğu eklendi.");
+      setStatus("Plan eklendi.");
+      setShowCreateForm(false);
     } catch {
       setStatus("Blok eklenemedi.");
     } finally {
@@ -286,12 +347,21 @@ export default function NotalCalendar({
       list.push(block);
       map.set(key, list);
     }
+    for (const [, list] of map) {
+      list.sort(
+        (a, b) =>
+          new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
+      );
+    }
     return map;
   }, [blocks]);
 
+  const selectedDayBlocks = blocksByDay.get(selectedDay) || [];
+  const weekTotal = blocks.length;
+
   const defaultStart = useMemo(() => {
-    const base = expandedDay
-      ? new Date(`${expandedDay}T09:00:00`)
+    const base = selectedDay
+      ? new Date(`${selectedDay}T09:00:00`)
       : new Date();
     base.setMinutes(0, 0, 0);
     const end = new Date(base);
@@ -300,72 +370,92 @@ export default function NotalCalendar({
       start: toLocalInputValue(base.toISOString()),
       end: toLocalInputValue(end.toISOString()),
     };
-  }, [expandedDay]);
+  }, [selectedDay]);
 
   return (
     <section className="notal-calendar" aria-label="Takvim">
-      <div className="notal-chat-header">
-        <h1 className="notal-chat-title">Takvim</h1>
-        <p className="notal-chat-subtitle">
-          Günleri genişlet; saatlik planları gör. Planner sohbetten de yazabilir.
-        </p>
-      </div>
+      <header className="notal-cal-hero">
+        <div>
+          <h1 className="notal-chat-title">Takvim</h1>
+          <p className="notal-chat-subtitle">
+            Haftalık planını görüntüle ve düzenle.
+            {googleConnected
+              ? " Google Takvim otomatik senkronize edilir."
+              : " Google bağlayarak telefon takviminle eşitleyebilirsin."}
+          </p>
+        </div>
+        <div className="notal-cal-hero-stats">
+          <span className="notal-cal-stat">
+            <strong>{weekTotal}</strong>
+            <span>bu hafta</span>
+          </span>
+          <span className="notal-cal-stat">
+            <strong>{selectedDayBlocks.length}</strong>
+            <span>seçili gün</span>
+          </span>
+        </div>
+      </header>
 
-      <div className="notal-cal-toolbar">
+      <div className="notal-cal-toolbar-card">
         <div className="notal-cal-week-nav">
           <button
             type="button"
-            className="notal-cal-nav-btn"
+            className="notal-cal-icon-btn"
+            aria-label="Önceki hafta"
             onClick={() => setWeekStart((d) => addDays(d, -7))}
           >
-            ←
+            ‹
           </button>
-          <strong>
-            {weekStart.toLocaleDateString("tr-TR", {
-              day: "numeric",
-              month: "long",
-            })}{" "}
-            –{" "}
-            {addDays(weekStart, 6).toLocaleDateString("tr-TR", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
-          </strong>
+          <div className="notal-cal-week-label">
+            <span className="notal-cal-week-label-main">
+              {weekStart.toLocaleDateString("tr-TR", {
+                day: "numeric",
+                month: "long",
+              })}{" "}
+              –{" "}
+              {addDays(weekStart, 6).toLocaleDateString("tr-TR", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </span>
+          </div>
           <button
             type="button"
-            className="notal-cal-nav-btn"
+            className="notal-cal-icon-btn"
+            aria-label="Sonraki hafta"
             onClick={() => setWeekStart((d) => addDays(d, 7))}
           >
-            →
+            ›
           </button>
           <button
             type="button"
-            className="notal-cal-nav-btn"
-            onClick={() => setWeekStart(startOfWeekMonday(new Date()))}
+            className="notal-cal-pill-btn"
+            onClick={goToToday}
           >
-            Bu hafta
+            Bugün
           </button>
         </div>
 
         <div className="notal-cal-google">
           {!googleConfigured ? (
-            <span className="notal-compose-hint">
-              Google OAuth env bekleniyor
-            </span>
+            <span className="notal-cal-hint">Google OAuth bekleniyor</span>
           ) : googleConnected ? (
             <>
-              <span className="notal-cal-google-ok">Google bağlı</span>
+              <span className="notal-cal-google-badge">
+                <span className="notal-cal-google-dot" aria-hidden="true" />
+                Google bağlı
+              </span>
               <button
                 type="button"
-                className="notal-cal-nav-btn"
+                className="notal-cal-pill-btn"
                 onClick={() => void pullFromGoogle()}
               >
-                Google’dan yenile
+                Yenile
               </button>
               <button
                 type="button"
-                className="notal-cal-nav-btn"
+                className="notal-cal-pill-btn notal-cal-pill-btn--ghost"
                 onClick={() => void disconnectGoogle()}
               >
                 Bağlantıyı kes
@@ -374,7 +464,7 @@ export default function NotalCalendar({
           ) : (
             <button
               type="button"
-              className="notal-compose-send"
+              className="notal-cal-connect-btn"
               onClick={() => void connectGoogle()}
             >
               Google Takvim bağla
@@ -383,115 +473,187 @@ export default function NotalCalendar({
         </div>
       </div>
 
-      {status ? <p className="notal-cal-status">{status}</p> : null}
+      {status ? (
+        <div className="notal-cal-status-banner" role="status">
+          {status}
+        </div>
+      ) : null}
 
-      <div className="notal-cal-days">
+      <div className="notal-cal-week-grid" role="tablist" aria-label="Hafta günleri">
         {days.map((day) => {
           const key = dayKey(day);
-          const open = expandedDay === key;
-          const dayBlocks = blocksByDay.get(key) || [];
+          const count = blocksByDay.get(key)?.length || 0;
+          const selected = selectedDay === key;
+          const todayMark = isSameDay(day, today);
           return (
-            <article
+            <button
               key={key}
-              className={`notal-cal-day${open ? " is-open" : ""}`}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              className={`notal-cal-week-day${selected ? " is-selected" : ""}${todayMark ? " is-today" : ""}`}
+              onClick={() => setSelectedDay(key)}
             >
-              <button
-                type="button"
-                className="notal-cal-day-head"
-                aria-expanded={open}
-                onClick={() => setExpandedDay(open ? null : key)}
-              >
-                <span>{formatDayLabel(day)}</span>
-                <span className="notal-cal-day-count">
-                  {dayBlocks.length} plan
-                </span>
-              </button>
-
-              {open ? (
-                <div className="notal-cal-day-body">
-                  {loading ? (
-                    <p className="notal-conv-empty">Yükleniyor…</p>
-                  ) : dayBlocks.length === 0 ? (
-                    <p className="notal-conv-empty">Bu gün için plan yok.</p>
-                  ) : (
-                    <ul className="notal-cal-block-list">
-                      {dayBlocks.map((block) => (
-                        <li key={block.id} className="notal-cal-block">
-                          <div>
-                            <strong>{block.title}</strong>
-                            <p>
-                              {formatTimeRange(block.start_at, block.end_at)}
-                              {block.google_event_id ? " · Google" : ""}
-                            </p>
-                            {block.notes ? (
-                              <p className="notal-cal-block-notes">
-                                {block.notes}
-                              </p>
-                            ) : null}
-                          </div>
-                          <button
-                            type="button"
-                            className="notal-conv-delete"
-                            aria-label="Sil"
-                            onClick={() => void removeBlock(block.id)}
-                          >
-                            ✕
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ) : null}
-            </article>
+              <span className="notal-cal-week-day-name">
+                {formatWeekdayShort(day)}
+              </span>
+              <span className="notal-cal-week-day-num">
+                {formatDayNumber(day)}
+              </span>
+              {count > 0 ? (
+                <span className="notal-cal-week-day-count">{count}</span>
+              ) : (
+                <span className="notal-cal-week-day-empty" aria-hidden="true" />
+              )}
+            </button>
           );
         })}
       </div>
 
-      <form className="notal-cal-create" onSubmit={handleCreate}>
-        <h2 className="notal-cal-create-title">Saatlik blok ekle</h2>
-        <label>
-          Başlık
-          <input name="title" required maxLength={160} placeholder="Matematik tekrar" />
-        </label>
-        <div className="notal-cal-create-row">
-          <label>
-            Başlangıç
-            <input
-              name="start_at"
-              type="datetime-local"
-              required
-              defaultValue={defaultStart.start}
-            />
-          </label>
-          <label>
-            Bitiş
-            <input
-              name="end_at"
-              type="datetime-local"
-              required
-              defaultValue={defaultStart.end}
-            />
-          </label>
+      <div className="notal-cal-layout">
+        <div className="notal-cal-day-panel">
+          <div className="notal-cal-day-panel-head">
+            <div>
+              <h2 className="notal-cal-day-title">
+                {formatFullDayLabel(selectedDate)}
+              </h2>
+              <p className="notal-cal-day-meta">
+                {loading
+                  ? "Yükleniyor…"
+                  : selectedDayBlocks.length
+                    ? `${selectedDayBlocks.length} plan`
+                    : "Bu gün için plan yok"}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="notal-cal-add-btn"
+              onClick={() => setShowCreateForm((open) => !open)}
+            >
+              {showCreateForm ? "Kapat" : "+ Plan ekle"}
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="notal-cal-skeleton-list" aria-hidden="true">
+              <div className="notal-cal-skeleton" />
+              <div className="notal-cal-skeleton" />
+              <div className="notal-cal-skeleton notal-cal-skeleton--short" />
+            </div>
+          ) : selectedDayBlocks.length === 0 ? (
+            <div className="notal-cal-empty">
+              <p className="notal-cal-empty-title">Henüz plan yok</p>
+              <p className="notal-cal-empty-text">
+                Bu güne çalışma bloğu ekleyebilir veya sohbetten Planner’a
+                plan yaptırabilirsin.
+              </p>
+              <button
+                type="button"
+                className="notal-cal-add-btn notal-cal-add-btn--inline"
+                onClick={() => setShowCreateForm(true)}
+              >
+                İlk planı ekle
+              </button>
+            </div>
+          ) : (
+            <ul className="notal-cal-timeline">
+              {selectedDayBlocks.map((block) => (
+                <li
+                  key={block.id}
+                  className={`notal-cal-event notal-cal-event--${block.source}`}
+                >
+                  <div className="notal-cal-event-rail" aria-hidden="true" />
+                  <div className="notal-cal-event-body">
+                    <div className="notal-cal-event-top">
+                      <span className="notal-cal-event-time">
+                        {formatTimeRange(block.start_at, block.end_at)}
+                      </span>
+                      <span className="notal-cal-event-duration">
+                        {formatDurationMinutes(block.start_at, block.end_at)}
+                      </span>
+                      <span
+                        className={`notal-cal-event-source notal-cal-event-source--${block.source}`}
+                      >
+                        {block.google_event_id ? "Google" : sourceLabel(block.source)}
+                      </span>
+                    </div>
+                    <h3 className="notal-cal-event-title">{block.title}</h3>
+                    {block.notes ? (
+                      <p className="notal-cal-event-notes">{block.notes}</p>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    className="notal-cal-event-delete"
+                    aria-label={`${block.title} planını sil`}
+                    onClick={() => void removeBlock(block.id)}
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        <label>
-          Not
-          <textarea name="notes" rows={2} maxLength={4000} />
-        </label>
-        {googleConnected ? (
-          <label className="notal-cal-sync">
-            <input name="sync_google" type="checkbox" />
-            Google Takvim’e de yaz
-          </label>
+
+        {showCreateForm ? (
+          <form className="notal-cal-create" onSubmit={handleCreate}>
+            <h2 className="notal-cal-create-title">Yeni plan</h2>
+            <p className="notal-cal-create-sub">
+              {formatFullDayLabel(selectedDate)} için saatlik blok
+            </p>
+            <label className="notal-cal-field">
+              <span>Başlık</span>
+              <input
+                name="title"
+                required
+                maxLength={160}
+                placeholder="Matematik tekrar"
+              />
+            </label>
+            <div className="notal-cal-create-row">
+              <label className="notal-cal-field">
+                <span>Başlangıç</span>
+                <input
+                  name="start_at"
+                  type="datetime-local"
+                  required
+                  defaultValue={defaultStart.start}
+                />
+              </label>
+              <label className="notal-cal-field">
+                <span>Bitiş</span>
+                <input
+                  name="end_at"
+                  type="datetime-local"
+                  required
+                  defaultValue={defaultStart.end}
+                />
+              </label>
+            </div>
+            <label className="notal-cal-field">
+              <span>Not (isteğe bağlı)</span>
+              <textarea name="notes" rows={3} maxLength={4000} />
+            </label>
+            <div className="notal-cal-create-actions">
+              <button
+                type="button"
+                className="notal-cal-pill-btn notal-cal-pill-btn--ghost"
+                onClick={() => setShowCreateForm(false)}
+              >
+                Vazgeç
+              </button>
+              <button
+                type="submit"
+                className="notal-compose-send"
+                disabled={creating}
+              >
+                {creating ? "Ekleniyor…" : "Kaydet"}
+              </button>
+            </div>
+          </form>
         ) : null}
-        <button
-          type="submit"
-          className="notal-compose-send"
-          disabled={creating}
-        >
-          {creating ? "Ekleniyor…" : "Ekle"}
-        </button>
-      </form>
+      </div>
     </section>
   );
 }

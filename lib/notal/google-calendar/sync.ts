@@ -1,12 +1,40 @@
-import { google } from "googleapis";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { google } from "googleapis";
 import type { NotalPlanBlock } from "@/lib/notal/planner/types";
 import {
   createPlanBlock,
   listPlanBlocksInRange,
   updatePlanBlock,
 } from "@/lib/notal/planner/repository";
-import { getAuthorizedGoogleClient } from "@/lib/notal/google-calendar/oauth";
+import {
+  getAuthorizedGoogleClient,
+  isUserGoogleCalendarConnected,
+} from "@/lib/notal/google-calendar/oauth";
+
+export async function deleteGoogleEventForBlock(
+  userId: string,
+  googleEventId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const auth = await getAuthorizedGoogleClient(userId);
+    if (!auth) {
+      return { ok: false, error: "google_not_connected" };
+    }
+
+    const calendar = google.calendar({ version: "v3", auth });
+    await calendar.events.delete({
+      calendarId: "primary",
+      eventId: googleEventId,
+    });
+    return { ok: true };
+  } catch (error) {
+    console.error("[google] delete event:", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "google_delete_failed",
+    };
+  }
+}
 
 export async function syncPlanBlockToGoogle(
   userId: string,
@@ -48,6 +76,37 @@ export async function syncPlanBlockToGoogle(
       error: error instanceof Error ? error.message : "google_sync_failed",
     };
   }
+}
+
+export async function applyGoogleSyncForBlock(
+  supabase: SupabaseClient,
+  userId: string,
+  block: NotalPlanBlock,
+): Promise<{ block: NotalPlanBlock; error?: string }> {
+  const connected = await isUserGoogleCalendarConnected(userId);
+  if (!connected) return { block };
+
+  const result = await syncPlanBlockToGoogle(userId, block);
+  if (result.googleEventId) {
+    const updated = await updatePlanBlock(supabase, userId, block.id, {
+      google_event_id: result.googleEventId,
+    });
+    return { block: updated || block, error: result.error };
+  }
+
+  return { block, error: result.error };
+}
+
+export async function deleteLinkedGoogleEvent(
+  userId: string,
+  googleEventId: string | null,
+): Promise<{ error?: string }> {
+  if (!googleEventId) return {};
+  const connected = await isUserGoogleCalendarConnected(userId);
+  if (!connected) return {};
+
+  const result = await deleteGoogleEventForBlock(userId, googleEventId);
+  return result.ok ? {} : { error: result.error };
 }
 
 type GoogleEventLike = {

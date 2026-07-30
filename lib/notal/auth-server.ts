@@ -1,4 +1,8 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
+import {
+  getNotalAccessMode,
+  isNotalAdminEmail,
+} from "@/lib/notal/access";
 
 export type NotalAuthContext = {
   user: User;
@@ -30,21 +34,88 @@ export function createNotalUserClient(accessToken: string): SupabaseClient | nul
   });
 }
 
-export async function resolveNotalAuth(
+async function isAdminUser(
+  supabase: SupabaseClient,
+  user: User,
+): Promise<boolean> {
+  if (isNotalAdminEmail(user.email)) return true;
+
+  const { data, error } = await supabase
+    .from("admin_users")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[notal] admin_users check:", error.message);
+    return false;
+  }
+
+  return Boolean(data?.user_id);
+}
+
+/**
+ * Oturum + NotAl erişim modu.
+ * - unauthorized: giriş yok
+ * - forbidden: giriş var ama admin değil / NotAl kapalı
+ */
+export async function resolveNotalApiAuth(
   request: Request,
-): Promise<NotalAuthContext | null> {
+): Promise<
+  | { status: "ok"; auth: NotalAuthContext }
+  | { status: "unauthorized" }
+  | { status: "forbidden" }
+> {
+  const mode = getNotalAccessMode();
+  if (mode === "off") return { status: "forbidden" };
+
   const header = request.headers.get("authorization") || "";
   const match = /^Bearer\s+(.+)$/i.exec(header.trim());
   const token = match?.[1]?.trim();
-  if (!token) return null;
+  if (!token) return { status: "unauthorized" };
 
   const supabase = createNotalUserClient(token);
-  if (!supabase) return null;
+  if (!supabase) return { status: "unauthorized" };
 
   const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) return null;
+  if (error || !data.user) return { status: "unauthorized" };
 
-  return { user: data.user, token, supabase };
+  if (mode === "admin") {
+    const admin = await isAdminUser(supabase, data.user);
+    if (!admin) return { status: "forbidden" };
+  }
+
+  return {
+    status: "ok",
+    auth: { user: data.user, token, supabase },
+  };
+}
+
+export function notalApiAuthErrorResponse(
+  result: Exclude<Awaited<ReturnType<typeof resolveNotalApiAuth>>, { status: "ok" }>,
+): Response {
+  if (result.status === "unauthorized") {
+    return Response.json({ error: "auth_required" }, { status: 401 });
+  }
+  // Varlığını gizle
+  return Response.json({ error: "not_found" }, { status: 404 });
+}
+
+export async function resolveNotalAuth(
+  request: Request,
+): Promise<NotalAuthContext | null> {
+  const result = await resolveNotalApiAuth(request);
+  if (result.status !== "ok") return null;
+  return result.auth;
+}
+
+/** API route'larda: auth veya hazır Response döner. */
+export async function requireNotalAuth(
+  request: Request,
+): Promise<NotalAuthContext | Response> {
+  const result = await resolveNotalApiAuth(request);
+  if (result.status === "ok") return result.auth;
+  return notalApiAuthErrorResponse(result);
 }
 
 /** @deprecated Prefer resolveNotalAuth */

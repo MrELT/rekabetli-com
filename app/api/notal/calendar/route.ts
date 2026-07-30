@@ -2,10 +2,14 @@ import { resolveNotalAuth } from "@/lib/notal/auth-server";
 import {
   createPlanBlock,
   deletePlanBlock,
+  getPlanBlock,
   listPlanBlocksInRange,
   updatePlanBlock,
 } from "@/lib/notal/planner/repository";
-import { syncPlanBlockToGoogle } from "@/lib/notal/google-calendar/sync";
+import {
+  applyGoogleSyncForBlock,
+  deleteLinkedGoogleEvent,
+} from "@/lib/notal/google-calendar/sync";
 
 export const runtime = "nodejs";
 
@@ -58,7 +62,6 @@ export async function POST(request: Request) {
   const end_at = parseIso(body.end_at);
   const title = typeof body.title === "string" ? body.title.trim() : "";
   const notes = typeof body.notes === "string" ? body.notes.trim() : "";
-  const syncGoogle = body.sync_google === true;
 
   if (!start_at || !end_at || !title) return jsonError("invalid_block", 400);
   if (new Date(end_at) <= new Date(start_at)) {
@@ -74,15 +77,12 @@ export async function POST(request: Request) {
       source: "manual",
     });
 
-    if (syncGoogle) {
-      const sync = await syncPlanBlockToGoogle(auth.user.id, block);
-      if (sync.googleEventId) {
-        block =
-          (await updatePlanBlock(auth.supabase, auth.user.id, block.id, {
-            google_event_id: sync.googleEventId,
-          })) || block;
-      }
-    }
+    const synced = await applyGoogleSyncForBlock(
+      auth.supabase,
+      auth.user.id,
+      block,
+    );
+    block = synced.block;
 
     return Response.json({ block }, { status: 201 });
   } catch (error) {
@@ -128,15 +128,12 @@ export async function PATCH(request: Request) {
     );
     if (!block) return jsonError("not_found", 404);
 
-    if (body.sync_google === true) {
-      const sync = await syncPlanBlockToGoogle(auth.user.id, block);
-      if (sync.googleEventId) {
-        block =
-          (await updatePlanBlock(auth.supabase, auth.user.id, id, {
-            google_event_id: sync.googleEventId,
-          })) || block;
-      }
-    }
+    const synced = await applyGoogleSyncForBlock(
+      auth.supabase,
+      auth.user.id,
+      block,
+    );
+    block = synced.block;
 
     return Response.json({ block });
   } catch (error) {
@@ -154,6 +151,11 @@ export async function DELETE(request: Request) {
   if (!id) return jsonError("invalid_id", 400);
 
   try {
+    const existing = await getPlanBlock(auth.supabase, auth.user.id, id);
+    if (!existing) return jsonError("not_found", 404);
+
+    await deleteLinkedGoogleEvent(auth.user.id, existing.google_event_id);
+
     const deleted = await deletePlanBlock(auth.supabase, auth.user.id, id);
     if (!deleted) return jsonError("not_found", 404);
     return Response.json({ ok: true });

@@ -2,15 +2,31 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   createPlanBlocks,
   deletePlanBlock,
+  getPlanBlock,
   listPlanBlocksInRange,
   updatePlanBlock,
 } from "@/lib/notal/planner/repository";
 import type { NotalPlanBlockInput } from "@/lib/notal/planner/types";
-import { syncPlanBlockToGoogle } from "@/lib/notal/google-calendar/sync";
+import {
+  applyGoogleSyncForBlock,
+  deleteLinkedGoogleEvent,
+} from "@/lib/notal/google-calendar/sync";
+import { isUserGoogleCalendarConnected } from "@/lib/notal/google-calendar/oauth";
+
+const MUTATION_TOOLS = new Set([
+  "planner_create_blocks",
+  "planner_update_block",
+  "planner_delete_block",
+]);
+
+export function isPlannerMutationTool(name: string): boolean {
+  return MUTATION_TOOLS.has(name);
+}
 
 export const PLANNER_TOOLS = [
   {
     type: "function" as const,
+    strict: false,
     name: "planner_list_blocks",
     description:
       "Belirli bir tarih aralığındaki NotAl plan bloklarını listeler (Europe/Istanbul).",
@@ -32,9 +48,10 @@ export const PLANNER_TOOLS = [
   },
   {
     type: "function" as const,
+    strict: false,
     name: "planner_create_blocks",
     description:
-      "Günlük/haftalık çalışma planı için bir veya daha fazla saatlik blok oluşturur. Saatler çakışmasın; Europe/Istanbul kullan.",
+      "Günlük/haftalık çalışma planı için bir veya daha fazla saatlik blok oluşturur. Google Takvim bağlıysa otomatik senkronize edilir.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -49,11 +66,6 @@ export const PLANNER_TOOLS = [
               end_at: { type: "string", description: "ISO 8601 bitiş" },
               title: { type: "string" },
               notes: { type: "string" },
-              sync_google: {
-                type: "boolean",
-                description:
-                  "true ise Google Takvim'e de yazmayı dener (bağlıysa).",
-              },
             },
             required: ["start_at", "end_at", "title"],
           },
@@ -64,8 +76,10 @@ export const PLANNER_TOOLS = [
   },
   {
     type: "function" as const,
+    strict: false,
     name: "planner_update_block",
-    description: "Mevcut bir plan bloğunu günceller.",
+    description:
+      "Mevcut bir plan bloğunu günceller. Google Takvim bağlıysa otomatik senkronize edilir.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -75,15 +89,16 @@ export const PLANNER_TOOLS = [
         end_at: { type: "string" },
         title: { type: "string" },
         notes: { type: "string" },
-        sync_google: { type: "boolean" },
       },
       required: ["block_id"],
     },
   },
   {
     type: "function" as const,
+    strict: false,
     name: "planner_delete_block",
-    description: "Bir plan bloğunu siler.",
+    description:
+      "Bir plan bloğunu siler. Google Takvim bağlıysa ilişkili etkinlik de silinir.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -97,10 +112,6 @@ export const PLANNER_TOOLS = [
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function asBoolean(value: unknown): boolean {
-  return value === true;
 }
 
 export async function executePlannerTool(options: {
@@ -136,7 +147,6 @@ export async function executePlannerTool(options: {
       case "planner_create_blocks": {
         const rawBlocks = Array.isArray(args.blocks) ? args.blocks : [];
         const inputs: NotalPlanBlockInput[] = [];
-        const syncFlags: boolean[] = [];
 
         for (const raw of rawBlocks) {
           if (!raw || typeof raw !== "object") continue;
@@ -155,7 +165,6 @@ export async function executePlannerTool(options: {
             notes: asString(row.notes) || "",
             source: "planner",
           });
-          syncFlags.push(asBoolean(row.sync_google));
         }
 
         if (!inputs.length) {
@@ -168,27 +177,32 @@ export async function executePlannerTool(options: {
           inputs,
         );
 
+        const googleConnected = await isUserGoogleCalendarConnected(
+          options.userId,
+        );
         const synced: Array<{ id: string; google_event_id?: string | null; error?: string }> =
           [];
-        for (let i = 0; i < created.length; i += 1) {
-          if (!syncFlags[i]) continue;
-          const result = await syncPlanBlockToGoogle(
+
+        for (const block of created) {
+          if (!googleConnected) continue;
+          const result = await applyGoogleSyncForBlock(
+            options.supabase,
             options.userId,
-            created[i]!,
+            block,
           );
           synced.push({
-            id: created[i]!.id,
-            google_event_id: result.googleEventId,
+            id: block.id,
+            google_event_id: result.block.google_event_id,
             error: result.error,
           });
-          if (result.googleEventId) {
-            await updatePlanBlock(options.supabase, options.userId, created[i]!.id, {
-              google_event_id: result.googleEventId,
-            });
-          }
         }
 
-        return JSON.stringify({ ok: true, blocks: created, synced });
+        return JSON.stringify({
+          ok: true,
+          blocks: created,
+          google_connected: googleConnected,
+          synced,
+        });
       }
 
       case "planner_update_block": {
@@ -196,7 +210,7 @@ export async function executePlannerTool(options: {
         if (!blockId) {
           return JSON.stringify({ ok: false, error: "missing_block_id" });
         }
-        const updated = await updatePlanBlock(
+        let updated = await updatePlanBlock(
           options.supabase,
           options.userId,
           blockId,
@@ -211,19 +225,26 @@ export async function executePlannerTool(options: {
           return JSON.stringify({ ok: false, error: "not_found" });
         }
 
+        const googleConnected = await isUserGoogleCalendarConnected(
+          options.userId,
+        );
         let syncError: string | undefined;
-        if (asBoolean(args.sync_google)) {
-          const result = await syncPlanBlockToGoogle(options.userId, updated);
+        if (googleConnected) {
+          const result = await applyGoogleSyncForBlock(
+            options.supabase,
+            options.userId,
+            updated,
+          );
+          updated = result.block;
           syncError = result.error;
-          if (result.googleEventId) {
-            await updatePlanBlock(options.supabase, options.userId, blockId, {
-              google_event_id: result.googleEventId,
-            });
-            updated.google_event_id = result.googleEventId;
-          }
         }
 
-        return JSON.stringify({ ok: true, block: updated, sync_error: syncError });
+        return JSON.stringify({
+          ok: true,
+          block: updated,
+          google_connected: googleConnected,
+          sync_error: syncError,
+        });
       }
 
       case "planner_delete_block": {
@@ -231,12 +252,31 @@ export async function executePlannerTool(options: {
         if (!blockId) {
           return JSON.stringify({ ok: false, error: "missing_block_id" });
         }
+
+        const existing = await getPlanBlock(
+          options.supabase,
+          options.userId,
+          blockId,
+        );
+        if (!existing) {
+          return JSON.stringify({ ok: false, error: "not_found" });
+        }
+
+        const googleDelete = await deleteLinkedGoogleEvent(
+          options.userId,
+          existing.google_event_id,
+        );
+
         const deleted = await deletePlanBlock(
           options.supabase,
           options.userId,
           blockId,
         );
-        return JSON.stringify({ ok: deleted, deleted });
+        return JSON.stringify({
+          ok: deleted,
+          deleted,
+          google_delete_error: googleDelete.error,
+        });
       }
 
       default:

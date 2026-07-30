@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/inject-env.mjs && node scripts/build-turkish-bank-codes.mjs && node scripts/sync-static-to-public.mjs && next dev",
-    "build": "node scripts/inject-env.mjs && node scripts/build-turkish-bank-codes.mjs && node scripts/sync-static-to-public.mjs && next build && node scripts/verify-next-output.mjs",
+    "build": "node scripts/inject-env.mjs && node scripts/build-turkish-bank-codes.mjs && node scripts/sync-static-to-public.mjs && node scripts/run-next-build.mjs && node scripts/verify-next-output.mjs",
     "vercel-build": "npm run build",
     "start": "next start",
     "env:build": "node scripts/inject-env.mjs",
@@ -22,6 +22,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
     "googleapis": "^173.0.0",
+    "katex": "^0.18.1",
     "next": "^15.3.3",
     "openai": "^6.49.0",
     "react": "^19.1.0",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.16",
+    "@types/katex": "^0.16.8",
     "@types/node": "^22.15.29",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",

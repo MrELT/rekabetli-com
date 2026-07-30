@@ -8,6 +8,11 @@ import {
   insertNotalMessage,
   touchNotalConversation,
 } from "@/lib/notal/conversations-server";
+import { readStudentProfileFromUserMeta } from "@/lib/notal/student-context";
+import {
+  formatStoredMessageContent,
+  parseChatAttachments,
+} from "@/lib/notal/chat-attachments";
 
 export const runtime = "nodejs";
 
@@ -17,6 +22,7 @@ const MAX_CONTENT_CHARS = 8000;
 type BodyMessage = {
   role?: unknown;
   content?: unknown;
+  attachments?: unknown;
 };
 
 function jsonError(message: string, status: number) {
@@ -29,12 +35,24 @@ function parseMessages(raw: unknown): NotalChatTurn[] | null {
   }
 
   const messages: NotalChatTurn[] = [];
-  for (const item of raw as BodyMessage[]) {
+  for (let index = 0; index < raw.length; index += 1) {
+    const item = raw[index] as BodyMessage;
     const role = item?.role;
     const content = typeof item?.content === "string" ? item.content.trim() : "";
-    if ((role !== "user" && role !== "assistant") || !content) return null;
+    const isLast = index === raw.length - 1;
+    const attachments =
+      isLast && role === "user" ? parseChatAttachments(item.attachments) : [];
+
+    if (role !== "user" && role !== "assistant") return null;
+    if (role === "assistant" && !content) return null;
+    if (role === "user" && !content && !attachments.length) return null;
     if (content.length > MAX_CONTENT_CHARS) return null;
-    messages.push({ role, content });
+
+    messages.push({
+      role,
+      content,
+      ...(attachments.length ? { attachments } : {}),
+    });
   }
 
   if (messages[messages.length - 1]?.role !== "user") return null;
@@ -66,6 +84,16 @@ export async function POST(request: Request) {
     return jsonError("invalid_messages", 400);
   }
 
+  const yksExam = (() => {
+    const raw =
+      typeof bodyObj.yksExam === "string" ? bodyObj.yksExam.trim() : "";
+    if (raw === "TYT" || raw === "AYT" || raw === "YDS") return raw;
+    return null;
+  })();
+
+  const userMeta = (auth.user.user_metadata ?? {}) as Record<string, unknown>;
+  const profile = readStudentProfileFromUserMeta(userMeta);
+
   const conversationIdRaw =
     typeof bodyObj.conversationId === "string"
       ? bodyObj.conversationId.trim()
@@ -89,7 +117,10 @@ export async function POST(request: Request) {
       auth.supabase,
       conversationId,
       "user",
-      lastUser.content,
+      formatStoredMessageContent(
+        lastUser.content,
+        lastUser.attachments?.map((item) => ({ name: item.name })) ?? [],
+      ),
     );
 
     if (!conversationCreated) {
@@ -127,12 +158,43 @@ export async function POST(request: Request) {
           supabase: auth.supabase,
           userId: auth.user.id,
           signal: request.signal,
+          studentContext: {
+            classLevel: profile.classLevel,
+            educationLevel: profile.educationLevel,
+            yksArea: profile.yksArea,
+            examTarget: yksExam,
+            enabledExams: profile.enabledExams,
+            targetRank: profile.targetRank,
+            trialExams: profile.trialExams,
+          },
         })) {
           if (event.type === "delta") {
             assembled += event.text;
             send({ type: "delta", text: event.text });
           } else if (event.type === "tool_start" || event.type === "tool_done") {
             send({ type: event.type, name: event.name });
+          } else if (event.type === "calendar_changed") {
+            send({ type: "calendar_changed" });
+          } else if (event.type === "student_context_changed") {
+            send({
+              type: "student_context_changed",
+              context: event.context,
+            });
+          } else if (event.type === "choice_prompt") {
+            send({
+              type: "choice_prompt",
+              prompt: event.prompt,
+            });
+          } else if (event.type === "question_solution_ready") {
+            send({
+              type: "question_solution_ready",
+              solution: event.solution,
+            });
+          } else if (event.type === "knowledge_card_ready") {
+            send({
+              type: "knowledge_card_ready",
+              card: event.card,
+            });
           } else if (event.type === "error") {
             send({ type: "error", message: event.message });
           }

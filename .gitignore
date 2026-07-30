@@ -7,6 +7,7 @@ env-config.local.js
 # Bağımlılıklar
 node_modules/
 .next/
+.notal-build-stash/
 
 # public/ — build sırasında kök statik dosyalardan üretilir
 public/*.html
