@@ -24,6 +24,7 @@ const ROOT_JS = new Set([
   "avatar-utils.js",
   "comment-ratings.js",
   "comment-replies.js",
+  "content-report.js",
   "communities-form.js",
   "communities.js",
   "community-feed.js",

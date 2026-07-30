@@ -1122,6 +1122,36 @@ async function processNotificationEmail(options: {
     };
   }
 
+  // Topluluk paylaşım mailleri: üye bu topluluk için e-postayı kapatmışsa atla.
+  // Site içi bildirim (notifications satırı) zaten oluşmuştur.
+  if (
+    notification.type === "community_post" &&
+    isSafeUuid(notification.community_id) &&
+    isSafeUuid(notification.user_id)
+  ) {
+    const { data: memberPref, error: memberPrefError } = await supabase
+      .from("community_members")
+      .select("email_notifications_enabled")
+      .eq("community_id", notification.community_id)
+      .eq("user_id", notification.user_id)
+      .maybeSingle<{ email_notifications_enabled: boolean | null }>();
+
+    if (memberPrefError) {
+      throw new Error(
+        `Topluluk e-posta tercihi okunamadı: ${memberPrefError.message}`,
+      );
+    }
+
+    if (memberPref && memberPref.email_notifications_enabled === false) {
+      return {
+        ok: true,
+        skipped: true,
+        reason: "community_email_opt_out",
+        notificationId: notification.id,
+      };
+    }
+  }
+
   const { email, displayName } = await getRecipientProfile(supabase, notification.user_id);
   const message = buildNotificationMessage(notification);
   const actionUrl = buildNotificationLink(notification, siteUrl);

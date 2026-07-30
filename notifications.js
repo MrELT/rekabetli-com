@@ -118,6 +118,9 @@
     if (row.type === "community_post") {
       return `${name} topluluğunuzda yeni bir paylaşım yaptı.`;
     }
+    if (row.type === "content_report_resolved") {
+      return "Raporunuzu inceledik ve topluluk kurallarına uymayan içeriği kaldırdık. Teşekkürler.";
+    }
     if (row.type === "mentor_package_request") {
       return `${name} paketiniz için ön talep oluşturdu.`;
     }

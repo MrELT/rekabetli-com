@@ -111,6 +111,25 @@
           <button type="button" id="community-join-btn" class="details-btn" hidden>
             Topluluğa Katıl
           </button>
+          <label
+            id="community-email-pref"
+            class="community-email-pref"
+            hidden
+          >
+            <span class="community-email-pref-copy">
+              <strong>E-posta bildirimleri</strong>
+              <small>Site içi bildirim her zaman gelir; yalnızca e-postayı kapatır.</small>
+            </span>
+            <span class="community-email-pref-switch">
+              <input
+                type="checkbox"
+                id="community-email-pref-toggle"
+                role="switch"
+                checked
+              />
+              <span class="community-email-pref-track" aria-hidden="true"></span>
+            </span>
+          </label>
         </div>
 
         <div class="activity-accordion community-panel-accordion" id="community-panel-accordion">
@@ -291,6 +310,7 @@
     <script src="feed-edit.js"></script>
     <script src="comment-ratings.js"></script>
     <script src="comment-replies.js"></script>
+    <script src="content-report.js"></script>
     <script src="nav-profile.js"></script>
     <script src="confirm-dialog.js"></script>
     <script src="notifications.js"></script>

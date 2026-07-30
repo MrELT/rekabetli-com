@@ -1329,6 +1329,11 @@ function renderQuestions() {
       ownerActions.hidden = false;
     }
 
+    window.RekabetliContentReport?.attachPostReportButton(cardEl, question, {
+      currentUserId,
+      onRequireLogin: () => requireLoginForAction(),
+    });
+
     likeBtn.addEventListener("click", async () => {
       if (!requireLoginForAction()) return;
 

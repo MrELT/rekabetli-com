@@ -49,6 +49,10 @@ const panelJoinRequests = document.getElementById("panel-join-requests");
 const countJoinRequests = document.getElementById("count-join-requests");
 const communityJoinActions = document.getElementById("community-join-actions");
 const communityJoinBtn = document.getElementById("community-join-btn");
+const communityEmailPref = document.getElementById("community-email-pref");
+const communityEmailPrefToggle = document.getElementById(
+  "community-email-pref-toggle",
+);
 
 const SIZE_LABELS = {
   "0-10": "0–10 kişi",
@@ -77,6 +81,9 @@ let myJoinRequestStatus = null;
 let communityFeedAuthBound = false;
 let skipInitialFeedAuthHydrate = true;
 let lastKnownFeedUserId = null;
+/** Üye satırı varsa tercih; yoksa varsayılan true (mail açık). */
+let communityEmailNotificationsEnabled = true;
+let communityEmailPrefSaving = false;
 
 function sameUserId(a, b) {
   return String(a ?? "").toLowerCase() === String(b ?? "").toLowerCase();
@@ -224,6 +231,7 @@ function updateJoinActions() {
     communityJoinActions.hidden = false;
     communityJoinBtn.textContent = "Topluluğu kapat";
     communityJoinBtn.classList.add("is-danger", "js-community-close");
+    updateCommunityEmailPrefUi();
     return;
   }
 
@@ -231,6 +239,7 @@ function updateJoinActions() {
     communityJoinActions.hidden = false;
     communityJoinBtn.textContent = "Topluluktan ayrıl";
     communityJoinBtn.classList.add("is-leave", "js-community-leave");
+    updateCommunityEmailPrefUi();
     return;
   }
 
@@ -240,6 +249,7 @@ function updateJoinActions() {
     if (!isUserLoggedIn) {
       communityJoinBtn.textContent = "Giriş yap ve istek gönder";
       communityJoinBtn.classList.add("js-community-join-request");
+      updateCommunityEmailPrefUi();
       return;
     }
 
@@ -247,6 +257,7 @@ function updateJoinActions() {
       communityJoinBtn.textContent = "İstek gönderildi";
       communityJoinBtn.disabled = true;
       communityJoinBtn.classList.add("is-pending");
+      updateCommunityEmailPrefUi();
       return;
     }
 
@@ -254,6 +265,7 @@ function updateJoinActions() {
       myJoinRequestStatus === "rejected" ? "Yeniden istek gönder" : "Katılma isteği gönder";
     communityJoinBtn.textContent = label;
     communityJoinBtn.classList.add("is-request", "js-community-join-request");
+    updateCommunityEmailPrefUi();
     return;
   }
 
@@ -264,6 +276,116 @@ function updateJoinActions() {
     communityJoinBtn.textContent = "Topluluğa Katıl";
   }
   communityJoinBtn.classList.add("js-community-join-public");
+  updateCommunityEmailPrefUi();
+}
+
+function updateCommunityEmailPrefUi() {
+  if (!communityEmailPref || !communityEmailPrefToggle) return;
+
+  const canManagePref = Boolean(
+    currentUserId && (isCommunityMember || isCommunityAdmin),
+  );
+
+  communityEmailPref.hidden = !canManagePref;
+  if (!canManagePref) return;
+
+  communityEmailPrefToggle.checked = communityEmailNotificationsEnabled !== false;
+  communityEmailPrefToggle.disabled = communityEmailPrefSaving;
+  communityEmailPref.classList.toggle("is-saving", communityEmailPrefSaving);
+  communityEmailPrefToggle.setAttribute(
+    "aria-checked",
+    communityEmailPrefToggle.checked ? "true" : "false",
+  );
+}
+
+async function loadCommunityEmailPreference() {
+  communityEmailNotificationsEnabled = true;
+  if (!currentUserId || !communityId || !getSb()) {
+    updateCommunityEmailPrefUi();
+    return;
+  }
+
+  const { data, error } = await getSb()
+    .from("community_members")
+    .select("email_notifications_enabled")
+    .eq("community_id", communityId)
+    .eq("user_id", currentUserId)
+    .maybeSingle();
+
+  if (!error && data && typeof data.email_notifications_enabled === "boolean") {
+    communityEmailNotificationsEnabled = data.email_notifications_enabled;
+  }
+
+  updateCommunityEmailPrefUi();
+}
+
+async function saveCommunityEmailPreference(enabled) {
+  if (!currentUserId || !communityId || !getSb() || communityEmailPrefSaving) {
+    return;
+  }
+
+  const previous = communityEmailNotificationsEnabled;
+  communityEmailNotificationsEnabled = enabled;
+  communityEmailPrefSaving = true;
+  updateCommunityEmailPrefUi();
+
+  try {
+    const { data: existing, error: existingError } = await getSb()
+      .from("community_members")
+      .select("user_id")
+      .eq("community_id", communityId)
+      .eq("user_id", currentUserId)
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+
+    if (existing) {
+      const { data: updated, error } = await getSb()
+        .from("community_members")
+        .update({ email_notifications_enabled: enabled })
+        .eq("community_id", communityId)
+        .eq("user_id", currentUserId)
+        .select("email_notifications_enabled")
+        .maybeSingle();
+      if (error) throw error;
+      if (!updated) {
+        throw new Error("update_blocked_or_missing_column");
+      }
+    } else {
+      // Kurucu bazen community_members satırı olmadan da üye sayılır.
+      const { data: inserted, error } = await getSb()
+        .from("community_members")
+        .insert({
+          community_id: communityId,
+          user_id: currentUserId,
+          email_notifications_enabled: enabled,
+        })
+        .select("email_notifications_enabled")
+        .maybeSingle();
+      if (error) throw error;
+      if (!inserted) {
+        throw new Error("insert_blocked");
+      }
+      isCommunityMember = true;
+    }
+  } catch (error) {
+    console.error("Community email pref save failed:", error);
+    communityEmailNotificationsEnabled = previous;
+    const raw = String(error?.message || error?.code || "");
+    const needsMigration =
+      /email_notifications_enabled|schema cache|does not exist|42703/i.test(raw);
+    await rekabetliAlert({
+      title: "Kaydedilemedi",
+      message: needsMigration
+        ? "Veritabanı güncellemesi henüz tamamlanmamış olabilir. Birkaç dakika sonra tekrar dene."
+        : "E-posta bildirimi tercihi kaydedilemedi. Sayfayı yenileyip tekrar deneyin.",
+      showCancel: false,
+      confirmLabel: "Tamam",
+    });
+  } finally {
+    communityEmailPrefSaving = false;
+    updateCommunityEmailPrefUi();
+  }
 }
 
 async function loadMyJoinRequestStatus() {
@@ -1014,12 +1136,35 @@ async function loadCommunity() {
     community = data;
 
     if (currentUserId) {
-      const { data: membership } = await getSb()
+      let membership = null;
+      const membershipQuery = await getSb()
         .from("community_members")
-        .select("user_id")
+        .select("user_id, email_notifications_enabled")
         .eq("community_id", communityId)
         .eq("user_id", currentUserId)
         .maybeSingle();
+
+      if (membershipQuery.error) {
+        const fallback = await getSb()
+          .from("community_members")
+          .select("user_id")
+          .eq("community_id", communityId)
+          .eq("user_id", currentUserId)
+          .maybeSingle();
+        membership = fallback.data;
+        communityEmailNotificationsEnabled = true;
+      } else {
+        membership = membershipQuery.data;
+        if (
+          membership &&
+          typeof membership.email_notifications_enabled === "boolean"
+        ) {
+          communityEmailNotificationsEnabled =
+            membership.email_notifications_enabled;
+        } else {
+          communityEmailNotificationsEnabled = true;
+        }
+      }
 
       isCommunityMember =
         Boolean(membership) || sameUserId(community.owner_id, currentUserId);
@@ -1041,6 +1186,8 @@ async function loadCommunity() {
       await loadJoinRequests();
     }
 
+    updateCommunityEmailPrefUi();
+
     if (pageMain) pageMain.hidden = false;
     return true;
   } catch (error) {
@@ -1058,14 +1205,40 @@ async function applyAuthToCommunityAccess(user) {
   myJoinRequestStatus = null;
 
   if (currentUserId) {
-    const { data: membership } = await getSb()
+    let membership = null;
+    const membershipQuery = await getSb()
       .from("community_members")
-      .select("user_id")
+      .select("user_id, email_notifications_enabled")
       .eq("community_id", communityId)
       .eq("user_id", currentUserId)
       .maybeSingle();
 
-    isCommunityMember = Boolean(membership) || sameUserId(community.owner_id, currentUserId);
+    if (membershipQuery.error) {
+      const fallback = await getSb()
+        .from("community_members")
+        .select("user_id")
+        .eq("community_id", communityId)
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+      membership = fallback.data;
+      communityEmailNotificationsEnabled = true;
+    } else {
+      membership = membershipQuery.data;
+      if (
+        membership &&
+        typeof membership.email_notifications_enabled === "boolean"
+      ) {
+        communityEmailNotificationsEnabled =
+          membership.email_notifications_enabled;
+      } else {
+        communityEmailNotificationsEnabled = true;
+      }
+    }
+
+    isCommunityMember =
+      Boolean(membership) || sameUserId(community.owner_id, currentUserId);
+  } else {
+    communityEmailNotificationsEnabled = true;
   }
 
   await loadMyJoinRequestStatus();
@@ -1077,6 +1250,7 @@ async function applyAuthToCommunityAccess(user) {
   }
 
   renderCommunityHeader();
+  updateCommunityEmailPrefUi();
   await loadMembers();
   setupCommunityPanelAccordion();
   updateJoinRequestsSectionVisibility();
@@ -1648,6 +1822,11 @@ function renderQuestions() {
       ownerActions.hidden = false;
     }
 
+    window.RekabetliContentReport?.attachPostReportButton(cardEl, question, {
+      currentUserId,
+      onRequireLogin: () => requireLoginForAction(),
+    });
+
     likeBtn.addEventListener("click", async () => {
       if (!requireLoginForAction()) return;
 
@@ -1947,6 +2126,14 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     void joinPublicCommunity();
+  });
+
+  communityEmailPrefToggle?.addEventListener("change", () => {
+    if (communityEmailPrefSaving) {
+      communityEmailPrefToggle.checked = communityEmailNotificationsEnabled !== false;
+      return;
+    }
+    void saveCommunityEmailPreference(Boolean(communityEmailPrefToggle.checked));
   });
 
   panelMembers?.addEventListener("click", (event) => {

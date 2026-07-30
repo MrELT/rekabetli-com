@@ -96,6 +96,10 @@
             <span class="admin-nav-btn-label">Hata Bildirimleri</span>
             <span id="admin-count-panel-error-reports" class="admin-nav-count">0</span>
           </button>
+          <button type="button" class="admin-nav-btn" data-admin-section="content-reports">
+            <span class="admin-nav-btn-label">İçerik Raporları</span>
+            <span id="admin-count-content-reports" class="admin-nav-count">0</span>
+          </button>
         </nav>
       </aside>
 
@@ -494,6 +498,33 @@
                   </tr>
                 </thead>
                 <tbody id="admin-panel-error-reports-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section
+          class="admin-section-view"
+          data-admin-section="content-reports"
+          id="admin-section-content-reports"
+          hidden
+        >
+          <div class="admin-section-card">
+            <div class="admin-table-wrap">
+              <table class="admin-table" id="admin-content-reports-table">
+                <thead>
+                  <tr>
+                    <th>Tarih</th>
+                    <th>Durum</th>
+                    <th>Tür</th>
+                    <th>Raporlayan</th>
+                    <th>Hedef</th>
+                    <th>Özet</th>
+                    <th>Şikayet</th>
+                    <th>İşlem</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-content-reports-body"></tbody>
               </table>
             </div>
           </div>

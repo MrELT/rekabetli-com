@@ -106,12 +106,26 @@
         answerEl.appendChild(ownerActions);
       }
 
-      mountReplySection(answerEl, answer, postId, ctx);
+      const canReportAnswer = Boolean(
+        window.RekabetliContentReport &&
+          (!ctx.currentUserId ||
+            !answer.userId ||
+            String(answer.userId) !== String(ctx.currentUserId)),
+      );
+      mountReplySection(answerEl, answer, postId, ctx, {
+        canReport: canReportAnswer,
+        reportTarget: {
+          targetType: "comment",
+          postId,
+          commentId: answer.id,
+          authorId: answer.userId,
+        },
+      });
       container.appendChild(answerEl);
     });
   }
 
-  function mountReplySection(answerEl, answer, postId, ctx) {
+  function mountReplySection(answerEl, answer, postId, ctx, reportOptions = {}) {
     const replies = answer.replies ?? [];
     const section = document.createElement("div");
     section.className = "answer-replies";
@@ -125,11 +139,25 @@
       section.appendChild(list);
     }
 
+    const actionsRow = document.createElement("div");
+    actionsRow.className = "answer-reply-actions";
+
     const toggleBtn = document.createElement("button");
     toggleBtn.type = "button";
     toggleBtn.className = "secondary answer-reply-toggle-btn";
     toggleBtn.textContent = "Yorum yap";
+    actionsRow.appendChild(toggleBtn);
 
+    if (reportOptions.canReport && reportOptions.reportTarget) {
+      actionsRow.appendChild(
+        window.RekabetliContentReport.createReportButton({
+          ...reportOptions.reportTarget,
+          currentUserId: ctx.currentUserId,
+          onRequireLogin: ctx.onRequireLogin,
+          variant: "secondary",
+        }),
+      );
+    }
     const form = document.createElement("form");
     form.className = "answer-reply-form";
     form.hidden = true;
@@ -224,7 +252,7 @@
       }
     });
 
-    section.append(toggleBtn, form);
+    section.append(actionsRow, form);
     answerEl.appendChild(section);
   }
 
@@ -253,11 +281,11 @@
 
     el.append(header, content);
 
+    const actionsRow = document.createElement("div");
+    actionsRow.className = "answer-reply-actions";
+
     const isOwner = Boolean(ctx.currentUserId && reply.userId && reply.userId === ctx.currentUserId);
     if (isOwner && (ctx.onEditReply || ctx.onDeleteReply)) {
-      const ownerActions = document.createElement("div");
-      ownerActions.className = "answer-owner-actions";
-
       if (ctx.onEditReply) {
         const editBtn = document.createElement("button");
         editBtn.type = "button";
@@ -274,7 +302,7 @@
             alertDialog: ctx.alertDialog,
           });
         });
-        ownerActions.appendChild(editBtn);
+        actionsRow.appendChild(editBtn);
       }
 
       if (ctx.onDeleteReply) {
@@ -285,10 +313,32 @@
         deleteBtn.addEventListener("click", () => {
           void ctx.onDeleteReply(reply, answer, postId);
         });
-        ownerActions.appendChild(deleteBtn);
+        actionsRow.appendChild(deleteBtn);
       }
+    }
 
-      el.appendChild(ownerActions);
+    const canReportReply = Boolean(
+      window.RekabetliContentReport &&
+        (!ctx.currentUserId ||
+          !reply.userId ||
+          String(reply.userId) !== String(ctx.currentUserId)),
+    );
+    if (canReportReply) {
+      actionsRow.appendChild(
+        window.RekabetliContentReport.createReportButton({
+          targetType: "comment",
+          postId,
+          commentId: reply.id,
+          authorId: reply.userId,
+          currentUserId: ctx.currentUserId,
+          onRequireLogin: ctx.onRequireLogin,
+          variant: "secondary",
+        }),
+      );
+    }
+
+    if (actionsRow.childNodes.length) {
+      el.appendChild(actionsRow);
     }
 
     return el;

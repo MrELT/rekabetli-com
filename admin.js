@@ -19,6 +19,7 @@
   const countCommunities = document.getElementById("admin-count-communities");
   const countCampaignJobs = document.getElementById("admin-count-campaign-jobs");
   const countPanelErrorReports = document.getElementById("admin-count-panel-error-reports");
+  const countContentReports = document.getElementById("admin-count-content-reports");
   const countRefunds = document.getElementById("admin-count-refunds");
   const countPayouts = document.getElementById("admin-count-payouts");
   const countPackageSales = document.getElementById("admin-count-package-sales");
@@ -30,6 +31,7 @@
   const packageSalesAmountTotal = document.getElementById("admin-package-sales-amount-total");
   const packageSalesCommissionTotal = document.getElementById("admin-package-sales-commission-total");
   const panelErrorReportsBody = document.getElementById("admin-panel-error-reports-body");
+  const contentReportsBody = document.getElementById("admin-content-reports-body");
   const adminNavButtons = document.querySelectorAll("[data-admin-section].admin-nav-btn");
   const adminSectionViews = document.querySelectorAll(".admin-section-view");
   const adminSectionTitle = document.getElementById("admin-section-title");
@@ -185,6 +187,10 @@
     "panel-error-reports": {
       title: "Hata Bildirimleri",
       desc: "Mentör, danışman ve influencer panellerinden gönderilen hata bildirimlerini inceleyin.",
+    },
+    "content-reports": {
+      title: "İçerik Raporları",
+      desc: "Gönderi ve yorum raporlarını inceleyin; gerekirse içeriği kaldırın.",
     },
   };
 
@@ -1236,6 +1242,137 @@
     });
   }
 
+  function contentReportStatusLabel(status) {
+    if (status === "pending") return "Bekliyor";
+    if (status === "removed") return "Kaldırıldı";
+    if (status === "dismissed") return "Reddedildi";
+    return status || "—";
+  }
+
+  async function resolveContentReport(reportId, action) {
+    const { error } = await supabase.rpc("admin_resolve_content_report", {
+      p_report_id: reportId,
+      p_action: action,
+    });
+    if (error) throw error;
+  }
+
+  async function loadContentReports() {
+    const { data, error } = await supabase.rpc("get_admin_content_reports");
+    if (error) {
+      console.error("content reports:", error.message);
+      if (countContentReports) countContentReports.textContent = "0";
+      if (contentReportsBody) {
+        clearTable(contentReportsBody, "İçerik raporları yüklenemedi.", 8);
+      }
+      throw error;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    const pendingCount = rows.filter((row) => row.status === "pending").length;
+    if (countContentReports) countContentReports.textContent = String(pendingCount);
+
+    contentReportsBody?.replaceChildren();
+    if (!contentReportsBody) return;
+
+    if (!rows.length) {
+      clearTable(contentReportsBody, "Henüz içerik raporu yok.", 8);
+      return;
+    }
+
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      tr.appendChild(createCell(formatDate(row.created_at)));
+      tr.appendChild(createCell(contentReportStatusLabel(row.status)));
+      tr.appendChild(
+        createCell(row.target_type === "comment" ? "Yorum" : "Gönderi"),
+      );
+      tr.appendChild(
+        createCell(
+          `${row.reporter_name?.trim() || "Kullanıcı"}${
+            row.reporter_email ? ` (${row.reporter_email})` : ""
+          }`,
+        ),
+      );
+
+      const targetTd = document.createElement("td");
+      const author = row.target_author_name?.trim() || "Kullanıcı";
+      const community = row.community_name?.trim();
+      targetTd.textContent = community ? `${author} · ${community}` : author;
+      tr.appendChild(targetTd);
+
+      const snippetTd = document.createElement("td");
+      snippetTd.className = "panel-error-desc-cell";
+      snippetTd.textContent = row.target_snippet?.trim() || "—";
+      tr.appendChild(snippetTd);
+
+      const reasonTd = document.createElement("td");
+      reasonTd.className = "panel-error-desc-cell";
+      reasonTd.textContent = row.reason?.trim() || "—";
+      tr.appendChild(reasonTd);
+
+      const actionsTd = document.createElement("td");
+      actionsTd.className = "admin-table-actions";
+
+      if (row.community_id && row.post_id && row.status === "pending") {
+        const link = document.createElement("a");
+        link.className = "secondary admin-table-btn";
+        link.href = `/community?id=${encodeURIComponent(row.community_id)}&post=${encodeURIComponent(row.post_id)}`;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = "Gör";
+        actionsTd.appendChild(link);
+      }
+
+      if (row.status === "pending") {
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "admin-table-btn";
+        removeBtn.textContent = "Kaldır";
+        removeBtn.addEventListener("click", async () => {
+          const ok = window.confirm(
+            "İçerik kalıcı olarak silinecek ve raporlayan bilgilendirilecek. Devam?",
+          );
+          if (!ok) return;
+          try {
+            removeBtn.disabled = true;
+            await resolveContentReport(row.id, "remove");
+            setMessage("İçerik kaldırıldı; raporlayan bilgilendirildi.");
+            await loadContentReports();
+          } catch (err) {
+            console.error("content report remove:", err?.message || err);
+            setMessage("Kaldırma başarısız.", true);
+            removeBtn.disabled = false;
+          }
+        });
+
+        const dismissBtn = document.createElement("button");
+        dismissBtn.type = "button";
+        dismissBtn.className = "secondary admin-table-btn";
+        dismissBtn.textContent = "Reddet";
+        dismissBtn.addEventListener("click", async () => {
+          try {
+            dismissBtn.disabled = true;
+            await resolveContentReport(row.id, "dismiss");
+            setMessage("Rapor reddedildi.");
+            await loadContentReports();
+          } catch (err) {
+            console.error("content report dismiss:", err?.message || err);
+            setMessage("Reddetme başarısız.", true);
+            dismissBtn.disabled = false;
+          }
+        });
+
+        actionsTd.append(removeBtn, dismissBtn);
+      } else {
+        actionsTd.appendChild(document.createTextNode("—"));
+      }
+
+      tr.appendChild(actionsTd);
+      contentReportsBody.appendChild(tr);
+    });
+  }
+
   async function bootstrapAdminPanel() {
     try {
       const adminUser = await ensureAdminAccess();
@@ -1254,6 +1391,7 @@
         ["Ödeme kuyruğu", loadPayoutQueue],
         ["Influencer", loadInfluencerApplications],
         ["Hata bildirimleri", loadPanelErrorReports],
+        ["İçerik raporları", loadContentReports],
       ];
 
       const results = await Promise.allSettled(tasks.map(([, fn]) => fn()));
