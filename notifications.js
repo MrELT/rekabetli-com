@@ -170,7 +170,7 @@
       return row.body_text || `${name} vitrin sayfasını incelemeniz için gönderdi.`;
     }
     if (row.type === "mentor_vitrin_review_approved") {
-      return row.body_text || "Vitrin sayfanız onaylandı.";
+      return row.body_text || "Vitrin sayfanız onaylandı. Mentör ünvanınız aktif.";
     }
     if (row.type === "mentor_vitrin_review_rejected") {
       return row.body_text || "Vitrin sayfanız reddedildi.";

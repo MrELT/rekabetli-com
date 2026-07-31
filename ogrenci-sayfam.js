@@ -1093,7 +1093,7 @@
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("display_name, is_mentor")
+      .select("display_name, is_mentor, user_type")
       .eq("id", currentUser.id)
       .maybeSingle();
 
@@ -1103,7 +1103,11 @@
       return;
     }
 
-    if (profile?.is_mentor) {
+    const canManageMentorPage =
+      Boolean(profile?.is_mentor) ||
+      String(profile?.user_type || "").trim().toLowerCase() === "mentor";
+
+    if (canManageMentorPage) {
       window.location.replace("/mentor-sayfam");
       return;
     }

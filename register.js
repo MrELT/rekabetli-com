@@ -206,9 +206,11 @@ function updateClassLevelVisibility() {
 
 async function ensureLoggedOutRedirect() {
   const { data } = await supabase.auth.getSession();
-  if (data.session) {
-    window.location.href = "/profile";
-  }
+  if (!data.session) return;
+
+  const path =
+    (await window.RekabetliPanelHome?.resolve?.(data.session.user)) || "/ogrenci-sayfam";
+  window.location.href = path;
 }
 
 function areLegalConsentsAccepted() {

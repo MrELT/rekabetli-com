@@ -33,15 +33,36 @@
   const countQuestions = document.getElementById("count-questions");
   const countAnswers = document.getElementById("count-answers");
   const countSaved = document.getElementById("count-saved");
-  const mentorPageAction = document.getElementById("mentor-page-action");
-  const studentPageAction = document.getElementById("student-page-action");
   const influencerPageAction = document.getElementById("influencer-page-action");
   const accordionSections = document.querySelectorAll(".activity-accordion-section");
+  const isStandaloneProfilePage = /\/profile\/?$/i.test(window.location.pathname);
 
   let currentUser = null;
   let savedAvatarUrl = null;
   let pendingAvatarFile = null;
   let removeAvatarOnSave = false;
+  let profileIsMentor = false;
+  let profileUserType = "";
+  let leaveMentorConfirmed = false;
+
+  function isMentorUserType(value) {
+    return String(value || "").trim().toLowerCase() === "mentor";
+  }
+
+  function hasMentorAccess() {
+    return profileIsMentor || isMentorUserType(profileUserType);
+  }
+
+  async function confirmLeaveMentorRole() {
+    return rekabetliConfirm({
+      title: "Mentör tipini değiştir",
+      message:
+        "Kullanıcı tipini Mentör dışına alırsan vitrin sayfan yayın listesinden kaldırılır ve mentör panelin (vitrin verilerin) kalıcı olarak silinir. Bu işlem geri alınamaz. Devam etmek istiyor musun?",
+      confirmLabel: "Evet, değiştir",
+      cancelLabel: "Vazgeç",
+      danger: true,
+    });
+  }
 
   function formatDate(isoDate) {
     return new Date(isoDate).toLocaleString("tr-TR", {
@@ -91,6 +112,7 @@
   }
 
   function updateAvatarPreview(url, displayName) {
+    if (!avatarPreview && !avatarFallback) return;
     const isBlobPreview = String(url ?? "").trim().startsWith("blob:");
     window.RekabetliAvatars?.applyUserAvatar({
       imgEl: avatarPreview,
@@ -101,7 +123,7 @@
       setImgOptions: isBlobPreview ? { allowBlob: true } : undefined,
     });
 
-    removeAvatarBtn.hidden = !url;
+    if (removeAvatarBtn) removeAvatarBtn.hidden = !url;
   }
 
   function applyProfileToForm(profile, metadata) {
@@ -109,29 +131,17 @@
     const lastName = metadata?.last_name ?? "";
     const defaultName = `${firstName} ${lastName}`.trim();
 
-    displayNameInput.value = profile?.display_name?.trim() || defaultName || "";
-    bioInput.value = profile?.bio?.trim() || "";
-    userTypeSelect.value = profile?.user_type?.trim() || metadata?.user_type?.trim() || "";
-    schoolInput.value = profile?.school?.trim() || metadata?.school?.trim() || "";
-    cityInput.value = profile?.city?.trim() || "";
-    phoneInput.value = profile?.phone?.trim() || metadata?.phone?.trim() || "";
+    if (displayNameInput) {
+      displayNameInput.value = profile?.display_name?.trim() || defaultName || "";
+    }
+    if (userTypeSelect) {
+      userTypeSelect.value = profile?.user_type?.trim() || metadata?.user_type?.trim() || "";
+    }
 
     savedAvatarUrl = profile?.avatar_url?.trim() || null;
     pendingAvatarFile = null;
     removeAvatarOnSave = false;
-    updateAvatarPreview(savedAvatarUrl, displayNameInput.value);
-
-    const ratingDisplay = window.RekabetliCommentRatings?.getProfileRatingDisplay(profile);
-    if (profileAnswerRating) {
-      if (ratingDisplay) {
-        const avgText = window.RekabetliCommentRatings.formatAvg(ratingDisplay.avg);
-        profileAnswerRating.textContent = `Yanıtlarınızın ortalama faydalılık puanı: ${avgText} / 5 (${ratingDisplay.count} değerlendirme)`;
-        profileAnswerRating.hidden = false;
-      } else {
-        profileAnswerRating.textContent = "";
-        profileAnswerRating.hidden = true;
-      }
-    }
+    updateAvatarPreview(savedAvatarUrl, displayNameInput?.value);
   }
 
   async function enrichAnswersWithRatings(answers) {
@@ -666,9 +676,7 @@
 
     const { data, error } = await supabase
       .from("profiles")
-      .select(
-        "display_name, bio, avatar_url, city, school, user_type, phone, user_code, is_mentor, answer_rating_sum, answer_rating_count"
-      )
+      .select("display_name, avatar_url, user_type, is_mentor")
       .eq("id", currentUser.id)
       .maybeSingle();
 
@@ -678,15 +686,24 @@
     }
 
     applyProfileToForm(data, currentUser.user_metadata ?? {});
-    applyUserCodeDisplay(data?.user_code);
-    if (data?.is_mentor && profileEmail) {
+    profileIsMentor = Boolean(data?.is_mentor);
+    profileUserType = String(data?.user_type || "").trim();
+
+    const panelHome = window.RekabetliPanelHome?.pathFromProfile?.(data) ||
+      (hasMentorAccess()
+        ? window.RekabetliPanelHome?.MENTOR_HOME || "/mentor-sayfam"
+        : window.RekabetliPanelHome?.STUDENT_HOME || "/ogrenci-sayfam");
+
+    window.RekabetliPanelHome?.setPath?.(currentUser.id, panelHome);
+
+    if (isStandaloneProfilePage) {
+      window.location.replace(panelHome);
+      return;
+    }
+
+    if (profileEmail && profileIsMentor) {
       profileEmail.append(document.createTextNode(" "));
       profileEmail.appendChild(createMentorBadge());
-      if (mentorPageAction) mentorPageAction.hidden = false;
-      if (studentPageAction) studentPageAction.hidden = true;
-    } else {
-      if (mentorPageAction) mentorPageAction.hidden = true;
-      if (studentPageAction) studentPageAction.hidden = false;
     }
 
     const { data: influencerApp } = await supabase.rpc("get_my_influencer_application");
@@ -700,7 +717,7 @@
     void copyUserCodeToClipboard();
   });
 
-  avatarInput.addEventListener("change", async () => {
+  avatarInput?.addEventListener("change", async () => {
     const file = avatarInput.files?.[0];
     if (!file) return;
 
@@ -733,21 +750,21 @@
 
     pendingAvatarFile = selectedFile;
     removeAvatarOnSave = false;
-    updateAvatarPreview(URL.createObjectURL(selectedFile), displayNameInput.value);
-    removeAvatarBtn.hidden = false;
+    updateAvatarPreview(URL.createObjectURL(selectedFile), displayNameInput?.value);
+    if (removeAvatarBtn) removeAvatarBtn.hidden = false;
     if (selectedFile === file) setMessage("");
   });
 
-  removeAvatarBtn.addEventListener("click", () => {
+  removeAvatarBtn?.addEventListener("click", () => {
     pendingAvatarFile = null;
     removeAvatarOnSave = true;
-    avatarInput.value = "";
-    updateAvatarPreview(null, displayNameInput.value);
+    if (avatarInput) avatarInput.value = "";
+    updateAvatarPreview(null, displayNameInput?.value);
     setMessage("Fotoğraf kaydedildiğinde kaldırılacak.");
   });
 
-  displayNameInput.addEventListener("input", () => {
-    if (!avatarPreview.hidden) return;
+  displayNameInput?.addEventListener("input", () => {
+    if (!avatarFallback || (avatarPreview && !avatarPreview.hidden)) return;
     avatarFallback.textContent = getInitials(displayNameInput.value);
   });
 
@@ -774,6 +791,25 @@
     return `${data.publicUrl}?v=${Date.now()}`;
   }
 
+  userTypeSelect?.addEventListener("change", async () => {
+    if (!hasMentorAccess()) {
+      leaveMentorConfirmed = false;
+      return;
+    }
+    if (isMentorUserType(userTypeSelect.value)) {
+      leaveMentorConfirmed = false;
+      return;
+    }
+
+    const confirmed = await confirmLeaveMentorRole();
+    if (!confirmed) {
+      userTypeSelect.value = profileUserType || "Mentor";
+      leaveMentorConfirmed = false;
+      return;
+    }
+    leaveMentorConfirmed = true;
+  });
+
   profileForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     setMessage("");
@@ -787,6 +823,18 @@
     if (!displayName) {
       setMessage("Görünen isim boş olamaz.", true);
       return;
+    }
+
+    const selectedType = userTypeSelect.value.trim();
+    const leavingMentor = hasMentorAccess() && !isMentorUserType(selectedType);
+
+    if (leavingMentor && !leaveMentorConfirmed) {
+      const confirmed = await confirmLeaveMentorRole();
+      if (!confirmed) {
+        userTypeSelect.value = profileUserType || "Mentor";
+        return;
+      }
+      leaveMentorConfirmed = true;
     }
 
     const submitBtn = profileForm.querySelector('button[type="submit"]');
@@ -809,33 +857,71 @@
         }
       }
 
-      const { error } = await supabase.from("profiles").upsert(
-        {
-          id: currentUser.id,
-          email: currentUser.email,
+      if (leavingMentor) {
+        const { error: leaveError } = await supabase.rpc("leave_mentor_role", {
+          p_new_user_type: selectedType || null,
+        });
+        if (leaveError) throw leaveError;
+
+        profileIsMentor = false;
+        profileUserType = selectedType;
+        leaveMentorConfirmed = false;
+        if (profileEmail) {
+          profileEmail.querySelector(".mentor-badge")?.remove();
+        }
+      }
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({
           display_name: displayName,
-          bio: bioInput.value.trim() || null,
           avatar_url: avatarUrl,
-          city: cityInput.value.trim() || null,
-          school: schoolInput.value.trim() || null,
-          user_type: userTypeSelect.value.trim() || null,
-          phone: phoneInput.value.trim() || null,
+          user_type: selectedType || null,
           updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      );
+        })
+        .eq("id", currentUser.id);
 
       if (error) throw error;
 
       savedAvatarUrl = avatarUrl;
       pendingAvatarFile = null;
       removeAvatarOnSave = false;
-      avatarInput.value = "";
+      if (avatarInput) avatarInput.value = "";
       updateAvatarPreview(savedAvatarUrl, displayName);
-      setMessage("Profil başarıyla kaydedildi.");
+      profileUserType = selectedType;
+
+      const panelHome = window.RekabetliPanelHome?.pathFromProfile?.({
+        is_mentor: profileIsMentor,
+        user_type: selectedType,
+      }) ||
+        (hasMentorAccess() ? "/mentor-sayfam" : "/ogrenci-sayfam");
+      window.RekabetliPanelHome?.setPath?.(currentUser.id, panelHome);
+      void window.syncProfileNavState?.(currentUser);
+
+      if (leavingMentor) {
+        setMessage(
+          "Profil kaydedildi. Mentör ünvanın kaldırıldı, vitrinin silindi. Mentör paneline erişimin kapandı.",
+        );
+        if (window.location.pathname.replace(/\/$/, "").endsWith("mentor-sayfam")) {
+          window.location.replace(panelHome);
+          return;
+        }
+      } else if (isMentorUserType(selectedType) && !profileIsMentor) {
+        setMessage("Profil kaydedildi. Mentör panelin açık; vitrinini oluşturup onaya gönderebilirsin.");
+      } else {
+        setMessage("Profil başarıyla kaydedildi.");
+      }
     } catch (error) {
       console.error("Profile save error:", error.message);
-      setMessage(`Profil kaydedilemedi: ${error.message}`, true);
+      const code = error?.message || "";
+      if (code.includes("leave_mentor_role") || code.includes("not_a_mentor")) {
+        setMessage(
+          "Mentörlükten çıkış tamamlanamadı. supabase-leave-mentor-role.sql dosyasını çalıştırın veya tekrar deneyin.",
+          true,
+        );
+      } else {
+        setMessage(`Profil kaydedilemedi: ${error.message}`, true);
+      }
     } finally {
       submitBtn.disabled = false;
     }
@@ -845,6 +931,7 @@
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      window.RekabetliPanelHome?.clear?.();
       window.location.href = "/login";
     } catch (error) {
       console.error("Çıkış hatası:", error.message);

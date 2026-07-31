@@ -1,247 +1,150 @@
-(function initMentorApplication() {
+(function initMentorOnboarding() {
   const supabase = window.getSupabase?.() || window.sb;
-  const sec = window.RekabetliSecurity;
   if (!supabase) return;
 
   const applyBtn = document.getElementById("mentor-apply-btn");
-  const modal = document.getElementById("mentor-application-modal");
-  const closeBtn = document.getElementById("close-mentor-application-modal");
-  const form = document.getElementById("mentor-application-form");
-  const branchesContainer = document.getElementById("mentor-branches-container");
-  const addBranchBtn = document.getElementById("mentor-add-branch-btn");
-  const formMessage = document.getElementById("mentor-application-message");
-  const submitBtn = document.getElementById("mentor-application-submit");
+  const modal = document.getElementById("mentor-onboard-modal");
+  const closeBtn = document.getElementById("close-mentor-onboard-modal");
+  const dismissBtn = document.getElementById("mentor-onboard-dismiss");
+  const goPanelBtn = document.getElementById("mentor-onboard-go-panel");
+  const messageEl = document.getElementById("mentor-onboard-message");
 
-  if (!applyBtn || !modal || !form || !branchesContainer) return;
+  if (!applyBtn || !modal) return;
 
-  const BRANCH_PLACEHOLDERS = [
-    "Örn: Olimpiyat Mentörlüğü",
-    "Örn: Matematik Özel Dersi",
-    "Örn: Fizik Proje Danışmanlığı",
-    "Örn: YKS Koçluğu",
-    "Örn: TEKNOFEST Mentörlüğü",
-  ];
-  const MIN_BRANCH_FIELDS = 2;
-  const MAX_BRANCH_FIELDS = 8;
+  const MENTOR_USER_TYPE = "Mentor";
 
-  let branchFieldCount = MIN_BRANCH_FIELDS;
-
-  function setFormMessage(text, isError = false) {
-    if (!formMessage) return;
+  function setMessage(text, isError = false) {
+    if (!messageEl) return;
     if (!text) {
-      formMessage.hidden = true;
-      formMessage.textContent = "";
-      formMessage.classList.remove("is-error");
+      messageEl.hidden = true;
+      messageEl.textContent = "";
+      messageEl.classList.remove("is-error");
       return;
     }
-    formMessage.hidden = false;
-    formMessage.textContent = text;
-    formMessage.classList.toggle("is-error", isError);
-  }
-
-  function splitDisplayName(displayName) {
-    const parts = String(displayName || "")
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
-    if (!parts.length) return { firstName: "", lastName: "" };
-    if (parts.length === 1) return { firstName: parts[0], lastName: "" };
-    return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
-  }
-
-  function createBranchField(index) {
-    const wrap = document.createElement("div");
-    wrap.className = "mentor-branch-field";
-
-    const label = document.createElement("label");
-    label.textContent = `Mentörlük branşı ${index + 1}`;
-    label.setAttribute("for", `mentor-branch-${index}`);
-
-    const input = document.createElement("input");
-    input.type = "text";
-    input.id = `mentor-branch-${index}`;
-    input.name = "mentoring_branch";
-    input.maxLength = 120;
-    input.required = index < MIN_BRANCH_FIELDS;
-    input.placeholder = BRANCH_PLACEHOLDERS[index % BRANCH_PLACEHOLDERS.length];
-    input.autocomplete = "off";
-
-    wrap.append(label, input);
-    return wrap;
-  }
-
-  function renderBranchFields(values = []) {
-    branchesContainer.replaceChildren();
-    for (let i = 0; i < branchFieldCount; i += 1) {
-      const field = createBranchField(i);
-      const input = field.querySelector("input");
-      if (input && values[i]) {
-        input.value = sec?.sanitizeBranchText ? sec.sanitizeBranchText(values[i], 120) : values[i];
-      }
-      branchesContainer.appendChild(field);
-    }
-    if (addBranchBtn) {
-      addBranchBtn.hidden = branchFieldCount >= MAX_BRANCH_FIELDS;
-    }
-  }
-
-  function collectBranches() {
-    const raw = [...branchesContainer.querySelectorAll('input[name="mentoring_branch"]')].map((input) =>
-      String(input.value ?? "")
-    );
-    return sec?.sanitizeBranchList ? sec.sanitizeBranchList(raw, MAX_BRANCH_FIELDS, 120) : raw.map((v) => v.trim()).filter(Boolean);
-  }
-
-  function hasUnsafeInput(values) {
-    if (!sec?.containsMarkupAttempt) return false;
-    return values.some((value) => sec.containsMarkupAttempt(value));
-  }
-
-  function readSanitizedFormFields() {
-    const rawFirst = document.getElementById("mentor-first-name")?.value ?? "";
-    const rawLast = document.getElementById("mentor-last-name")?.value ?? "";
-    const rawEmail = document.getElementById("mentor-email")?.value ?? "";
-    const rawPhone = document.getElementById("mentor-phone")?.value ?? "";
-    const branchInputs = [...branchesContainer.querySelectorAll('input[name="mentoring_branch"]')].map(
-      (input) => input.value ?? ""
-    );
-
-    if (
-      hasUnsafeInput([rawFirst, rawLast, rawEmail, rawPhone, ...branchInputs])
-    ) {
-      return { error: "HTML, script veya geçersiz bağlantı içeriği kullanılamaz." };
-    }
-
-    const firstName = sec?.sanitizePersonName ? sec.sanitizePersonName(rawFirst, 80) : String(rawFirst).trim();
-    const lastName = sec?.sanitizePersonName ? sec.sanitizePersonName(rawLast, 80) : String(rawLast).trim();
-    const email = sec?.sanitizeEmail ? sec.sanitizeEmail(rawEmail, 120) : String(rawEmail).trim().toLowerCase();
-    const phone = sec?.sanitizePhone ? sec.sanitizePhone(rawPhone, 20) : String(rawPhone).trim();
-    const branches = collectBranches();
-    const weeklySessions = Number.parseInt(
-      String(document.getElementById("mentor-weekly-sessions")?.value ?? ""),
-      10
-    );
-
-    return { firstName, lastName, email, phone, branches, weeklySessions };
-  }
-
-  async function loadApplicantDefaults() {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) return null;
-
-    const meta = user.user_metadata ?? {};
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("display_name, phone, email")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    const fromMeta = {
-      firstName: String(meta.first_name ?? "").trim(),
-      lastName: String(meta.last_name ?? "").trim(),
-    };
-    const fromDisplay = splitDisplayName(profile?.display_name);
-
-    return {
-      userId: user.id,
-      firstName: fromMeta.firstName || fromDisplay.firstName,
-      lastName: fromMeta.lastName || fromDisplay.lastName,
-      email: profile?.email?.trim() || user.email || "",
-      phone: profile?.phone?.trim() || String(meta.phone ?? "").trim(),
-    };
-  }
-
-  async function fillFormFromProfile() {
-    const defaults = await loadApplicantDefaults();
-    if (!defaults) return;
-
-    const firstNameInput = document.getElementById("mentor-first-name");
-    const lastNameInput = document.getElementById("mentor-last-name");
-    const emailInput = document.getElementById("mentor-email");
-    const phoneInput = document.getElementById("mentor-phone");
-
-    if (firstNameInput) {
-      firstNameInput.value = sec?.sanitizePersonName
-        ? sec.sanitizePersonName(defaults.firstName, 80)
-        : defaults.firstName;
-    }
-    if (lastNameInput) {
-      lastNameInput.value = sec?.sanitizePersonName
-        ? sec.sanitizePersonName(defaults.lastName, 80)
-        : defaults.lastName;
-    }
-    if (emailInput) {
-      emailInput.value = sec?.sanitizeEmail ? sec.sanitizeEmail(defaults.email, 120) : defaults.email;
-    }
-    if (phoneInput) {
-      phoneInput.value = sec?.sanitizePhone ? sec.sanitizePhone(defaults.phone, 20) : defaults.phone;
-    }
-
-    const { data: existing } = await supabase
-      .from("mentor_applications")
-      .select("mentoring_branches, weekly_sessions")
-      .eq("user_id", defaults.userId)
-      .maybeSingle();
-
-    const safeBranches = sec?.sanitizeBranchList
-      ? sec.sanitizeBranchList(existing?.mentoring_branches ?? [], MAX_BRANCH_FIELDS, 120)
-      : (existing?.mentoring_branches ?? []).filter(Boolean);
-
-    if (safeBranches.length) {
-      branchFieldCount = Math.max(MIN_BRANCH_FIELDS, safeBranches.length);
-      renderBranchFields(safeBranches);
-    } else {
-      branchFieldCount = MIN_BRANCH_FIELDS;
-      renderBranchFields();
-    }
-
-    const weeklyInput = document.getElementById("mentor-weekly-sessions");
-    if (weeklyInput && existing?.weekly_sessions) {
-      weeklyInput.value = String(existing.weekly_sessions);
-    }
+    messageEl.hidden = false;
+    messageEl.textContent = text;
+    messageEl.classList.toggle("is-error", isError);
   }
 
   function openModal() {
+    setMessage("");
     modal.hidden = false;
-    document.body.classList.add("question-modal-open");
-    setFormMessage("");
-    fillFormFromProfile();
-    document.getElementById("mentor-first-name")?.focus();
+    document.body.style.overflow = "hidden";
+    closeBtn?.focus();
   }
 
   function closeModal() {
     modal.hidden = true;
-    document.body.classList.remove("question-modal-open");
-    setFormMessage("");
+    document.body.style.overflow = "";
+    setMessage("");
   }
 
-  function getMentorAppReturnUrl() {
+  function getOnboardReturnUrl() {
     const path = window.location.pathname.replace(/\/index\.html$/i, "") || "/";
-    if (path === "/") {
-      return "/?openMentorApp=1";
+    if (path === "/") return "/?openMentorOnboard=1";
+    return "/kimler-icin?openMentorOnboard=1#mentorler";
+  }
+
+  function clearOnboardQuery() {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("openMentorOnboard") && !params.has("openMentorApp")) return;
+    params.delete("openMentorOnboard");
+    params.delete("openMentorApp");
+    const path = window.location.pathname.replace(/\/index\.html$/i, "") || "/";
+    const hash = path === "/" ? "" : window.location.hash || "";
+    const query = params.toString();
+    const base = path === "/" ? "/" : path;
+    window.history.replaceState({}, "", query ? `${base}?${query}${hash}` : `${base}${hash}`);
+  }
+
+  async function becomeMentor(sessionUser) {
+    const { data: profile, error: loadError } = await supabase
+      .from("profiles")
+      .select("id, user_type, is_mentor, display_name, email, phone")
+      .eq("id", sessionUser.id)
+      .maybeSingle();
+
+    if (loadError) throw loadError;
+
+    const alreadyMentorType =
+      String(profile?.user_type || "").trim().toLowerCase() === "mentor" || profile?.is_mentor;
+
+    if (alreadyMentorType) {
+      window.RekabetliPanelHome?.setPath?.(sessionUser.id, "/mentor-sayfam");
+      void window.syncProfileNavState?.(sessionUser);
+      return { already: true, profile };
     }
-    return "/kimler-icin?openMentorApp=1#mentorler";
+
+    const meta = sessionUser.user_metadata || {};
+    const displayName =
+      profile?.display_name?.trim() ||
+      [meta.first_name, meta.last_name].filter(Boolean).join(" ").trim() ||
+      sessionUser.email?.split("@")[0] ||
+      "Mentör";
+
+    const { error: saveError } = await supabase.from("profiles").upsert(
+      {
+        id: sessionUser.id,
+        email: profile?.email || sessionUser.email || null,
+        display_name: displayName,
+        phone: profile?.phone || meta.phone || null,
+        user_type: MENTOR_USER_TYPE,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
+
+    if (saveError) throw saveError;
+
+    window.RekabetliPanelHome?.setPath?.(sessionUser.id, "/mentor-sayfam");
+    void window.syncProfileNavState?.(sessionUser);
+
+    return { already: false, profile };
   }
 
   async function handleApplyClick() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    applyBtn.disabled = true;
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    if (!session) {
-      window.location.href = `/login?redirect=${encodeURIComponent(getMentorAppReturnUrl())}`;
-      return;
+      if (!session) {
+        window.location.href = `/login?redirect=${encodeURIComponent(getOnboardReturnUrl())}`;
+        return;
+      }
+
+      await becomeMentor(session.user);
+      openModal();
+    } catch (error) {
+      console.error("mentor onboard:", error);
+      const msg =
+        error?.message ||
+        "Mentör tipi ayarlanamadı. Lütfen tekrar deneyin veya profil sayfanızdan kullanıcı tipini Mentör olarak kaydedin.";
+      if (typeof window.rekabetliAlert === "function") {
+        await window.rekabetliAlert({
+          title: "Mentör olamadı",
+          message: msg,
+          confirmLabel: "Tamam",
+        });
+      } else {
+        window.alert(msg);
+      }
+    } finally {
+      applyBtn.disabled = false;
     }
-
-    openModal();
   }
 
-  applyBtn.addEventListener("click", handleApplyClick);
+  applyBtn.addEventListener("click", () => {
+    void handleApplyClick();
+  });
+
   closeBtn?.addEventListener("click", closeModal);
+  dismissBtn?.addEventListener("click", closeModal);
+
+  goPanelBtn?.addEventListener("click", () => {
+    window.location.href = "/mentor-sayfam";
+  });
 
   modal.addEventListener("click", (event) => {
     if (event.target === modal) closeModal();
@@ -251,108 +154,19 @@
     if (event.key === "Escape" && !modal.hidden) closeModal();
   });
 
-  addBranchBtn?.addEventListener("click", () => {
-    if (branchFieldCount >= MAX_BRANCH_FIELDS) return;
-    const values = collectBranches();
-    branchFieldCount += 1;
-    renderBranchFields(values);
-    const lastInput = branchesContainer.querySelector(".mentor-branch-field:last-child input");
-    lastInput?.focus();
-  });
-
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    setFormMessage("");
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      window.location.href = `/login?redirect=${encodeURIComponent(getMentorAppReturnUrl())}`;
-      return;
-    }
-
-    const parsed = readSanitizedFormFields();
-    if (parsed.error) {
-      setFormMessage(parsed.error, true);
-      return;
-    }
-
-    const { firstName, lastName, email, phone, branches, weeklySessions } = parsed;
-
-    if (!firstName || !lastName) {
-      setFormMessage("Ad ve soyad zorunludur.", true);
-      return;
-    }
-    if (!email || !(sec?.isValidEmail ? sec.isValidEmail(email) : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
-      setFormMessage("Geçerli bir e-posta adresi girin.", true);
-      return;
-    }
-    if (branches.length < MIN_BRANCH_FIELDS) {
-      setFormMessage(`En az ${MIN_BRANCH_FIELDS} mentörlük branşı girmelisiniz.`, true);
-      return;
-    }
-    if (!Number.isFinite(weeklySessions) || weeklySessions < 1 || weeklySessions > 60) {
-      setFormMessage("Haftalık oturum sayısı 1 ile 60 arasında olmalıdır (1 oturum = 1 saat).", true);
-      return;
-    }
-
-    if (submitBtn) submitBtn.disabled = true;
-
-    const row = {
-      user_id: session.user.id,
-      first_name: firstName,
-      last_name: lastName,
-      email,
-      phone: phone || null,
-      mentoring_branches: branches,
-      weekly_sessions: weeklySessions,
-      status: "pending",
-      updated_at: new Date().toISOString(),
-    };
-
-    const { error } = await supabase.from("mentor_applications").upsert(row, { onConflict: "user_id" });
-
-    if (submitBtn) submitBtn.disabled = false;
-
-    if (error) {
-      console.error("Mentor application save error:", error.message);
-      setFormMessage(
-        "Ön kayıt kaydedilemedi. mentor_applications tablosu ve SQL dosyasının çalıştırıldığından emin olun.",
-        true
-      );
-      return;
-    }
-
-    await rekabetliAlert({
-      title: "Ön kayıt alındı",
-      message:
-        "Mentör adayı başvurunuz alındı. Ödeme sistemleri aktif olduğunda ve eşleştirme süreci başladığında sizinle iletişime geçeceğiz.",
-      confirmLabel: "Tamam",
-    });
-
-    closeModal();
-  });
-
-  renderBranchFields();
-
   const params = new URLSearchParams(window.location.search);
-  if (params.get("openMentorApp") === "1") {
+  if (params.get("openMentorOnboard") === "1" || params.get("openMentorApp") === "1") {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        openModal();
-        params.delete("openMentorApp");
-        const path = window.location.pathname.replace(/\/index\.html$/i, "") || "/";
-        const hash = path === "/" ? "" : window.location.hash || "#mentorler";
-        const query = params.toString();
-        const base = path === "/" ? "/" : path;
-        window.history.replaceState(
-          {},
-          "",
-          query ? `${base}?${query}${hash}` : `${base}${hash}`
-        );
-      }
+      if (!data.session) return;
+      void becomeMentor(data.session.user)
+        .then(() => {
+          openModal();
+          clearOnboardQuery();
+        })
+        .catch((error) => {
+          console.error("mentor onboard auto:", error);
+          clearOnboardQuery();
+        });
     });
   }
 })();

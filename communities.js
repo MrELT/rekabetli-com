@@ -47,14 +47,23 @@ function closeQuestionModal() {
 }
 
 // --- Veritabanı ve Oturum İşlemleri ---
-async function syncProfileNavState() {
+async function syncCommunitiesProfileNav() {
+  if (typeof window.syncProfileNavState === "function") {
+    await window.syncProfileNavState();
+    return;
+  }
+
   const { data, error } = await supabaseClient.auth.getSession();
   if (error) {
     console.error("Session check error:", error.message);
   }
   const isLoggedIn = Boolean(data?.session);
   const label = isLoggedIn ? "Profil" : "Giriş Yap";
-  const targetHref = isLoggedIn ? "/profile" : "/login";
+  let targetHref = isLoggedIn ? "/ogrenci-sayfam" : "/login";
+
+  if (isLoggedIn && window.RekabetliPanelHome?.resolve) {
+    targetHref = await window.RekabetliPanelHome.resolve(data.session.user);
+  }
 
   if (desktopProfileBtn) {
     desktopProfileBtn.textContent = label;
@@ -316,9 +325,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // İlk Yüklemeler
   supabaseClient.auth.onAuthStateChange(() => {
-    syncProfileNavState();
+    syncCommunitiesProfileNav();
   });
 
-  syncProfileNavState();
+  syncCommunitiesProfileNav();
   loadPosts();
 });

@@ -1222,13 +1222,13 @@
           "Sayfanız admin incelemesinde. Onaylanana kadar vitrin listesinde görünmez; düzenlemeye devam edebilirsiniz.";
       } else if (status === "approved") {
         descEl.textContent =
-          "Sayfanız onaylandı ve vitrin listesinde görünür. Ödeme hesabı ve görüşme bağlantısı paket satışları için gereklidir; aşağıdan Aktif/Meşgul durumunu yönetebilirsiniz.";
+          "Sayfanız onaylandı; mentör ünvanınız aktif. Ödeme hesabı ve görüşme bağlantısı paket satışları için gereklidir; aşağıdan Aktif/Meşgul durumunu yönetebilirsiniz.";
       } else if (status === "rejected") {
         descEl.textContent =
           "Sayfanız reddedildi. Gerekli düzenlemeleri yapıp koşulları tekrar kabul ederek incelemeye gönderebilirsiniz.";
       } else {
         descEl.textContent =
-          "Vitrin alanlarını doldurduktan sonra koşulları kabul edip sayfanızı incelemeye gönderin.";
+          "Vitrin alanlarını doldurduktan sonra koşulları kabul edip sayfanızı incelemeye gönderin. Onaylandığında mentör ünvanınız aktif olur.";
       }
     }
 
@@ -1246,7 +1246,7 @@
         infoEl.className = "mentor-vitrin-publish-info is-approved";
         infoEl.innerHTML =
           "<p class=\"mentor-vitrin-publish-info-title\">Sayfanız onaylandı</p>" +
-          "<p class=\"mentor-vitrin-publish-info-note\">Vitrin sayfanız admin tarafından onaylandı. " +
+          "<p class=\"mentor-vitrin-publish-info-note\">Vitrin sayfanız onaylandı ve mentör ünvanınız aktif. " +
           "Ödeme hesabı ve görüşme bağlantınız tamamlandığında mentör listesinde görünür; " +
           "öğrenciler paketlerinizi satın alabilir.</p>";
       } else if (status === "rejected") {
@@ -1259,7 +1259,7 @@
           "<li>Koşulları tekrar kabul edin.</li>" +
           "<li><strong>Vitrini incelemeye gönder</strong> butonuna tıklayın.</li>" +
           "</ol>" +
-          "<p class=\"mentor-vitrin-publish-info-note\">Onaylandıktan sonra sayfanız aktive edilir.</p>";
+          "<p class=\"mentor-vitrin-publish-info-note\">Onaylandıktan sonra mentör ünvanınız aktif olur ve sayfanız yayınlanabilir.</p>";
       } else {
         infoEl.hidden = false;
         infoEl.className = "mentor-vitrin-publish-info is-draft";
@@ -1270,8 +1270,8 @@
           "<li>Aşağıdaki koşulları okuyup kabul edin.</li>" +
           "<li><strong>Vitrini incelemeye gönder</strong> butonuna tıklayın.</li>" +
           "</ol>" +
-          "<p class=\"mentor-vitrin-publish-info-note\">Admin onayından sonra sayfanız aktive edilir; " +
-          "mentör listesinde görünür ve öğrenciler paketlerinizi satın alabilir.</p>";
+          "<p class=\"mentor-vitrin-publish-info-note\">Admin onayından sonra mentör ünvanınız aktif olur; " +
+          "sayfanız mentör listesinde yayınlanabilir ve öğrenciler paketlerinizi satın alabilir.</p>";
       }
     }
 
@@ -4359,7 +4359,7 @@
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("display_name, is_mentor")
+      .select("display_name, is_mentor, user_type")
       .eq("id", currentUser.id)
       .maybeSingle();
 
@@ -4369,8 +4369,12 @@
       return;
     }
 
-    if (!profile?.is_mentor) {
-      window.location.replace("/profile");
+    const canManageMentorPage =
+      Boolean(profile?.is_mentor) ||
+      String(profile?.user_type || "").trim().toLowerCase() === "mentor";
+
+    if (!canManageMentorPage) {
+      window.location.replace("/ogrenci-sayfam");
       return;
     }
 

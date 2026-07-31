@@ -124,8 +124,6 @@
             <section class="panel auth-panel profile-panel">
               <h1>Profilim</h1>
               <p id="profile-email" class="auth-subtitle"></p>
-              <p id="profile-answer-rating" class="profile-answer-rating" hidden></p>
-
               <p class="profile-activity-hint">Bölümleri açmak için başlığa tıklayın.</p>
 
               <div class="activity-accordion profile-page-accordion" id="profile-activity" aria-label="Profil ve aktiviteler">
@@ -165,44 +163,14 @@
                       <label for="displayName">Görünen İsim</label>
                       <input id="displayName" name="displayName" type="text" maxlength="50" required />
 
-                      <label for="bio">Kendini Tanıt</label>
-                      <textarea
-                        id="bio"
-                        name="bio"
-                        rows="4"
-                        maxlength="500"
-                        placeholder="İlgi alanların, hedeflerin veya kendinden kısaca bahset..."
-                      ></textarea>
-
                       <label for="userType">Kullanıcı Tipi</label>
                       <select id="userType" name="userType">
                         <option value="">Seçiniz</option>
                         <option value="Ogrenci">Öğrenci</option>
                         <option value="Ogretmen">Öğretmen</option>
                         <option value="Veli">Veli</option>
+                        <option value="Mentor">Mentör</option>
                       </select>
-
-                      <label for="school">Okul / Kurum</label>
-                      <input id="school" name="school" type="text" maxlength="120" placeholder="Örn: Ankara Fen Lisesi" />
-
-                      <label for="city">Şehir</label>
-                      <input id="city" name="city" type="text" maxlength="80" placeholder="Örn: İstanbul" />
-
-                      <label for="phone">Telefon</label>
-                      <input id="phone" name="phone" type="tel" maxlength="20" placeholder="05xx xxx xx xx" />
-
-                      <div class="profile-user-code-block">
-                        <label for="profile-user-code">Kullanıcı kodunuz</label>
-                        <div class="profile-user-code-row">
-                          <output id="profile-user-code" class="profile-user-code-value" for="profile-user-code-display">—</output>
-                          <button id="profile-user-code-copy" class="secondary profile-user-code-copy" type="button" hidden>
-                            Kopyala
-                          </button>
-                        </div>
-                        <p class="profile-hint profile-user-code-hint">
-                          Bu kod değiştirilemez. Mentörünüz sizi panele eklemek için bu kodu sizden isteyebilir.
-                        </p>
-                      </div>
 
                       <button type="submit">Profili Kaydet</button>
                       <button id="profile-delete-btn" class="secondary profile-delete-btn" type="button">
@@ -262,6 +230,16 @@
                   </button>
                   <div id="panel-saved" class="activity-accordion-panel" role="region" aria-labelledby="trigger-saved"></div>
                 </section>
+              </div>
+
+              <div id="influencer-page-action" class="profile-mentor-action" hidden>
+                <a
+                  id="influencer-page-btn"
+                  class="nav-btn full-width auth-link-btn"
+                  href="/influencer-sayfam"
+                >
+                  Influencer Panelim
+                </a>
               </div>
 
               <div class="auth-actions">
