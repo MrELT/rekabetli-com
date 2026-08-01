@@ -80,12 +80,27 @@ export async function POST(request: Request) {
     return jsonError("branch_required", 400);
   }
 
-  const attachments = parseChatAttachments(bodyObj.attachments).filter(
+  const parsedAttachments = parseChatAttachments(bodyObj.attachments).filter(
     (item): item is NotalChatAttachmentInput => item.kind === "image",
   );
-  if (attachments.length > MAX_TRIAL_ANALYSIS_IMAGES) {
+  if (parsedAttachments.length > MAX_TRIAL_ANALYSIS_IMAGES) {
     return jsonError("too_many_attachments", 400);
   }
+
+  const rawAttachments = Array.isArray(bodyObj.attachments)
+    ? bodyObj.attachments
+    : [];
+  const attachments = parsedAttachments.map((item, index) => {
+    const raw =
+      rawAttachments[index] && typeof rawAttachments[index] === "object"
+        ? (rawAttachments[index] as Record<string, unknown>)
+        : {};
+    const mistakeKind: "wrong" | "blank" | null =
+      raw.mistakeKind === "wrong" || raw.mistakeKind === "blank"
+        ? raw.mistakeKind
+        : null;
+    return { ...item, mistakeKind };
+  });
 
   const result = await createTrialAnalysis({
     userId: auth.user.id,
@@ -102,16 +117,35 @@ export async function POST(request: Request) {
       branchNet: parseNet(bodyObj.branchNet),
       wrongCount: parseCount(bodyObj.wrongCount),
       blankCount: parseCount(bodyObj.blankCount),
+      branchStats: Array.isArray(bodyObj.branchStats)
+        ? bodyObj.branchStats.map((item) => {
+            const row =
+              item && typeof item === "object"
+                ? (item as Record<string, unknown>)
+                : {};
+            return {
+              branch: typeof row.branch === "string" ? row.branch : "",
+              net: parseNet(row.net),
+              wrongCount: parseCount(row.wrongCount),
+              blankCount: parseCount(row.blankCount),
+            };
+          })
+        : [],
       attachments,
     },
   });
 
   if (!result.ok) {
     const status =
-      result.error === "branch_required"
-        ? 400
-        : result.error === "service_role_not_configured"
-          ? 503
+      result.error === "service_role_not_configured"
+        ? 503
+        : result.error === "branch_required" ||
+            result.error === "invalid_stats" ||
+            result.error === "aborted" ||
+            /net|boş|yanlış|soru|tutarsız|mümkün değil|Branş|fotoğraf/i.test(
+              result.error,
+            )
+          ? 400
           : 500;
     return jsonError(result.error, status);
   }

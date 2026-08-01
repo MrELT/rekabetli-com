@@ -9,6 +9,7 @@ import {
   extractOutputText,
 } from "@/lib/notal/openai-helpers";
 import { runPlannerAgent } from "@/lib/notal/planner/agent";
+import { runPlanCommittee } from "@/lib/notal/plan-committee";
 import {
   buildOrchestratorUserContent,
   type NotalChatAttachmentInput,
@@ -51,27 +52,37 @@ Türkçe, net ve yardımcı konuş.
 - Örnek: Sadece Dil → yks_area: "Dil", enabled_exams: ["YDS"].
 - Sınıf bilgisi öğrenildiğinde class_level alanını da güncelle.
 - Hedef sıralama eksikse öğren (örn. "İlk 10.000", "5.000") ve update_student_context(target_rank) ile kaydet.
-- Hedef sıralama + YKS alanı biliniyorsa, sistem bağlamındaki "Hedef net rehberi"ni kullan: öğrenciye önceki yıla göre TYT/AYT (Dil için YDT) ortalama hedef netlerini kısaca belirt. Tahmini olduğunu söyle; kesin sıralama sınav zorluğuna göre değişir.
+- Hedef sıralama + YKS alanı biliniyorsa, sistem bağlamındaki "Hedef net rehberi"ni kullan. Bunun ortalama bir tahmin olduğunu ve sınavın zorluğuna göre değişebileceğini söyle; yıl referansı verme.
 - Son deneme netleri eksikse öğren; en az son 1, mümkünse son 3 deneme (TYT/AYT/YDS netleri) ve update_student_context(trial_exam veya trial_exams) ile kaydet.
 - Öğrenci yeni deneme sonucu paylaştığında trial_exam ile ekle; en fazla son 3 deneme tutulur.
 - Eğer sınav hedefi (TYT / AYT / YDS) verilmişse bunu plana yansıt.
 - Sınav hedefi (TYT / AYT / YDS) eksikse: plan/takvim isteğinde sor ve ask_student_choice(question_type: exam_target) çağır.
-- Bu 2 bilgi netleşene kadar Planner'a (takvim/plan araçları) devretme; önce cevap al.
+- Bu 2 bilgi netleşene kadar Planner'a (takvim/plan araçları) veya plan komitesine devretme; önce cevap al.
 
-Elindeki ajan:
-- Planner: günlük/haftalık çalışma planı oluşturur, günceller, listeler, siler.
-  Takvim işleri için delegate_to_planner aracını kullan; komutu Türkçe ve net yaz.
-  Örnek komutlar: "yarın 09:00-12:00 matematik planı ekle", "cumartesi tüm planları sil", "pazartesi bloğunu 14:00'a taşı".
+Elindeki ajanlar:
+- Plan komitesi (consult_plan_committee): büyük akademik planlamada PDR + sınav uzmanından kısa görüş toplar.
+  Haftalık/günlük program kurma, sıfırdan plan, ciddi plan revizyonu için önce bunu kullan.
+  Komite karar vermez; nihai kararı SEN verirsin.
+- Planner (delegate_to_planner): takvime yazar (ekleme/silme/taşıma). Küçük işlemlerde doğrudan,
+  büyük planlamada komite görüşünden sonra senin sentezlediğin komutla çağır.
+
+Plan komitesi kuralları:
+- Büyük planlama isteğinde önce consult_plan_committee çağır.
+- Dönen PDR/sınav görüşlerini oku; hard veto varsa planı olduğu gibi yazma, revize et veya eksik bilgi sor.
+- Soft önerileri mümkünse planner komutuna yedir.
+- Kararını verdikten sonra delegate_to_planner ile uygula; onay sorma.
+- Komite tartışmasını öğrenciye uzun uzun aktarma; kısa gerekçe + yapılan plan yeterli.
+- Küçük takvim işlemlerinde komite ÇAĞIRMA; doğrudan delegate_to_planner kullan.
 
 Takvim davranışı (çok önemli):
 - Takvim ekleme/güncelleme/silme için ASLA onay bekleme.
 - "Onaylıyor musun?", "Ekleyeyim mi?", "İstersen yapabilirim" gibi ifadeler kullanma.
-- Kullanıcı takvim isteği verdiğinde önce delegate_to_planner ile değişikliği UYGULA, sonra ne yaptığını kısa ve net bildir.
+- Küçük takvim isteğinde önce delegate_to_planner ile değişikliği UYGULA, sonra ne yaptığını kısa ve net bildir.
 - Sadece gerçekten eksik bilgi varsa (tarih, saat, ders) sor; bu bir onay değil, bilgi tamamlama sorusudur.
 - Google Takvim bağlıysa Planner değişiklikleri otomatik senkronize eder; kullanıcıdan ayrıca onay isteme.
 
 Takvim UI NotAl içinde "Takvim" menüsünde görünür.
-Genel sohbet, motivasyon ve ders anlatımında doğrudan yanıt ver; takvim/plan için Planner'a devret.
+Genel sohbet, motivasyon ve ders anlatımında doğrudan yanıt ver; büyük plan için komiteye, küçük takvim için Planner'a devret.
 Görsel veya PDF paylaşılırsa: soru çözümü SEN YAPMA. Sadece sınıflandırıp solve_question çağır.
 
 Soru çözme (çok kritik — asla ihlal etme):
@@ -188,7 +199,7 @@ export const ORCHESTRATOR_TOOLS = [
     strict: false,
     name: "delegate_to_planner",
     description:
-      "Takvim/plan işlerini doğrudan uygular (onay beklemeden): ekleme, güncelleme, silme, listeleme. İşlem sonrası kullanıcıya yapılan değişikliği bildir.",
+      "Küçük takvim/plan işlerini doğrudan uygular (onay beklemeden): tek blok ekleme, güncelleme, silme, listeleme. Haftalık/büyük program için consult_plan_committee kullan.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -200,6 +211,25 @@ export const ORCHESTRATOR_TOOLS = [
         },
       },
       required: ["command"],
+    },
+  },
+  {
+    type: "function" as const,
+    strict: false,
+    name: "consult_plan_committee",
+    description:
+      "Büyük akademik planlama için PDR + sınav uzmanından paralel görüş alır. Karar vermez; görüşleri sana döner. Sen karar verip ardından delegate_to_planner çağırırsın. Küçük tek blok işlemlerinde kullanma.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        request: {
+          type: "string",
+          description:
+            "Komiteye iletilecek planlama talebi. Öğrenci isteği + bilinen kısıtlar (müsait saatler, sınav tarihi, odak dersler) net yazılsın.",
+        },
+      },
+      required: ["request"],
     },
   },
   {
@@ -342,7 +372,7 @@ export async function* runNotalOrchestrator(options: {
   const targetNets = estimateTargetNets(contextTargetRank, contextYksArea);
   if (targetNets) {
     studentLines.push(
-      `Hedef net rehberi (${targetNets.referenceYear}): ${formatTargetNetHint(targetNets)}`,
+      `Hedef net rehberi: ${formatTargetNetHint(targetNets)}`,
     );
   }
   if (contextTrialExams.length) {
@@ -369,13 +399,21 @@ export async function* runNotalOrchestrator(options: {
   const lastUser =
     [...options.messages].reverse().find((m) => m.role === "user") ?? null;
   const lastUserMessage = lastUser?.content ?? "";
-  if (
-    /takvim|plan|program|çalışma\s*plan|calisma\s*plan|yarın|yarin|hafta|saat|ekle|sil|taşı|tasi|güncelle|guncelle/i.test(
+  const isMajorPlanRequest =
+    /haftal[ıi]k\s*plan|çalışma\s*plan[ıi]|calisma\s*plan[ıi]|günlük\s*program|gunluk\s*program|program\s*oluştur|program\s*olustur|sıfırdan\s*plan|sifirdan\s*plan|yeniden\s*plan|planımı\s*yenile|planimi\s*yenile|yoğun\s*program|yogun\s*program|ders\s*program/i.test(
       lastUserMessage,
-    )
-  ) {
+    );
+  const isMinorCalendarRequest =
+    /takvim|yarın|yarin|ekle|sil|taşı|tasi|güncelle|guncelle|blok/i.test(
+      lastUserMessage,
+    );
+  if (isMajorPlanRequest) {
     studentLines.push(
-      "Son mesaj takvim/plan isteği: delegate_to_planner ile doğrudan uygula; onay sorma; işlem sonrası yapılanı bildir.",
+      "Son mesaj büyük planlama isteği: önce consult_plan_committee, sonra sen karar verip delegate_to_planner ile uygula.",
+    );
+  } else if (isMinorCalendarRequest) {
+    studentLines.push(
+      "Son mesaj küçük takvim/plan isteği: delegate_to_planner ile doğrudan uygula; onay sorma; işlem sonrası yapılanı bildir.",
     );
   }
   if (
@@ -491,6 +529,71 @@ export async function* runNotalOrchestrator(options: {
             error: plannerResult.error,
           });
         }
+        }
+      } else if (call.name === "consult_plan_committee") {
+        const missing: string[] = [];
+        if (!contextClassLevel) missing.push("sınıf");
+        if (!contextYksArea) missing.push("YKS alanı");
+
+        if (missing.length) {
+          toolResult = JSON.stringify({
+            ok: false,
+            error: "student_profile_incomplete",
+            missing,
+          });
+        } else {
+          const args = parseToolArgs(call.arguments);
+          const request = asString(args.request);
+          if (!request) {
+            toolResult = JSON.stringify({
+              ok: false,
+              error: "missing_request",
+            });
+          } else {
+            const committee = await runPlanCommittee({
+              request,
+              supabase: options.supabase,
+              userId: options.userId,
+              signal: options.signal,
+              profile: {
+                classLevel: contextClassLevel,
+                yksArea: contextYksArea,
+                enabledExams: contextEnabledExams,
+                targetRank: contextTargetRank,
+                trialExams: contextTrialExams,
+              },
+            });
+
+            if (!committee.ok) {
+              toolResult = JSON.stringify({
+                ok: false,
+                error: committee.error || "committee_failed",
+                specialists: committee.specialists,
+              });
+            } else {
+              toolResult = JSON.stringify({
+                ok: true,
+                has_hard_veto: committee.hasHardVeto,
+                brief: committee.brief,
+                specialists: {
+                  pdr: {
+                    risks: committee.specialists.pdr.risks,
+                    suggestions: committee.specialists.pdr.suggestions,
+                    veto: committee.specialists.pdr.veto,
+                    veto_reason: committee.specialists.pdr.vetoReason,
+                  },
+                  exam: {
+                    risks: committee.specialists.exam.risks,
+                    suggestions: committee.specialists.exam.suggestions,
+                    veto: committee.specialists.exam.veto,
+                    veto_reason: committee.specialists.exam.vetoReason,
+                  },
+                },
+                instruction:
+                  "Sen komite başkanısın. Bu görüşleri harmanla; hard veto varsa revize et. Sonra delegate_to_planner ile uygula.",
+              });
+            }
+          }
         }
       } else if (call.name === "ask_student_choice") {
         const args = parseToolArgs(call.arguments);

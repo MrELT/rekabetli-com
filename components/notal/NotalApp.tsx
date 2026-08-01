@@ -10,7 +10,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { createNotalAuthBrowserClient } from "@/lib/notal/auth-browser";
+import { getNotalAccessToken } from "@/lib/notal/auth-browser";
 import NotalCalendar from "@/components/notal/NotalCalendar";
 import {
   getFilteredYksTopics,
@@ -90,10 +90,7 @@ function friendlyError(code: string): string {
 }
 
 async function getAccessToken(): Promise<string | null> {
-  const supabase = createNotalAuthBrowserClient();
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+  return getNotalAccessToken();
 }
 
 async function authFetch(path: string, init: RequestInit = {}) {
@@ -106,7 +103,12 @@ async function authFetch(path: string, init: RequestInit = {}) {
     headers.set("Content-Type", "application/json");
   }
 
-  return fetch(path, { ...init, headers });
+  // Yetki Bearer token ile; çerez göndermek başlıkları şişirip 431'e yol açıyor.
+  return fetch(path, {
+    credentials: "omit",
+    ...init,
+    headers,
+  });
 }
 
 const COMPOSE_INPUT_MAX_HEIGHT = 120;
@@ -1323,9 +1325,8 @@ export default function NotalApp() {
                         {formatTargetNetSummary(targetNetEstimate)}
                       </p>
                       <p className="notal-yks-overview-hint">
-                        {targetNetEstimate.area} ·{" "}
-                        {targetNetEstimate.referenceYear} verisine göre yaklaşık
-                        hedef netler
+                        {targetNetEstimate.area} · Veriler ortalamadır; sınavın
+                        zorluğuna göre değişebilir.
                       </p>
                     </>
                   ) : studentContext?.targetRank && !yksAreaDetected ? (

@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 export type CalendarBlock = {
   id: string;
@@ -13,6 +20,24 @@ export type CalendarBlock = {
 };
 
 type AuthFetch = (path: string, init?: RequestInit) => Promise<Response>;
+
+/** Aynı hafta için gereksiz Google sync’lerini azaltır (sekme değişiminde de yaşar). */
+const googleSyncAtByRange = new Map<string, number>();
+const GOOGLE_SYNC_TTL_MS = 5 * 60 * 1000;
+
+function googleSyncRangeKey(from: string, to: string) {
+  return `${from}|${to}`;
+}
+
+function shouldAutoSyncGoogle(from: string, to: string): boolean {
+  const last = googleSyncAtByRange.get(googleSyncRangeKey(from, to));
+  if (!last) return true;
+  return Date.now() - last > GOOGLE_SYNC_TTL_MS;
+}
+
+function markGoogleSynced(from: string, to: string) {
+  googleSyncAtByRange.set(googleSyncRangeKey(from, to), Date.now());
+}
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -111,6 +136,7 @@ export default function NotalCalendar({
   );
   const [blocks, setBlocks] = useState<CalendarBlock[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncingGoogle, setSyncingGoogle] = useState(false);
   const [googleConfigured, setGoogleConfigured] = useState(false);
   const [googleConnected, setGoogleConnected] = useState(false);
   const [status, setStatus] = useState("");
@@ -127,6 +153,9 @@ export default function NotalCalendar({
     const to = addDays(weekStart, 7);
     return { from: from.toISOString(), to: to.toISOString() };
   }, [weekStart]);
+  const rangeRef = useRef(range);
+  rangeRef.current = range;
+  const googleSyncGenRef = useRef(0);
 
   const selectedDate = useMemo(() => {
     const found = days.find((day) => dayKey(day) === selectedDay);
@@ -141,53 +170,125 @@ export default function NotalCalendar({
     }
   }, [days, selectedDay]);
 
-  const loadBlocks = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await authFetch(
-        `/api/notal/calendar?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`,
-      );
-      if (!response.ok) {
-        setStatus("Planlar yüklenemedi.");
-        return;
-      }
-      const payload = (await response.json()) as { blocks?: CalendarBlock[] };
-      setBlocks(payload.blocks ?? []);
-    } catch {
-      setStatus("Planlar yüklenemedi.");
-    } finally {
-      setLoading(false);
-    }
-  }, [authFetch, range.from, range.to]);
-
-  const pullFromGoogle = useCallback(async () => {
-    setStatus("Google Takvim çekiliyor…");
-    try {
-      const response = await authFetch("/api/notal/google/sync", {
-        method: "POST",
-        body: JSON.stringify({ from: range.from, to: range.to }),
-      });
-      const payload = (await response.json()) as {
-        error?: string;
-        imported?: number;
-        updated?: number;
-      };
-      if (!response.ok) {
-        setStatus(
-          payload.error === "google_not_connected"
-            ? "Google bağlı değil."
-            : "Google’dan çekilemedi.",
+  const loadBlocks = useCallback(
+    async (options?: {
+      showLoading?: boolean;
+      from?: string;
+      to?: string;
+    }) => {
+      const from = options?.from ?? range.from;
+      const to = options?.to ?? range.to;
+      const showLoading = options?.showLoading !== false;
+      if (showLoading) setLoading(true);
+      try {
+        const response = await authFetch(
+          `/api/notal/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
         );
+        if (!response.ok) {
+          if (
+            from === rangeRef.current.from &&
+            to === rangeRef.current.to
+          ) {
+            setStatus("Planlar yüklenemedi.");
+          }
+          return;
+        }
+        const payload = (await response.json()) as { blocks?: CalendarBlock[] };
+        if (
+          from !== rangeRef.current.from ||
+          to !== rangeRef.current.to
+        ) {
+          return;
+        }
+        setBlocks(payload.blocks ?? []);
+      } catch {
+        if (
+          from === rangeRef.current.from &&
+          to === rangeRef.current.to
+        ) {
+          setStatus("Planlar yüklenemedi.");
+        }
+      } finally {
+        if (
+          from === rangeRef.current.from &&
+          to === rangeRef.current.to
+        ) {
+          setLoading(false);
+        }
+      }
+    },
+    [authFetch, range.from, range.to],
+  );
+
+  const pullFromGoogle = useCallback(
+    async (options?: { silent?: boolean; force?: boolean }) => {
+      const silent = Boolean(options?.silent);
+      const force = Boolean(options?.force);
+      const from = range.from;
+      const to = range.to;
+
+      if (!force && !shouldAutoSyncGoogle(from, to)) {
         return;
       }
-      await loadBlocks();
-      setStatus(
-        `Senkron tamam: ${payload.imported ?? 0} yeni, ${payload.updated ?? 0} güncellendi.`,
-      );
-    } catch {
-      setStatus("Google’dan çekilemedi.");
-    }
-  }, [authFetch, loadBlocks, range.from, range.to]);
+
+      const syncGen = ++googleSyncGenRef.current;
+      setSyncingGoogle(true);
+      if (!silent) setStatus("Google Takvim çekiliyor…");
+
+      try {
+        const response = await authFetch("/api/notal/google/sync", {
+          method: "POST",
+          body: JSON.stringify({ from, to }),
+        });
+        const payload = (await response.json()) as {
+          error?: string;
+          imported?: number;
+          updated?: number;
+        };
+
+        const stillCurrent =
+          syncGen === googleSyncGenRef.current &&
+          from === rangeRef.current.from &&
+          to === rangeRef.current.to;
+
+        if (!response.ok) {
+          if (!silent && stillCurrent) {
+            setStatus(
+              payload.error === "google_not_connected"
+                ? "Google bağlı değil."
+                : "Google’dan çekilemedi.",
+            );
+          }
+          return;
+        }
+
+        markGoogleSynced(from, to);
+        if (!stillCurrent) return;
+
+        await loadBlocks({ showLoading: false, from, to });
+
+        if (!silent && syncGen === googleSyncGenRef.current) {
+          setStatus(
+            `Senkron tamam: ${payload.imported ?? 0} yeni, ${payload.updated ?? 0} güncellendi.`,
+          );
+        }
+      } catch {
+        if (
+          !silent &&
+          syncGen === googleSyncGenRef.current &&
+          from === rangeRef.current.from &&
+          to === rangeRef.current.to
+        ) {
+          setStatus("Google’dan çekilemedi.");
+        }
+      } finally {
+        if (syncGen === googleSyncGenRef.current) {
+          setSyncingGoogle(false);
+        }
+      }
+    },
+    [authFetch, loadBlocks, range.from, range.to],
+  );
 
   const loadGoogleStatus = useCallback(async () => {
     try {
@@ -216,14 +317,18 @@ export default function NotalCalendar({
   useEffect(() => {
     let cancelled = false;
     async function boot() {
+      // Önce yerel DB’deki son planları göster; Google sync’i bekletme.
+      await loadBlocks({ showLoading: true });
+      if (cancelled) return;
+
       const connected = await loadGoogleStatus();
       if (cancelled) return;
-      if (connected) {
-        await pullFromGoogle();
-      } else {
-        await loadBlocks();
+      if (!connected) {
         setStatus("");
+        return;
       }
+
+      void pullFromGoogle({ silent: true });
     }
     void boot();
     return () => {
@@ -246,14 +351,15 @@ export default function NotalCalendar({
     };
     setStatus(messages[google] || "");
     void (async () => {
+      await loadBlocks({ showLoading: true });
       const connected = await loadGoogleStatus();
-      if (connected) await pullFromGoogle();
+      if (connected) await pullFromGoogle({ force: true });
     })();
 
     params.delete("google");
     const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
     window.history.replaceState({}, "", next);
-  }, [loadGoogleStatus, pullFromGoogle]);
+  }, [loadBlocks, loadGoogleStatus, pullFromGoogle]);
 
   function goToToday() {
     const now = new Date();
@@ -449,9 +555,10 @@ export default function NotalCalendar({
               <button
                 type="button"
                 className="notal-cal-pill-btn"
-                onClick={() => void pullFromGoogle()}
+                disabled={syncingGoogle}
+                onClick={() => void pullFromGoogle({ force: true })}
               >
-                Yenile
+                {syncingGoogle ? "Güncelleniyor…" : "Yenile"}
               </button>
               <button
                 type="button"
@@ -520,9 +627,13 @@ export default function NotalCalendar({
               <p className="notal-cal-day-meta">
                 {loading
                   ? "Yükleniyor…"
-                  : selectedDayBlocks.length
-                    ? `${selectedDayBlocks.length} plan`
-                    : "Bu gün için plan yok"}
+                  : syncingGoogle
+                    ? selectedDayBlocks.length
+                      ? `${selectedDayBlocks.length} plan · Google güncelleniyor…`
+                      : "Google güncelleniyor…"
+                    : selectedDayBlocks.length
+                      ? `${selectedDayBlocks.length} plan`
+                      : "Bu gün için plan yok"}
               </p>
             </div>
             <button

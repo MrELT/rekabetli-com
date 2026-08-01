@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   createNotalOpenAI,
-  getNotalOrchestratorModel,
+  getNotalPlannerModel,
 } from "@/lib/notal/openai-client";
 import {
   extractFunctionCalls,
@@ -14,7 +14,7 @@ import {
 } from "@/lib/notal/planner/tools";
 import { NOTAL_TZ } from "@/lib/notal/planner/types";
 
-export const PLANNER_AGENT_INSTRUCTIONS = `Sen NotAl Planner ajanısın.
+export const PLANNER_AGENT_INSTRUCTIONS = `Sen NotAl Planner ajanısın (GPT-5.6 Luna).
 Görevin kullanıcının günlük/haftalık çalışma planını NotAl takvimine yazmak, güncellemek ve silmektir.
 
 Kurallar:
@@ -48,7 +48,7 @@ export async function runPlannerAgent(options: {
   onTool?: (phase: "start" | "done", name: string) => void;
 }): Promise<PlannerAgentResult> {
   const openai = createNotalOpenAI();
-  const model = getNotalOrchestratorModel();
+  const model = getNotalPlannerModel();
   const command = options.command.trim();
 
   if (!command) {

@@ -1,60 +1,60 @@
 import type { YksArea } from "@/lib/notal/student-context";
 
-/** Önceki yıl (2025 YKS) net–sıralama referansı. */
-export const TARGET_NET_REFERENCE_YEAR = 2025;
-
 export type TargetNetEstimate = {
-  referenceYear: number;
   rank: number;
   area: YksArea;
+  /** Performans hesabında kullanılan aralık orta noktası. */
   tytNet: number;
   aytNet: number | null;
   ydtNet: number | null;
+  tytRange: [number, number];
+  aytRange: [number, number] | null;
+  ydtRange: [number, number] | null;
 };
 
 type NetAnchor = {
   rank: number;
-  tyt: number;
-  ayt?: number;
-  ydt?: number;
+  tyt: [number, number];
+  ayt?: [number, number];
+  ydt?: [number, number];
 };
 
 /**
- * 2024–2025 YKS verilerine dayanan yaklaşık net hedefleri.
- * Kesin sıralama sınav zorluğuna göre değişir; rehber amaçlıdır.
+ * Kullanıcının verdiği ortalama hedef aralıkları.
+ * Ara sıralamalar logaritmik interpolasyonla tahmin edilir.
  */
 const ANCHORS: Record<YksArea, NetAnchor[]> = {
   Sayısal: [
-    { rank: 500, tyt: 105, ayt: 75 },
-    { rank: 2_000, tyt: 100, ayt: 70 },
-    { rank: 10_000, tyt: 90, ayt: 60 },
-    { rank: 37_500, tyt: 80, ayt: 50 },
-    { rank: 115_000, tyt: 70, ayt: 40 },
-    { rank: 275_000, tyt: 60, ayt: 30 },
-    { rank: 500_000, tyt: 50, ayt: 22 },
+    { rank: 100, tyt: [115, 118], ayt: [78, 80] },
+    { rank: 1_000, tyt: [110, 112], ayt: [75, 77] },
+    { rank: 5_000, tyt: [105, 108], ayt: [70, 73] },
+    { rank: 10_000, tyt: [100, 105], ayt: [66, 69] },
+    { rank: 15_000, tyt: [95, 100], ayt: [63, 65] },
+    { rank: 50_000, tyt: [85, 90], ayt: [50, 55] },
   ],
   "Eşit Ağırlık": [
-    { rank: 500, tyt: 100, ayt: 70 },
-    { rank: 2_000, tyt: 95, ayt: 65 },
-    { rank: 10_000, tyt: 85, ayt: 55 },
-    { rank: 45_000, tyt: 75, ayt: 45 },
-    { rank: 150_000, tyt: 65, ayt: 35 },
-    { rank: 350_000, tyt: 55, ayt: 25 },
+    { rank: 100, tyt: [110, 115], ayt: [76, 78] },
+    { rank: 1_000, tyt: [100, 105], ayt: [70, 73] },
+    { rank: 5_000, tyt: [95, 98], ayt: [63, 66] },
+    { rank: 10_000, tyt: [90, 93], ayt: [58, 62] },
+    { rank: 15_000, tyt: [85, 88], ayt: [55, 58] },
+    { rank: 50_000, tyt: [70, 75], ayt: [43, 48] },
   ],
   Sözel: [
-    { rank: 500, tyt: 100, ayt: 75 },
-    { rank: 3_000, tyt: 90, ayt: 65 },
-    { rank: 20_000, tyt: 80, ayt: 55 },
-    { rank: 75_000, tyt: 70, ayt: 45 },
-    { rank: 200_000, tyt: 60, ayt: 35 },
-    { rank: 400_000, tyt: 50, ayt: 25 },
+    { rank: 100, tyt: [100, 105], ayt: [76, 78] },
+    { rank: 1_000, tyt: [90, 95], ayt: [72, 74] },
+    { rank: 5_000, tyt: [82, 87], ayt: [65, 68] },
+    { rank: 10_000, tyt: [75, 80], ayt: [62, 65] },
+    { rank: 15_000, tyt: [72, 75], ayt: [58, 62] },
+    { rank: 50_000, tyt: [60, 65], ayt: [50, 54] },
   ],
+  // Dil için yeni tablo verilmediğinden mevcut yaklaşık rehber korunur.
   Dil: [
-    { rank: 500, tyt: 90, ydt: 75 },
-    { rank: 2_000, tyt: 80, ydt: 65 },
-    { rank: 10_000, tyt: 70, ydt: 55 },
-    { rank: 30_000, tyt: 60, ydt: 45 },
-    { rank: 80_000, tyt: 50, ydt: 35 },
+    { rank: 500, tyt: [88, 92], ydt: [73, 77] },
+    { rank: 2_000, tyt: [78, 82], ydt: [63, 67] },
+    { rank: 10_000, tyt: [68, 72], ydt: [53, 57] },
+    { rank: 30_000, tyt: [58, 62], ydt: [43, 47] },
+    { rank: 80_000, tyt: [48, 52], ydt: [33, 37] },
   ],
 };
 
@@ -82,17 +82,23 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-function interpolateNet(
+function roundHalf(value: number): number {
+  return Math.round(value * 2) / 2;
+}
+
+function interpolateRange(
   anchors: NetAnchor[],
   rank: number,
   key: "tyt" | "ayt" | "ydt",
-): number | null {
+): [number, number] | null {
   const points = anchors
     .map((a) => {
       const value = a[key];
       return value === undefined ? null : { rank: a.rank, value };
     })
-    .filter((p): p is { rank: number; value: number } => Boolean(p));
+    .filter(
+      (p): p is { rank: number; value: [number, number] } => p !== null,
+    );
 
   if (!points.length) return null;
 
@@ -107,11 +113,19 @@ function interpolateNet(
       const t =
         (Math.log(rank) - Math.log(lo.rank)) /
         (Math.log(hi.rank) - Math.log(lo.rank));
-      return Math.round(lerp(lo.value, hi.value, t));
+      return [
+        roundHalf(lerp(lo.value[0], hi.value[0], t)),
+        roundHalf(lerp(lo.value[1], hi.value[1], t)),
+      ];
     }
   }
 
   return last.value;
+}
+
+function midpoint(range: [number, number] | null): number | null {
+  if (!range) return null;
+  return roundHalf((range[0] + range[1]) / 2);
 }
 
 export function estimateTargetNets(
@@ -123,29 +137,43 @@ export function estimateTargetNets(
   if (!rank) return null;
 
   const anchors = ANCHORS[area];
-  const tytNet = interpolateNet(anchors, rank, "tyt");
-  if (tytNet === null) return null;
+  const tytRange = interpolateRange(anchors, rank, "tyt");
+  if (tytRange === null) return null;
 
-  const aytNet = area === "Dil" ? null : interpolateNet(anchors, rank, "ayt");
-  const ydtNet = area === "Dil" ? interpolateNet(anchors, rank, "ydt") : null;
+  const aytRange =
+    area === "Dil" ? null : interpolateRange(anchors, rank, "ayt");
+  const ydtRange =
+    area === "Dil" ? interpolateRange(anchors, rank, "ydt") : null;
 
   return {
-    referenceYear: TARGET_NET_REFERENCE_YEAR,
     rank,
     area,
-    tytNet,
-    aytNet,
-    ydtNet,
+    tytNet: midpoint(tytRange)!,
+    aytNet: midpoint(aytRange),
+    ydtNet: midpoint(ydtRange),
+    tytRange,
+    aytRange,
+    ydtRange,
   };
 }
 
+function formatRange(range: [number, number]): string {
+  return range[0] === range[1]
+    ? String(range[0])
+    : `${range[0]}–${range[1]}`;
+}
+
 export function formatTargetNetSummary(estimate: TargetNetEstimate): string {
-  const parts = [`TYT ~${estimate.tytNet}`];
-  if (estimate.aytNet !== null) parts.push(`AYT ~${estimate.aytNet}`);
-  if (estimate.ydtNet !== null) parts.push(`YDT ~${estimate.ydtNet}`);
+  const parts = [`TYT ${formatRange(estimate.tytRange)}`];
+  if (estimate.aytRange !== null) {
+    parts.push(`AYT ${formatRange(estimate.aytRange)}`);
+  }
+  if (estimate.ydtRange !== null) {
+    parts.push(`YDT ${formatRange(estimate.ydtRange)}`);
+  }
   return parts.join(" · ");
 }
 
 export function formatTargetNetHint(estimate: TargetNetEstimate): string {
-  return `${estimate.area} · ${estimate.referenceYear} verisine göre ortalama ${formatTargetNetSummary(estimate)}`;
+  return `${estimate.area} · Ortalama tahmin: ${formatTargetNetSummary(estimate)}. Sınavın zorluğuna göre değişebilir.`;
 }

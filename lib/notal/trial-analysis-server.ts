@@ -6,8 +6,14 @@ import type { NotalStudentProfile, YksExam } from "@/lib/notal/student-context";
 import {
   MAX_TRIAL_ANALYSIS_IMAGES,
   type NotalTrialAnalysis,
+  type NotalTrialBranchStat,
   type TrialAnalysisKind,
 } from "@/lib/notal/trial-analysis";
+import {
+  getBranchQuestionCount,
+  validateBranchStatsAgainstTotal,
+  validateTrialStats,
+} from "@/lib/notal/trial-question-counts";
 
 export type CreateTrialAnalysisInput = {
   kind: TrialAnalysisKind;
@@ -21,7 +27,12 @@ export type CreateTrialAnalysisInput = {
   branchNet?: number | null;
   wrongCount?: number | null;
   blankCount?: number | null;
-  attachments?: NotalChatAttachmentInput[];
+  branchStats?: NotalTrialBranchStat[];
+  attachments?: Array<
+    NotalChatAttachmentInput & {
+      mistakeKind?: "wrong" | "blank" | null;
+    }
+  >;
 };
 
 function createId() {
@@ -36,6 +47,72 @@ function defaultName(input: CreateTrialAnalysisInput): string {
   return `${input.exam} Genel Deneme`;
 }
 
+function normalizeIncomingBranchStats(
+  value: NotalTrialBranchStat[] | undefined,
+): NotalTrialBranchStat[] {
+  if (!Array.isArray(value)) return [];
+  const result: NotalTrialBranchStat[] = [];
+  for (const row of value) {
+    const branch = typeof row.branch === "string" ? row.branch.trim() : "";
+    if (!branch) continue;
+    const net =
+      typeof row.net === "number" && Number.isFinite(row.net) ? row.net : null;
+    const wrongCount =
+      typeof row.wrongCount === "number" && Number.isFinite(row.wrongCount)
+        ? Math.max(0, Math.round(row.wrongCount))
+        : null;
+    const blankCount =
+      typeof row.blankCount === "number" && Number.isFinite(row.blankCount)
+        ? Math.max(0, Math.round(row.blankCount))
+        : null;
+    if (net === null && wrongCount === null && blankCount === null) continue;
+    result.push({ branch, net, wrongCount, blankCount });
+  }
+  return result.slice(0, 12);
+}
+
+export function validateCreateTrialAnalysisInput(
+  input: CreateTrialAnalysisInput,
+): { ok: true } | { ok: false; error: string } {
+  if (input.kind === "branch" && !input.branch?.trim()) {
+    return { ok: false, error: "branch_required" };
+  }
+
+  const examNet =
+    input.exam === "TYT"
+      ? (input.tytNet ?? null)
+      : input.exam === "AYT"
+        ? (input.aytNet ?? null)
+        : (input.ydsNet ?? null);
+
+  if (input.kind === "branch") {
+    const check = validateTrialStats(
+      {
+        net: input.branchNet ?? examNet,
+        wrongCount: input.wrongCount ?? null,
+        blankCount: input.blankCount ?? null,
+      },
+      getBranchQuestionCount(input.exam, input.branch || ""),
+      input.branch || "Branş",
+    );
+    if (!check.ok) return { ok: false, error: check.error || "invalid_stats" };
+    return { ok: true };
+  }
+
+  const branchStats = normalizeIncomingBranchStats(input.branchStats);
+  const check = validateBranchStatsAgainstTotal({
+    exam: input.exam,
+    total: {
+      net: examNet,
+      wrongCount: input.wrongCount ?? null,
+      blankCount: input.blankCount ?? null,
+    },
+    branches: branchStats,
+  });
+  if (!check.ok) return { ok: false, error: check.error || "invalid_stats" };
+  return { ok: true };
+}
+
 /**
  * Kaydeder; görsel varsa Luna ile soru çözümü + bilgi kartı üretir.
  */
@@ -48,13 +125,23 @@ export async function createTrialAnalysis(options: {
   | { ok: false; error: string }
 > {
   const { input } = options;
-  if (input.kind === "branch" && !input.branch?.trim()) {
-    return { ok: false, error: "branch_required" };
-  }
+  const validated = validateCreateTrialAnalysisInput(input);
+  if (!validated.ok) return validated;
+
+  const branchStats =
+    input.kind === "general"
+      ? normalizeIncomingBranchStats(input.branchStats)
+      : [];
 
   const attachments = (input.attachments ?? [])
     .filter((item) => item.kind === "image")
     .slice(0, MAX_TRIAL_ANALYSIS_IMAGES);
+
+  for (const item of attachments) {
+    if (item.mistakeKind !== "wrong" && item.mistakeKind !== "blank") {
+      return { ok: false, error: "Her fotoğraf için yanlış veya boş seçmelisin." };
+    }
+  }
 
   const solutions: NotalTrialAnalysis["solutions"] = [];
   const knowledgeCards: NotalTrialAnalysis["knowledgeCards"] = [];
@@ -64,6 +151,9 @@ export async function createTrialAnalysis(options: {
       return { ok: false, error: "aborted" };
     }
 
+    const mistakeKind = attachment.mistakeKind === "blank" ? "blank" : "wrong";
+    const mistakeLabel = mistakeKind === "blank" ? "boş bıraktığı" : "yanlış yaptığı";
+
     try {
       const solution = await runQuestionSolverAgent({
         exam: input.exam,
@@ -71,7 +161,7 @@ export async function createTrialAnalysis(options: {
         topic: input.branch || `${input.exam} deneme sorusu`,
         question: `Bu görsel, öğrencinin ${input.exam}${
           input.branch ? ` · ${input.branch}` : ""
-        } denemesinde yanlış yaptığı veya boş bıraktığı sorudur. Soruyu oku, çöz ve konuyu belirle. (Görsel ${index + 1}/${attachments.length})`,
+        } denemesinde ${mistakeLabel} sorudur. Soruyu oku, çöz ve konuyu belirle. (Görsel ${index + 1}/${attachments.length})`,
         attachments: [attachment],
         signal: options.signal,
       });
@@ -84,6 +174,7 @@ export async function createTrialAnalysis(options: {
         question: solution.question,
         solution: solution.solution,
         finalAnswer: solution.finalAnswer,
+        mistakeKind,
       });
 
       try {
@@ -118,12 +209,22 @@ export async function createTrialAnalysis(options: {
     branch: input.kind === "branch" ? input.branch?.trim() || null : null,
     name: defaultName(input),
     takenAt: input.takenAt?.trim() || null,
-    tytNet: input.exam === "TYT" ? (input.tytNet ?? input.branchNet ?? null) : (input.tytNet ?? null),
-    aytNet: input.exam === "AYT" ? (input.aytNet ?? input.branchNet ?? null) : (input.aytNet ?? null),
-    ydsNet: input.exam === "YDS" ? (input.ydsNet ?? input.branchNet ?? null) : (input.ydsNet ?? null),
+    tytNet:
+      input.exam === "TYT"
+        ? (input.tytNet ?? input.branchNet ?? null)
+        : (input.tytNet ?? null),
+    aytNet:
+      input.exam === "AYT"
+        ? (input.aytNet ?? input.branchNet ?? null)
+        : (input.aytNet ?? null),
+    ydsNet:
+      input.exam === "YDS"
+        ? (input.ydsNet ?? input.branchNet ?? null)
+        : (input.ydsNet ?? null),
     branchNet: input.kind === "branch" ? (input.branchNet ?? null) : null,
     wrongCount: input.wrongCount ?? null,
     blankCount: input.blankCount ?? null,
+    branchStats,
     attachmentCount: attachments.length,
     solutions,
     knowledgeCards,

@@ -2,6 +2,13 @@ export type YksExam = "TYT" | "AYT" | "YDS";
 
 export type TrialAnalysisKind = "general" | "branch";
 
+export type NotalTrialBranchStat = {
+  branch: string;
+  net: number | null;
+  wrongCount: number | null;
+  blankCount: number | null;
+};
+
 export type NotalTrialAnalysisSolution = {
   id: string;
   exam: YksExam;
@@ -10,6 +17,8 @@ export type NotalTrialAnalysisSolution = {
   question: string;
   solution: string;
   finalAnswer?: string;
+  /** Öğrencinin işaretlediği: yanlış mı boş mu */
+  mistakeKind?: "wrong" | "blank";
 };
 
 export type NotalTrialAnalysisCard = {
@@ -38,6 +47,8 @@ export type NotalTrialAnalysis = {
   branchNet: number | null;
   wrongCount: number | null;
   blankCount: number | null;
+  /** Genel denemede opsiyonel branş kırılımı */
+  branchStats: NotalTrialBranchStat[];
   attachmentCount: number;
   solutions: NotalTrialAnalysisSolution[];
   knowledgeCards: NotalTrialAnalysisCard[];
@@ -77,6 +88,12 @@ function normalizeSolution(value: unknown): NotalTrialAnalysisSolution | null {
   const question = typeof row.question === "string" ? row.question.trim() : "";
   const solution = typeof row.solution === "string" ? row.solution.trim() : "";
   if (!id || !branch || !topic || !solution) return null;
+  const mistakeKind =
+    row.mistakeKind === "wrong" || row.mistakeKind === "blank"
+      ? row.mistakeKind
+      : row.mistake_kind === "wrong" || row.mistake_kind === "blank"
+        ? row.mistake_kind
+        : undefined;
   return {
     id,
     exam,
@@ -86,6 +103,7 @@ function normalizeSolution(value: unknown): NotalTrialAnalysisSolution | null {
     solution,
     finalAnswer:
       typeof row.finalAnswer === "string" ? row.finalAnswer.trim() : undefined,
+    mistakeKind,
   };
 }
 
@@ -122,6 +140,19 @@ function normalizeCard(value: unknown): NotalTrialAnalysisCard | null {
         ? row.sourceSolutionId
         : undefined,
   };
+}
+
+function normalizeBranchStat(value: unknown): NotalTrialBranchStat | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  const branch =
+    typeof row.branch === "string" ? row.branch.trim() : "";
+  if (!branch) return null;
+  const net = parseNet(row.net);
+  const wrongCount = parseCount(row.wrongCount ?? row.wrong_count);
+  const blankCount = parseCount(row.blankCount ?? row.blank_count);
+  if (net === null && wrongCount === null && blankCount === null) return null;
+  return { branch, net, wrongCount, blankCount };
 }
 
 export function normalizeTrialAnalysis(
@@ -171,6 +202,19 @@ export function normalizeTrialAnalysis(
         .slice(0, MAX_TRIAL_ANALYSIS_IMAGES)
     : [];
 
+  const branchStats =
+    kind === "general" && Array.isArray(row.branchStats)
+      ? row.branchStats
+          .map(normalizeBranchStat)
+          .filter((item): item is NotalTrialBranchStat => Boolean(item))
+          .slice(0, 12)
+      : kind === "general" && Array.isArray(row.branch_stats)
+        ? row.branch_stats
+            .map(normalizeBranchStat)
+            .filter((item): item is NotalTrialBranchStat => Boolean(item))
+            .slice(0, 12)
+        : [];
+
   return {
     id,
     kind,
@@ -184,6 +228,7 @@ export function normalizeTrialAnalysis(
     branchNet: parseNet(row.branchNet ?? row.branch_net),
     wrongCount: parseCount(row.wrongCount ?? row.wrong_count),
     blankCount: parseCount(row.blankCount ?? row.blank_count),
+    branchStats,
     attachmentCount: Math.max(
       0,
       Math.round(parseNet(row.attachmentCount ?? row.attachment_count) ?? solutions.length),
@@ -229,4 +274,19 @@ export function formatTrialAnalysisSummary(analysis: NotalTrialAnalysis): string
     if (single !== null) parts.push(`${analysis.exam} ${single}`);
   }
   return parts.join(" · ") || `${analysis.exam} genel deneme`;
+}
+
+export function formatTrialBranchStats(
+  analysis: NotalTrialAnalysis,
+): string | null {
+  if (!analysis.branchStats.length) return null;
+  return analysis.branchStats
+    .map((row) => {
+      const bits: string[] = [];
+      if (row.net !== null) bits.push(`${row.net} net`);
+      if (row.wrongCount !== null) bits.push(`${row.wrongCount}Y`);
+      if (row.blankCount !== null) bits.push(`${row.blankCount}B`);
+      return `${row.branch} ${bits.join(" ")}`.trim();
+    })
+    .join(" · ");
 }
