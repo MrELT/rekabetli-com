@@ -37,6 +37,7 @@ const ROOT_JS = new Set([
   "feed-edit.js",
   "feed-skeleton.js",
   "forgot-password.js",
+  "home-mentors-rail.js",
   "image-compression.js",
   "influencer-program.js",
   "influencer-sayfam.js",
