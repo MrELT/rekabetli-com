@@ -91,9 +91,27 @@
       <section class="panel community-info-panel">
         <a class="community-back-link" href="/communities">← Tüm topluluklar</a>
         <div class="community-info-head">
-          <div id="community-avatar" class="community-info-avatar" aria-hidden="true">
-            <img id="community-avatar-img" class="community-info-avatar-img" alt="" hidden />
-            <span id="community-avatar-fallback" class="community-info-avatar-fallback">?</span>
+          <div class="community-info-avatar-wrap">
+            <div id="community-avatar" class="community-info-avatar" aria-hidden="true">
+              <img id="community-avatar-img" class="community-info-avatar-img" alt="" hidden />
+              <span id="community-avatar-fallback" class="community-info-avatar-fallback">?</span>
+            </div>
+            <button
+              type="button"
+              id="community-avatar-edit-btn"
+              class="community-purpose-edit-btn community-avatar-edit-btn"
+              hidden
+              aria-label="Görseli değiştir"
+              title="Görseli değiştir"
+            >
+              ✏️
+            </button>
+            <input
+              id="community-avatar-edit-input"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              hidden
+            />
           </div>
           <div class="community-info-text">
             <p id="community-visibility-badge" class="community-visibility-badge"></p>
@@ -101,6 +119,7 @@
             <p id="community-meta" class="community-info-meta"></p>
           </div>
         </div>
+        <p id="community-avatar-edit-message" class="community-purpose-edit-message community-avatar-edit-message" hidden></p>
         <div class="community-purpose-wrap">
           <div id="community-purpose-view" class="community-purpose-view">
             <p id="community-purpose" class="community-info-purpose"></p>
@@ -361,6 +380,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <script src="image-upload-limit.js"></script>
+    <script src="image-compression.js"></script>
     <script src="quill-editor.js"></script>
     <script src="feed-skeleton.js"></script>
     <script src="feed-drafts.js"></script>

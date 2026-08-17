@@ -272,6 +272,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const title = document.createElement("h3");
     title.className = "community-title";
     title.textContent = row.name;
+    title.title = row.name;
 
     const badge = document.createElement("span");
     badge.className =
@@ -285,17 +286,176 @@ document.addEventListener("DOMContentLoaded", () => {
     meta.className = "community-meta";
     meta.textContent = `${memberCount} üye`;
 
+    const purpose = String(row.purpose ?? "").trim();
+    const descWrap = document.createElement("div");
+    descWrap.className = "community-desc-wrap";
+
+    const descPreview = document.createElement("div");
+    descPreview.className = "community-desc-preview";
+
     const desc = document.createElement("p");
     desc.className = "community-desc";
-    desc.textContent = row.purpose;
+    desc.id = `community-desc-${row.id}`;
+    desc.textContent = purpose;
+
+    const popup = document.createElement("div");
+    popup.className = "community-desc-popup";
+    popup.setAttribute("role", "tooltip");
+    popup.setAttribute("aria-hidden", "true");
+    popup.textContent = purpose;
+
+    descPreview.append(desc, popup);
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "community-desc-toggle is-idle";
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-controls", desc.id);
+    toggle.setAttribute("aria-label", "Açıklamayı göster");
+    toggle.disabled = true;
+    toggle.tabIndex = -1;
+
+    const chevron = document.createElement("span");
+    chevron.className = "community-desc-chevron";
+    chevron.setAttribute("aria-hidden", "true");
+    toggle.appendChild(chevron);
+
+    descWrap.append(descPreview, toggle);
 
     const actions = document.createElement("div");
     actions.className = "card-actions";
     actions.dataset.communityActions = "true";
     appendCommunityAction(actions, row);
 
-    card.append(head, meta, desc, actions);
+    card.append(head, meta, descWrap, actions);
     return card;
+  }
+
+  function getCommunityCardColumn(card) {
+    if (!communityList) return { colIndex: 0, colCount: 1 };
+    const template = getComputedStyle(communityList).gridTemplateColumns.trim();
+    const colCount = template ? template.split(/\s+/).filter(Boolean).length : 1;
+    const cards = [...communityList.querySelectorAll("[data-dynamic-community]")];
+    const index = cards.indexOf(card);
+    const colIndex = index >= 0 && colCount > 0 ? index % colCount : 0;
+    return { colIndex, colCount: Math.max(1, colCount) };
+  }
+
+  function placeCommunityDescPopup(card) {
+    const popup = card.querySelector(".community-desc-popup");
+    const desc = card.querySelector(".community-desc");
+    if (!popup || !desc) return;
+
+    card.classList.remove("is-desc-popup-left", "is-desc-popup-below");
+    popup.style.width = "";
+    popup.style.left = "";
+    popup.style.right = "";
+    popup.style.top = "";
+
+    const cardRect = card.getBoundingClientRect();
+    const descRect = desc.getBoundingClientRect();
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const gap = 14;
+    const pad = 12;
+    const preferred = Math.min(34 * rem, window.innerWidth - pad * 2);
+    const spaceRight = window.innerWidth - cardRect.right - gap - pad;
+    const spaceLeft = cardRect.left - gap - pad;
+    const minSide = 18 * rem;
+    const top = Math.max(0, descRect.top - cardRect.top);
+
+    if (spaceRight < minSide && spaceLeft < minSide) {
+      card.classList.add("is-desc-popup-below");
+      popup.style.width = `${Math.round(Math.min(preferred, cardRect.width))}px`;
+      popup.style.left = "0";
+      popup.style.right = "auto";
+      popup.style.top = `calc(100% + ${gap}px)`;
+      return;
+    }
+
+    const { colIndex, colCount } = getCommunityCardColumn(card);
+    let useLeft = colIndex >= Math.ceil(colCount / 2);
+    if (useLeft && spaceLeft < minSide && spaceRight >= minSide) useLeft = false;
+    if (!useLeft && spaceRight < minSide && spaceLeft >= minSide) useLeft = true;
+
+    const available = useLeft ? spaceLeft : spaceRight;
+    popup.style.width = `${Math.round(Math.min(preferred, Math.max(available, minSide)))}px`;
+    popup.style.top = `${Math.round(top)}px`;
+    if (useLeft) {
+      card.classList.add("is-desc-popup-left");
+      popup.style.left = "auto";
+      popup.style.right = `calc(100% + ${gap}px)`;
+    } else {
+      popup.style.left = `calc(100% + ${gap}px)`;
+      popup.style.right = "auto";
+    }
+  }
+
+  function setCommunityDescExpanded(card, expanded) {
+    const toggle = card.querySelector(".community-desc-toggle");
+    if (!toggle) return;
+    if (expanded && toggle.disabled) return;
+
+    if (expanded) {
+      communityList?.querySelectorAll("[data-dynamic-community].is-desc-expanded").forEach((openCard) => {
+        if (openCard === card) return;
+        setCommunityDescExpanded(openCard, false);
+      });
+    }
+
+    card.classList.toggle("is-desc-expanded", expanded);
+    toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+    toggle.setAttribute("aria-label", expanded ? "Açıklamayı gizle" : "Açıklamayı göster");
+  }
+
+  function communityDescOverflows(desc) {
+    if (!desc || desc.clientWidth <= 0) return false;
+    const probe = desc.cloneNode(true);
+    probe.removeAttribute("id");
+    probe.className = "community-desc";
+    probe.style.cssText = [
+      "position:absolute",
+      "left:0",
+      "top:0",
+      "visibility:hidden",
+      "pointer-events:none",
+      "display:block",
+      "-webkit-line-clamp:unset",
+      "line-clamp:unset",
+      "max-height:none",
+      "min-height:0",
+      "height:auto",
+      "overflow:visible",
+      `width:${desc.clientWidth}px`,
+    ].join(";");
+    desc.parentNode.appendChild(probe);
+    const overflows = probe.scrollHeight > desc.clientHeight + 1;
+    probe.remove();
+    return overflows;
+  }
+
+  function syncCommunityDescToggles() {
+    if (!communityList) return;
+
+    communityList.querySelectorAll("[data-dynamic-community]").forEach((card) => {
+      const desc = card.querySelector(".community-desc");
+      const toggle = card.querySelector(".community-desc-toggle");
+      const descWrap = card.querySelector(".community-desc-wrap");
+      if (!desc || !toggle) return;
+
+      if (card.classList.contains("is-desc-expanded")) {
+        toggle.classList.remove("is-idle");
+        toggle.disabled = false;
+        toggle.tabIndex = 0;
+        descWrap?.classList.add("is-truncated");
+        return;
+      }
+
+      const overflows = communityDescOverflows(desc);
+      toggle.classList.toggle("is-idle", !overflows);
+      toggle.disabled = !overflows;
+      toggle.tabIndex = overflows ? 0 : -1;
+      descWrap?.classList.toggle("is-truncated", overflows);
+    });
   }
 
   function rowFromCard(card) {
@@ -452,6 +612,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     communityList.querySelectorAll("[data-dynamic-community]").forEach((card) => {
       refreshCardAction(card);
+    });
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(syncCommunityDescToggles);
     });
     focusCommunityFromUrl();
   }
@@ -756,6 +919,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (!target || typeof target.closest !== "function") return;
 
+    const descToggle = target.closest(".community-desc-toggle");
+    if (descToggle) {
+      event.preventDefault();
+      const card = descToggle.closest("[data-dynamic-community]");
+      if (!card || descToggle.disabled) return;
+      setCommunityDescExpanded(card, !card.classList.contains("is-desc-expanded"));
+      return;
+    }
+
     const publicBtn = target.closest(".js-community-join-public");
     if (publicBtn) {
       event.preventDefault();
@@ -770,6 +942,26 @@ document.addEventListener("DOMContentLoaded", () => {
     const communityId = requestBtn.dataset.communityId;
     if (communityId) sendJoinRequest(communityId, requestBtn);
   });
+
+  communityList?.addEventListener("mouseover", (event) => {
+    const desc = event.target?.closest?.(".community-desc");
+    if (!desc || !communityList.contains(desc)) return;
+    const card = desc.closest("[data-dynamic-community]");
+    const wrap = desc.closest(".community-desc-wrap");
+    if (!card || !wrap?.classList.contains("is-truncated")) return;
+    if (card.classList.contains("is-desc-expanded")) return;
+    placeCommunityDescPopup(card);
+  });
+
+  let descToggleSyncFrame = 0;
+  window.addEventListener("resize", () => {
+    if (descToggleSyncFrame) return;
+    descToggleSyncFrame = window.requestAnimationFrame(() => {
+      descToggleSyncFrame = 0;
+      syncCommunityDescToggles();
+    });
+  });
+  document.fonts?.ready?.then(() => syncCommunityDescToggles());
 
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();

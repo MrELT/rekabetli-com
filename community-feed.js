@@ -79,9 +79,13 @@ let canPostInCommunity = false;
 const POST_CONTENT_MAX_LENGTH = 1800;
 const COMMUNITY_PURPOSE_MIN_LENGTH = 10;
 const COMMUNITY_PURPOSE_MAX_LENGTH = 600;
+const COMMUNITY_AVATAR_BUCKET = "avatars";
+const COMMUNITY_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const COMMUNITY_AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 let membersLoadSeq = 0;
 let isPurposeEditing = false;
 let purposeEditSaving = false;
+let communityAvatarSaving = false;
 let myJoinRequestStatus = null;
 let communityFeedAuthBound = false;
 let skipInitialFeedAuthHydrate = true;
@@ -770,6 +774,127 @@ async function saveCommunityPurpose() {
   }
 }
 
+function communityAvatarEditEls() {
+  return {
+    wrap: document.querySelector(".community-info-avatar-wrap"),
+    btn: document.getElementById("community-avatar-edit-btn"),
+    input: document.getElementById("community-avatar-edit-input"),
+    message: document.getElementById("community-avatar-edit-message"),
+  };
+}
+
+function setAvatarEditMessage(text, isError = false) {
+  const { message } = communityAvatarEditEls();
+  if (!message) return;
+  if (!text) {
+    message.hidden = true;
+    message.textContent = "";
+    message.classList.remove("is-error");
+    return;
+  }
+  message.hidden = false;
+  message.textContent = text;
+  message.classList.toggle("is-error", isError);
+}
+
+function syncCommunityAvatarEditUi() {
+  const { wrap, btn, input } = communityAvatarEditEls();
+  if (btn) {
+    btn.hidden = !isCommunityAdmin;
+    btn.disabled = communityAvatarSaving;
+  }
+  if (input) input.disabled = !isCommunityAdmin || communityAvatarSaving;
+  wrap?.classList.toggle("is-saving", communityAvatarSaving);
+}
+
+function applyCommunityAvatar(url) {
+  if (!community) return;
+  community.avatar_url = url || null;
+  if (!communityAvatarImg || !communityAvatarFallback) return;
+  window.RekabetliAvatars?.applyUserAvatar({
+    imgEl: communityAvatarImg,
+    fallbackEl: communityAvatarFallback,
+    avatarUrl: community.avatar_url,
+    displayName: community.name,
+    seed: community.id || community.name,
+  });
+}
+
+async function uploadCommunityAvatarFile(file) {
+  const sb = getSb();
+  if (!sb || !currentUserId) throw new Error("Supabase istemcisi hazır değil.");
+
+  const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  const path = `${currentUserId}/community-${communityId}-${Date.now()}.${ext}`;
+
+  if (window.RekabetliImageUploadLimit?.consumeUploadSlot) {
+    await window.RekabetliImageUploadLimit.consumeUploadSlot(sb, {
+      bucket: COMMUNITY_AVATAR_BUCKET,
+      path,
+    });
+  }
+
+  const { error: uploadError } = await sb.storage.from(COMMUNITY_AVATAR_BUCKET).upload(path, file, {
+    upsert: false,
+    contentType: file.type,
+    cacheControl: "3600",
+  });
+  if (uploadError) throw uploadError;
+
+  const { data } = sb.storage.from(COMMUNITY_AVATAR_BUCKET).getPublicUrl(path);
+  return `${data.publicUrl}?v=${Date.now()}`;
+}
+
+async function saveCommunityAvatar(file) {
+  const { input } = communityAvatarEditEls();
+  if (!isCommunityAdmin || !community || !communityId || !getSb() || communityAvatarSaving) return;
+
+  communityAvatarSaving = true;
+  syncCommunityAvatarEditUi();
+  setAvatarEditMessage("Görsel yükleniyor…");
+
+  try {
+    let selectedFile = file;
+    if (selectedFile.size > COMMUNITY_AVATAR_MAX_BYTES && window.RekabetliImageCompression?.compressImageFile) {
+      selectedFile = await window.RekabetliImageCompression.compressImageFile(selectedFile, {
+        maxBytes: COMMUNITY_AVATAR_MAX_BYTES,
+        outputName: "community-avatar-optimized.webp",
+      });
+    }
+    if (selectedFile.size > COMMUNITY_AVATAR_MAX_BYTES) {
+      throw new Error("too-large");
+    }
+
+    const avatarUrl = await uploadCommunityAvatarFile(selectedFile);
+    const { error } = await getSb()
+      .from("communities")
+      .update({ avatar_url: avatarUrl })
+      .eq("id", communityId)
+      .eq("owner_id", currentUserId);
+
+    if (error) throw error;
+
+    applyCommunityAvatar(avatarUrl);
+    setAvatarEditMessage("");
+  } catch (error) {
+    console.error("Community avatar update failed:", error);
+    if (window.RekabetliImageUploadLimit?.isLimitError(error)) {
+      setAvatarEditMessage(window.RekabetliImageUploadLimit.getLimitMessage(error), true);
+    } else if (error?.message === "too-large") {
+      setAvatarEditMessage(
+        "Profil fotoğrafı en fazla 5 MB olabilir. Lütfen görseli sıkıştırıp (tercihen WebP) tekrar yükleyin.",
+        true
+      );
+    } else {
+      setAvatarEditMessage("Görsel kaydedilemedi. Yetkileri kontrol edip tekrar deneyin.", true);
+    }
+  } finally {
+    communityAvatarSaving = false;
+    if (input) input.value = "";
+    syncCommunityAvatarEditUi();
+  }
+}
+
 function renderCommunityHeader() {
   if (!community) return;
 
@@ -799,6 +924,7 @@ function renderCommunityHeader() {
   communityAdminNote.hidden = !isCommunityAdmin;
   updateJoinActions();
   syncCommunityPurposeEditUi();
+  syncCommunityAvatarEditUi();
 }
 
 function setupCommunityPanelAccordion() {
@@ -2272,6 +2398,25 @@ document.addEventListener("DOMContentLoaded", () => {
   purposeEls.saveBtn?.addEventListener("click", (event) => {
     event.preventDefault();
     void saveCommunityPurpose();
+  });
+
+  const avatarEls = communityAvatarEditEls();
+
+  avatarEls.btn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    if (!isCommunityAdmin || communityAvatarSaving) return;
+    avatarEls.input?.click();
+  });
+
+  avatarEls.input?.addEventListener("change", () => {
+    const file = avatarEls.input.files?.[0];
+    if (!file) return;
+    if (!COMMUNITY_AVATAR_TYPES.includes(file.type)) {
+      setAvatarEditMessage("Yalnızca JPG, PNG veya WebP yükleyebilirsin.", true);
+      avatarEls.input.value = "";
+      return;
+    }
+    void saveCommunityAvatar(file);
   });
 
   purposeEls.input?.addEventListener("input", () => {
