@@ -11887,6 +11887,18 @@ html.has-cookie-consent body {
   gap: 1rem;
 }
 
+.mentors-directory-header .mentors-category-switch {
+  margin-top: 1rem;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 640px) {
+  .mentors-directory-header .communities-sort-btn {
+    flex: 0 0 auto;
+  }
+}
+
 .mentors-preview-status {
   margin: 0;
   text-align: center;

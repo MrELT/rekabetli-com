@@ -111,6 +111,7 @@ const BATCHES = {
     "supabase-community-email-pref.sql",
     "supabase-package-purchase-notifications.sql",
     "supabase-admin-package-sales.sql",
+    "supabase-community-size-band-optional.sql",
   ],
 
   all: [

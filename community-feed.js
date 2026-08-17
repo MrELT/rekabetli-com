@@ -62,13 +62,6 @@ const communityEmailPrefToggle = document.getElementById(
   "community-email-pref-toggle",
 );
 
-const SIZE_LABELS = {
-  "0-10": "0–10 kişi",
-  "10-50": "10–50 kişi",
-  "50-100": "50–100 kişi",
-  "100+": "100+ kişi",
-};
-
 const communityId = new URLSearchParams(window.location.search).get("id");
 
 let questions = [];
@@ -638,10 +631,11 @@ function getCommunityInitials(name) {
 
 function updateCommunityMetaLine(memberCount) {
   if (!communityMetaEl || !community) return;
-  const capacity = SIZE_LABELS[community.size_band] || community.size_band;
-  const countPart =
-    typeof memberCount === "number" ? ` · ${memberCount} üye` : "";
-  communityMetaEl.textContent = `Kapasite: ${capacity}${countPart}`;
+  if (typeof memberCount !== "number" || !Number.isFinite(memberCount)) {
+    communityMetaEl.textContent = "";
+    return;
+  }
+  communityMetaEl.textContent = `${Math.max(0, Math.round(memberCount))} üye`;
 }
 
 function purposeEditEls() {
@@ -1251,7 +1245,7 @@ async function loadCommunity() {
   try {
     const { data, error } = await getSb()
       .from("communities")
-      .select("id, owner_id, name, purpose, size_band, visibility, avatar_url, created_at")
+      .select("id, owner_id, name, purpose, visibility, avatar_url, created_at")
       .eq("id", communityId)
       .maybeSingle();
 

@@ -23,13 +23,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
   const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
-  const SIZE_LABELS = {
-    "0-10": "0–10 kişi",
-    "10-50": "10–50 kişi",
-    "50-100": "50–100 kişi",
-    "100+": "100+ kişi",
-  };
-
   const modal = document.getElementById("community-modal");
   const form = document.getElementById("community-form");
   const closeBtn = document.getElementById("close-community-modal");
@@ -64,7 +57,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const nameInput = document.getElementById("community-name");
   const purposeInput = document.getElementById("community-purpose");
-  const sizeBandSelect = document.getElementById("community-size-band");
   const avatarInput = document.getElementById("community-avatar-input");
   const avatarPreview = document.getElementById("community-avatar-preview");
   const avatarFallback = document.getElementById("community-avatar-fallback");
@@ -249,7 +241,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildCommunityCard(row) {
-    const sizeLabel = SIZE_LABELS[row.size_band] || row.size_band;
     const memberCount = Number.isFinite(row.member_count) ? row.member_count : 0;
 
     const card = document.createElement("article");
@@ -292,11 +283,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const meta = document.createElement("div");
     meta.className = "community-meta";
-    const sizeMeta = document.createElement("span");
-    sizeMeta.textContent = `👥 ${sizeLabel}`;
-    const memberMeta = document.createElement("span");
-    memberMeta.textContent = ` · Üye: ${memberCount}`;
-    meta.append(sizeMeta, memberMeta);
+    meta.textContent = `${memberCount} üye`;
 
     const desc = document.createElement("p");
     desc.className = "community-desc";
@@ -488,7 +475,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const { data, error } = await sb
       .from("communities")
-      .select("id, name, purpose, size_band, visibility, avatar_url, owner_id, created_at")
+      .select("id, name, purpose, visibility, avatar_url, owner_id, created_at")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -793,10 +780,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const name = nameInput.value.trim();
     const purpose = purposeInput.value.trim();
-    const sizeBand = sizeBandSelect.value;
     const visibility = form.querySelector('input[name="visibility"]:checked')?.value;
 
-    if (!name || !purpose || !sizeBand || !visibility) {
+    if (!name || !purpose || !visibility) {
       setFormMessage("Lütfen tüm zorunlu alanları doldurun.", true);
       return;
     }
@@ -834,12 +820,11 @@ document.addEventListener("DOMContentLoaded", () => {
             owner_id: user.id,
             name,
             purpose,
-            size_band: sizeBand,
             visibility,
             avatar_url: avatarUrl,
           },
         ])
-        .select("id, name, purpose, size_band, visibility, avatar_url, owner_id")
+        .select("id, name, purpose, visibility, avatar_url, owner_id")
         .single();
 
       if (error) throw error;

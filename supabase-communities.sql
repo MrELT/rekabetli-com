@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.communities (
   name text NOT NULL CHECK (char_length(trim(name)) >= 2),
   avatar_url text,
   purpose text NOT NULL CHECK (char_length(trim(purpose)) >= 10),
-  size_band text NOT NULL CHECK (size_band IN ('0-10', '10-50', '50-100', '100+')),
+  size_band text CHECK (size_band IS NULL OR size_band IN ('0-10', '10-50', '50-100', '100+')),
   visibility text NOT NULL CHECK (visibility IN ('public', 'private')),
   created_at timestamptz NOT NULL DEFAULT now()
 );
