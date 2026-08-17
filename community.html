@@ -105,7 +105,36 @@
             <p id="community-meta" class="community-info-meta"></p>
           </div>
         </div>
-        <p id="community-purpose" class="community-info-purpose"></p>
+        <div class="community-purpose-wrap">
+          <div id="community-purpose-view" class="community-purpose-view">
+            <p id="community-purpose" class="community-info-purpose"></p>
+            <button
+              type="button"
+              id="community-purpose-edit-btn"
+              class="community-purpose-edit-btn"
+              hidden
+              aria-label="Açıklamayı düzenle"
+              title="Açıklamayı düzenle"
+            >
+              ✏️
+            </button>
+          </div>
+          <div id="community-purpose-editor" class="community-purpose-editor" hidden>
+            <label class="community-purpose-edit-label" for="community-purpose-input">Topluluk açıklaması</label>
+            <textarea
+              id="community-purpose-input"
+              class="community-purpose-input"
+              rows="4"
+              maxlength="600"
+              placeholder="Topluluğunuzun amacını ve üyelerin neler yapacağını kısaca anlatın..."
+            ></textarea>
+            <p id="community-purpose-edit-message" class="community-purpose-edit-message" hidden></p>
+            <div id="community-purpose-edit-actions" class="community-purpose-edit-actions" hidden>
+              <button type="button" id="community-purpose-cancel-btn" class="secondary">Vazgeç</button>
+              <button type="button" id="community-purpose-save-btn">Kaydet</button>
+            </div>
+          </div>
+        </div>
         <p id="community-admin-note" class="community-admin-note" hidden>Kurucu olarak bu topluluğun yöneticisisin.</p>
         <div id="community-join-actions" class="community-join-actions" hidden>
           <button type="button" id="community-join-btn" class="details-btn" hidden>
@@ -133,6 +162,38 @@
         </div>
 
         <div class="activity-accordion community-panel-accordion" id="community-panel-accordion">
+          <section class="activity-accordion-section community-notal-section" data-section="notal">
+            <button
+              type="button"
+              class="activity-accordion-trigger"
+              id="trigger-notal"
+              aria-expanded="false"
+              aria-controls="panel-notal"
+            >
+              <span class="activity-accordion-title">Notal Özeti</span>
+              <span class="activity-accordion-meta">
+                <span class="activity-accordion-chevron" aria-hidden="true"></span>
+              </span>
+            </button>
+            <div
+              id="panel-notal"
+              class="activity-accordion-panel community-notal-panel"
+              role="region"
+              aria-labelledby="trigger-notal"
+            >
+              <p class="community-notal-kicker">NotAl · paylaşımlar ve açıklamadan üretilir</p>
+              <p id="community-notal-status" class="community-notal-status">
+                Özeti görmek için bu bölümü açın.
+              </p>
+              <p id="community-notal-summary" class="community-notal-summary" hidden></p>
+              <ul id="community-notal-highlights" class="community-notal-highlights" hidden></ul>
+              <button type="button" id="community-notal-faq-btn" class="details-btn community-notal-faq-btn">
+                Sıkça sorulan soruları incele
+              </button>
+              <div id="community-notal-faqs" class="community-notal-faqs" hidden></div>
+            </div>
+          </section>
+
           <section class="activity-accordion-section" data-section="members">
             <button
               type="button"
@@ -314,6 +375,7 @@
     <script src="nav-profile.js"></script>
     <script src="confirm-dialog.js"></script>
     <script src="notifications.js"></script>
+    <script src="community-notal.js"></script>
     <script src="community-feed.js"></script>
       <script src="site-footer.js"></script>
   </body>

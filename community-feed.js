@@ -32,6 +32,14 @@ const pageMain = document.getElementById("community-page-main");
 const pageError = document.getElementById("community-page-error");
 const communityNameEl = document.getElementById("community-name");
 const communityPurposeEl = document.getElementById("community-purpose");
+const communityPurposeView = document.getElementById("community-purpose-view");
+const communityPurposeEditBtn = document.getElementById("community-purpose-edit-btn");
+const communityPurposeEditor = document.getElementById("community-purpose-editor");
+const communityPurposeInput = document.getElementById("community-purpose-input");
+const communityPurposeEditMessage = document.getElementById("community-purpose-edit-message");
+const communityPurposeEditActions = document.getElementById("community-purpose-edit-actions");
+const communityPurposeSaveBtn = document.getElementById("community-purpose-save-btn");
+const communityPurposeCancelBtn = document.getElementById("community-purpose-cancel-btn");
 const communityMetaEl = document.getElementById("community-meta");
 const communityVisibilityBadge = document.getElementById("community-visibility-badge");
 const communityAdminNote = document.getElementById("community-admin-note");
@@ -76,7 +84,11 @@ let isCommunityMember = false;
 let canViewFeed = false;
 let canPostInCommunity = false;
 const POST_CONTENT_MAX_LENGTH = 1800;
+const COMMUNITY_PURPOSE_MIN_LENGTH = 10;
+const COMMUNITY_PURPOSE_MAX_LENGTH = 600;
 let membersLoadSeq = 0;
+let isPurposeEditing = false;
+let purposeEditSaving = false;
 let myJoinRequestStatus = null;
 let communityFeedAuthBound = false;
 let skipInitialFeedAuthHydrate = true;
@@ -330,50 +342,26 @@ async function saveCommunityEmailPreference(enabled) {
   updateCommunityEmailPrefUi();
 
   try {
-    const { data: existing, error: existingError } = await getSb()
-      .from("community_members")
-      .select("user_id")
-      .eq("community_id", communityId)
-      .eq("user_id", currentUserId)
-      .maybeSingle();
+    const { data: rpcValue, error: rpcError } = await getSb().rpc(
+      "set_community_email_notifications",
+      {
+        p_community_id: communityId,
+        p_enabled: enabled,
+      },
+    );
 
-    if (existingError) throw existingError;
-
-    if (existing) {
-      const { data: updated, error } = await getSb()
-        .from("community_members")
-        .update({ email_notifications_enabled: enabled })
-        .eq("community_id", communityId)
-        .eq("user_id", currentUserId)
-        .select("email_notifications_enabled")
-        .maybeSingle();
-      if (error) throw error;
-      if (!updated) {
-        throw new Error("update_blocked_or_missing_column");
-      }
-    } else {
-      // Kurucu bazen community_members satırı olmadan da üye sayılır.
-      const { data: inserted, error } = await getSb()
-        .from("community_members")
-        .insert({
-          community_id: communityId,
-          user_id: currentUserId,
-          email_notifications_enabled: enabled,
-        })
-        .select("email_notifications_enabled")
-        .maybeSingle();
-      if (error) throw error;
-      if (!inserted) {
-        throw new Error("insert_blocked");
-      }
-      isCommunityMember = true;
+    if (rpcError) throw rpcError;
+    if (typeof rpcValue !== "boolean") {
+      throw new Error("invalid_email_pref_response");
     }
+
+    communityEmailNotificationsEnabled = rpcValue;
   } catch (error) {
     console.error("Community email pref save failed:", error);
     communityEmailNotificationsEnabled = previous;
     const raw = String(error?.message || error?.code || "");
     const needsMigration =
-      /email_notifications_enabled|schema cache|does not exist|42703/i.test(raw);
+      /email_notifications_enabled|schema cache|does not exist|42703|42883/i.test(raw);
     await rekabetliAlert({
       title: "Kaydedilemedi",
       message: needsMigration
@@ -436,7 +424,7 @@ async function joinPublicCommunity() {
 async function joinPublicCommunityCore({ silent = false, reloadFeed = true } = {}) {
   const { error } = await getSb().from("community_members").upsert(
     [{ community_id: communityId, user_id: currentUserId }],
-    { onConflict: "community_id,user_id" }
+    { onConflict: "community_id,user_id", ignoreDuplicates: true },
   );
   if (error) throw error;
 
@@ -656,12 +644,146 @@ function updateCommunityMetaLine(memberCount) {
   communityMetaEl.textContent = `Kapasite: ${capacity}${countPart}`;
 }
 
+function purposeEditEls() {
+  return {
+    view: document.getElementById("community-purpose-view"),
+    btn: document.getElementById("community-purpose-edit-btn"),
+    editor: document.getElementById("community-purpose-editor"),
+    input: document.getElementById("community-purpose-input"),
+    message: document.getElementById("community-purpose-edit-message"),
+    actions: document.getElementById("community-purpose-edit-actions"),
+    saveBtn: document.getElementById("community-purpose-save-btn"),
+    cancelBtn: document.getElementById("community-purpose-cancel-btn"),
+    purposeEl: document.getElementById("community-purpose"),
+  };
+}
+
+function sanitizeCommunityPurpose(value) {
+  const sec = window.RekabetliSecurity;
+  if (sec?.sanitizePlainText) {
+    return sec.sanitizePlainText(value, COMMUNITY_PURPOSE_MAX_LENGTH);
+  }
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, COMMUNITY_PURPOSE_MAX_LENGTH);
+}
+
+function currentCommunityPurpose() {
+  return String(community?.purpose || "").trim();
+}
+
+function isPurposeDirty() {
+  const { input } = purposeEditEls();
+  if (!input) return false;
+  return input.value.trim() !== currentCommunityPurpose();
+}
+
+function setPurposeEditMessage(text, isError = false) {
+  const { message } = purposeEditEls();
+  if (!message) return;
+  if (!text) {
+    message.hidden = true;
+    message.textContent = "";
+    message.classList.remove("is-error");
+    return;
+  }
+  message.hidden = false;
+  message.textContent = text;
+  message.classList.toggle("is-error", isError);
+}
+
+function updatePurposeEditActions() {
+  const { actions, saveBtn, cancelBtn, input } = purposeEditEls();
+  if (!actions || !saveBtn) return;
+  const dirty = isPurposeDirty();
+  actions.hidden = !isPurposeEditing;
+  saveBtn.hidden = !dirty;
+  saveBtn.disabled = purposeEditSaving || !dirty;
+  if (cancelBtn) cancelBtn.disabled = purposeEditSaving;
+  if (input) input.disabled = purposeEditSaving;
+}
+
+function syncCommunityPurposeEditUi() {
+  if (!isCommunityAdmin && isPurposeEditing) {
+    exitPurposeEdit();
+    return;
+  }
+
+  const { btn, view, editor } = purposeEditEls();
+  if (btn) btn.hidden = !isCommunityAdmin || isPurposeEditing;
+  if (view) view.hidden = isPurposeEditing;
+  if (editor) editor.hidden = !isPurposeEditing;
+  updatePurposeEditActions();
+}
+
+function enterPurposeEdit() {
+  const { input } = purposeEditEls();
+  if (!isCommunityAdmin || !input || !community) return;
+  isPurposeEditing = true;
+  purposeEditSaving = false;
+  input.value = currentCommunityPurpose();
+  setPurposeEditMessage("");
+  syncCommunityPurposeEditUi();
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+}
+
+function exitPurposeEdit() {
+  const { input } = purposeEditEls();
+  isPurposeEditing = false;
+  purposeEditSaving = false;
+  if (input) input.value = currentCommunityPurpose();
+  setPurposeEditMessage("");
+  syncCommunityPurposeEditUi();
+}
+
+async function saveCommunityPurpose() {
+  const { input, purposeEl } = purposeEditEls();
+  if (!isCommunityAdmin || !community || !communityId || !getSb() || purposeEditSaving) return;
+
+  const purpose = sanitizeCommunityPurpose(input?.value || "");
+  if (purpose.length < COMMUNITY_PURPOSE_MIN_LENGTH) {
+    setPurposeEditMessage("Açıklama en az 10 karakter olmalı. Biraz daha detay ekleyin.", true);
+    return;
+  }
+  if (purpose === currentCommunityPurpose()) {
+    exitPurposeEdit();
+    return;
+  }
+
+  purposeEditSaving = true;
+  updatePurposeEditActions();
+  setPurposeEditMessage("");
+
+  try {
+    const { error } = await getSb()
+      .from("communities")
+      .update({ purpose })
+      .eq("id", communityId)
+      .eq("owner_id", currentUserId);
+
+    if (error) throw error;
+
+    community.purpose = purpose;
+    if (purposeEl) purposeEl.textContent = purpose;
+    exitPurposeEdit();
+  } catch (error) {
+    console.error("Community purpose update failed:", error);
+    purposeEditSaving = false;
+    updatePurposeEditActions();
+    setPurposeEditMessage("Açıklama kaydedilemedi. Yetkileri kontrol edip tekrar deneyin.", true);
+  }
+}
+
 function renderCommunityHeader() {
   if (!community) return;
 
   document.title = `${community.name} | rekabetli.com`;
   if (communityNameEl) communityNameEl.textContent = community.name;
-  if (communityPurposeEl) communityPurposeEl.textContent = community.purpose;
+  if (communityPurposeEl && !isPurposeEditing) {
+    communityPurposeEl.textContent = community.purpose;
+  }
   updateCommunityMetaLine();
 
   const isPrivate = community.visibility === "private";
@@ -682,6 +804,7 @@ function renderCommunityHeader() {
 
   communityAdminNote.hidden = !isCommunityAdmin;
   updateJoinActions();
+  syncCommunityPurposeEditUi();
 }
 
 function setupCommunityPanelAccordion() {
@@ -696,6 +819,9 @@ function setupCommunityPanelAccordion() {
       const willOpen = !section.classList.contains("is-open");
       section.classList.toggle("is-open", willOpen);
       trigger.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      if (willOpen && section.dataset.section === "notal") {
+        window.RekabetliCommunityNotal?.onAccordionOpened?.();
+      }
     });
   });
 }
@@ -1086,7 +1212,7 @@ function redirectToCommunityCard() {
 function updateAccessFlags() {
   if (!community) return;
 
-  isCommunityAdmin = Boolean(currentUserId && community.owner_id === currentUserId);
+  isCommunityAdmin = Boolean(currentUserId && sameUserId(community.owner_id, currentUserId));
   if (isCommunityAdmin) {
     isCommunityMember = true;
   }
@@ -1108,6 +1234,7 @@ function updateAccessFlags() {
   updateShareButtons();
   updateJoinActions();
   updateJoinRequestsSectionVisibility();
+  syncCommunityPurposeEditUi();
 }
 
 async function loadCommunity() {
@@ -2136,6 +2263,36 @@ document.addEventListener("DOMContentLoaded", () => {
     void saveCommunityEmailPreference(Boolean(communityEmailPrefToggle.checked));
   });
 
+  const purposeEls = purposeEditEls();
+
+  purposeEls.btn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    enterPurposeEdit();
+  });
+
+  purposeEls.cancelBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    if (!purposeEditSaving) exitPurposeEdit();
+  });
+
+  purposeEls.saveBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    void saveCommunityPurpose();
+  });
+
+  purposeEls.input?.addEventListener("input", () => {
+    if (!isPurposeEditing) return;
+    setPurposeEditMessage("");
+    updatePurposeEditActions();
+  });
+
+  purposeEls.input?.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && isPurposeEditing && !purposeEditSaving) {
+      event.preventDefault();
+      exitPurposeEdit();
+    }
+  });
+
   panelMembers?.addEventListener("click", (event) => {
     const btn = event.target.closest(".js-remove-community-member");
     if (!btn || !isCommunityAdmin) return;
@@ -2163,6 +2320,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // ESC Tuşuna Basınca Kapanma
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      if (isPurposeEditing && !purposeEditSaving) {
+        exitPurposeEdit();
+        return;
+      }
       if (questionModal && !questionModal.hidden) closeQuestionModal();
       const mobileMenu = document.getElementById("mobile-menu");
       if (mobileMenu && !mobileMenu.hidden) mobileMenu.hidden = true;

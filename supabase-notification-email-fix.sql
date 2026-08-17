@@ -57,17 +57,37 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  v_community_id uuid;
 BEGIN
-  IF NEW.email_sent IS DISTINCT FROM true THEN
-    BEGIN
-      INSERT INTO public.notification_email_queue (notification_id)
-      VALUES (NEW.id)
-      ON CONFLICT (notification_id) DO NOTHING;
-    EXCEPTION
-      WHEN OTHERS THEN
-        RAISE WARNING 'notification_email_queue insert failed for %: %', NEW.id, SQLERRM;
-    END;
+  IF NEW.email_sent IS TRUE THEN
+    RETURN NEW;
   END IF;
+
+  IF NEW.created_at < now() - interval '24 hours' THEN
+    RETURN NEW;
+  END IF;
+
+  BEGIN
+    v_community_id := public.notification_community_id(NEW.community_id, NEW.post_id);
+    IF v_community_id IS NOT NULL
+       AND public.is_community_email_enabled(v_community_id, NEW.user_id) IS NOT TRUE THEN
+      RETURN NEW;
+    END IF;
+  EXCEPTION
+    WHEN undefined_function THEN
+      NULL;
+  END;
+
+  BEGIN
+    INSERT INTO public.notification_email_queue (notification_id)
+    VALUES (NEW.id)
+    ON CONFLICT (notification_id) DO NOTHING;
+  EXCEPTION
+    WHEN OTHERS THEN
+      RAISE WARNING 'notification_email_queue insert failed for %: %', NEW.id, SQLERRM;
+  END;
+
   RETURN NEW;
 END;
 $$;

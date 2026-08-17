@@ -612,7 +612,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!sb) return;
       const { error } = await sb.from("community_members").upsert(
         [{ community_id: communityId, user_id: user.id }],
-        { onConflict: "community_id,user_id" }
+        { onConflict: "community_id,user_id", ignoreDuplicates: true },
       );
 
       if (error) throw error;

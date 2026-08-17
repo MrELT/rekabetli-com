@@ -772,7 +772,7 @@ async function joinPublicCommunityFromFeed(communityId) {
 
   const { error } = await getSb().from("community_members").upsert(
     [{ community_id: communityId, user_id: currentUserId }],
-    { onConflict: "community_id,user_id" },
+    { onConflict: "community_id,user_id", ignoreDuplicates: true },
   );
   if (error) throw error;
 

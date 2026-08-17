@@ -22,3 +22,4 @@ public/env-config.local.js
 Thumbs.db
 *.log
 .vercel
+tsconfig.tsbuildinfo

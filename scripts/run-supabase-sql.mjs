@@ -64,7 +64,10 @@ const BATCHES = {
   notifications: [
     "supabase-notification-email-fix.sql",
     "supabase-notification-email-queue.sql",
+    "supabase-community-email-pref.sql",
   ],
+
+  "community-email-pref": ["supabase-community-email-pref.sql"],
 
   "purchase-notifications": ["supabase-package-purchase-notifications.sql"],
 
@@ -83,6 +86,8 @@ const BATCHES = {
   "package-order-fix": ["supabase-package-orders-create-overload-fix.sql"],
 
   "panel-error-reports": ["supabase-panel-error-reports.sql"],
+
+  "admin-sales": ["supabase-admin-package-sales.sql"],
 
   "cleanup-test-payments": ["supabase-cleanup-test-payments.sql"],
 
@@ -103,7 +108,9 @@ const BATCHES = {
     "supabase-mentor-vitrin-availability-watch.sql",
     "supabase-notification-email-fix.sql",
     "supabase-notification-email-queue.sql",
+    "supabase-community-email-pref.sql",
     "supabase-package-purchase-notifications.sql",
+    "supabase-admin-package-sales.sql",
   ],
 
   all: [
@@ -137,6 +144,7 @@ const BATCHES = {
     "supabase-mentor-vitrin-availability-watch.sql",
     "supabase-notification-email-fix.sql",
     "supabase-notification-email-queue.sql",
+    "supabase-community-email-pref.sql",
     "supabase-package-purchase-notifications.sql",
     "supabase-mentor-payout-self-billing.sql",
   ],

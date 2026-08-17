@@ -1005,13 +1005,91 @@ async function fetchNotificationById(
   return (data as NotificationRecord | null) ?? null;
 }
 
+function isDisabledEmailPref(value: unknown): boolean {
+  return value === false || value === "false" || value === 0 || value === "0";
+}
+
+async function resolveNotificationCommunityId(
+  supabase: SupabaseClient,
+  notification: NotificationRecord,
+): Promise<string | null> {
+  if (isSafeUuid(notification.community_id)) {
+    return notification.community_id;
+  }
+  if (!isSafeUuid(notification.post_id)) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("posts")
+    .select("community_id")
+    .eq("id", notification.post_id)
+    .maybeSingle<{ community_id: string | null }>();
+
+  if (error) {
+    throw new Error(`Topluluk kimliği okunamadı: ${error.message}`);
+  }
+
+  return isSafeUuid(data?.community_id) ? data.community_id : null;
+}
+
+async function isCommunityEmailOptedOut(
+  supabase: SupabaseClient,
+  notification: NotificationRecord,
+): Promise<boolean> {
+  if (!isSafeUuid(notification.user_id)) return false;
+
+  const communityId = await resolveNotificationCommunityId(supabase, notification);
+  if (!communityId) return false;
+
+  const { data: rpcEnabled, error: rpcError } = await supabase.rpc(
+    "is_community_email_enabled",
+    {
+      p_community_id: communityId,
+      p_user_id: notification.user_id,
+    },
+  );
+
+  if (!rpcError && typeof rpcEnabled === "boolean") {
+    return rpcEnabled !== true;
+  }
+
+  const { data: memberPref, error } = await supabase
+    .from("community_members")
+    .select("email_notifications_enabled")
+    .eq("community_id", communityId)
+    .eq("user_id", notification.user_id)
+    .maybeSingle<{ email_notifications_enabled: boolean | string | null }>();
+
+  if (error) {
+    throw new Error(`Topluluk e-posta tercihi okunamadı: ${error.message}`);
+  }
+
+  return isDisabledEmailPref(memberPref?.email_notifications_enabled);
+}
+
 async function enqueueNotificationIds(
   supabase: SupabaseClient,
   notificationIds: string[],
 ): Promise<number> {
   if (!notificationIds.length) return 0;
 
-  const rows = notificationIds.map((notification_id) => ({ notification_id }));
+  const allowedIds: string[] = [];
+  for (const notificationId of notificationIds) {
+    const notification = await fetchNotificationById(supabase, notificationId);
+    if (!notification) continue;
+    if (await isCommunityEmailOptedOut(supabase, notification)) {
+      console.log(
+        `Kuyruğa alınmadı (community_email_opt_out): notification_id=${notificationId}`,
+      );
+      continue;
+    }
+    allowedIds.push(notificationId);
+  }
+
+  if (!allowedIds.length) return 0;
+
+  const rows = allowedIds.map((notification_id) => ({ notification_id }));
   const { error } = await supabase
     .from("notification_email_queue")
     .upsert(rows, { onConflict: "notification_id", ignoreDuplicates: true });
@@ -1020,7 +1098,7 @@ async function enqueueNotificationIds(
     throw new Error(`Kuyruk ekleme hatası: ${error.message}`);
   }
 
-  return notificationIds.length;
+  return allowedIds.length;
 }
 
 async function finalizeQueueItem(
@@ -1122,34 +1200,17 @@ async function processNotificationEmail(options: {
     };
   }
 
-  // Topluluk paylaşım mailleri: üye bu topluluk için e-postayı kapatmışsa atla.
-  // Site içi bildirim (notifications satırı) zaten oluşmuştur.
-  if (
-    notification.type === "community_post" &&
-    isSafeUuid(notification.community_id) &&
-    isSafeUuid(notification.user_id)
-  ) {
-    const { data: memberPref, error: memberPrefError } = await supabase
-      .from("community_members")
-      .select("email_notifications_enabled")
-      .eq("community_id", notification.community_id)
-      .eq("user_id", notification.user_id)
-      .maybeSingle<{ email_notifications_enabled: boolean | null }>();
-
-    if (memberPrefError) {
-      throw new Error(
-        `Topluluk e-posta tercihi okunamadı: ${memberPrefError.message}`,
-      );
-    }
-
-    if (memberPref && memberPref.email_notifications_enabled === false) {
-      return {
-        ok: true,
-        skipped: true,
-        reason: "community_email_opt_out",
-        notificationId: notification.id,
-      };
-    }
+  const communityOptOut = await isCommunityEmailOptedOut(supabase, notification);
+  if (communityOptOut) {
+    console.log(
+      `Topluluk e-posta tercihi kapalı, atlandı: notification_id=${notification.id}, type=${notification.type}`,
+    );
+    return {
+      ok: true,
+      skipped: true,
+      reason: "community_email_opt_out",
+      notificationId: notification.id,
+    };
   }
 
   const { email, displayName } = await getRecipientProfile(supabase, notification.user_id);

@@ -17,7 +17,8 @@
     "db:sql:referral": "node scripts/run-supabase-sql.mjs referral",
     "db:sql:purchase-notifications": "node scripts/run-supabase-sql.mjs purchase-notifications",
     "db:sql:remaining": "node scripts/run-supabase-sql.mjs remaining",
-    "db:sql:self-billing": "node scripts/run-supabase-sql.mjs self-billing"
+    "db:sql:self-billing": "node scripts/run-supabase-sql.mjs self-billing",
+    "db:sql:admin-sales": "node scripts/run-supabase-sql.mjs admin-sales"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",

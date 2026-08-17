@@ -30,6 +30,9 @@
   const packageSalesCountTotal = document.getElementById("admin-package-sales-count-total");
   const packageSalesAmountTotal = document.getElementById("admin-package-sales-amount-total");
   const packageSalesCommissionTotal = document.getElementById("admin-package-sales-commission-total");
+  const packageSalesPanelTotal = document.getElementById("admin-package-sales-panel-total");
+  const packageSalesMeetingTotal = document.getElementById("admin-package-sales-meeting-total");
+  const packageSalesReviewTotal = document.getElementById("admin-package-sales-review-total");
   const panelErrorReportsBody = document.getElementById("admin-panel-error-reports-body");
   const contentReportsBody = document.getElementById("admin-content-reports-body");
   const adminNavButtons = document.querySelectorAll("[data-admin-section].admin-nav-btn");
@@ -166,7 +169,7 @@
     },
     "package-sales": {
       title: "Satılan Paketler",
-      desc: "Tamamlanan paket satışlarını, alıcı/satıcı bilgilerini ve platform komisyonunu görüntüleyin.",
+      desc: "Tamamlanan paket satışlarını, panel kaydını, ilk görüşmeyi ve varsa görüşme yorumunu görüntüleyin.",
     },
     "package-refunds": {
       title: "Paket İade Talepleri",
@@ -942,35 +945,108 @@
     return map[String(status || "")] || String(status || "—");
   }
 
+  function createSaleFlagCell(label, tone) {
+    const td = document.createElement("td");
+    const flag = document.createElement("span");
+    flag.className = `admin-sale-flag admin-sale-flag--${tone || "muted"}`;
+    flag.textContent = label;
+    td.appendChild(flag);
+    return td;
+  }
+
+  function meetingHasPassed(isoDate) {
+    if (!isoDate) return false;
+    const at = new Date(isoDate);
+    return Number.isFinite(at.getTime()) && at.getTime() <= Date.now();
+  }
+
+  function mapPackageSaleMeeting(row) {
+    const status = String(row.meeting_status || "none");
+    if (status === "none") {
+      return { label: "Planlanmadı", tone: "warn" };
+    }
+    if (status === "pending") {
+      return { label: "Teklif bekliyor", tone: "warn" };
+    }
+    if (status === "responded") {
+      return { label: "Saat seçildi", tone: "warn" };
+    }
+    if (status === "postpone_pending") {
+      return { label: "Erteleme bekliyor", tone: "warn" };
+    }
+    if (status === "cancelled") {
+      return { label: "İptal", tone: "muted" };
+    }
+    if (status === "refunded") {
+      return { label: "İade", tone: "muted" };
+    }
+    if (status === "confirmed") {
+      const when = formatDate(row.meeting_at);
+      if (meetingHasPassed(row.meeting_at)) {
+        return { label: when === "-" ? "Yapıldı" : `Yapıldı · ${when}`, tone: "ok" };
+      }
+      return { label: when === "-" ? "Onaylı" : `Onaylı · ${when}`, tone: "ok" };
+    }
+    return { label: status, tone: "muted" };
+  }
+
+  function createSaleReviewCell(row) {
+    const td = document.createElement("td");
+    const rating = Number(row.review_rating);
+    const hasReview = Number.isFinite(rating) && rating >= 1;
+    if (hasReview) {
+      const wrap = document.createElement("div");
+      wrap.className = "admin-sale-review";
+      const score = document.createElement("strong");
+      score.className = "admin-sale-review-score";
+      score.textContent = `${rating}/5`;
+      wrap.appendChild(score);
+      const comment = String(row.review_comment || "").trim();
+      if (comment) {
+        const note = document.createElement("span");
+        note.className = "admin-sale-review-comment";
+        note.textContent = comment;
+        note.title = comment;
+        wrap.appendChild(note);
+      }
+      td.appendChild(wrap);
+      return td;
+    }
+
+    const meetingDone =
+      String(row.meeting_status || "") === "confirmed" && meetingHasPassed(row.meeting_at);
+    td.textContent = meetingDone ? "Yok" : "—";
+    td.className = meetingDone ? "admin-sale-review-empty" : "";
+    return td;
+  }
+
   async function loadPackageSales() {
     if (!packageSalesBody) return;
 
-    const { data: orders, error } = await supabase
-      .from("package_orders")
-      .select(
-        "id, user_id, mentor_id, package_title, list_price, amount_paid, platform_fee, stripe_fee, currency, status, paid_at, created_at",
-      )
-      .in("status", ["paid", "refunded"])
-      .order("paid_at", { ascending: false, nullsFirst: false })
-      .limit(300);
-
+    const { data, error } = await supabase.rpc("get_admin_package_sales");
     if (error) {
       console.error("package sales load:", error.message);
-      clearTable(packageSalesBody, "Satışlar yüklenemedi.", 7);
+      clearTable(packageSalesBody, "Satışlar yüklenemedi.", 10);
       if (countPackageSales) countPackageSales.textContent = "0";
       if (packageSalesSummary) packageSalesSummary.hidden = true;
       return;
     }
 
-    const rows = orders ?? [];
-    const paidRows = rows.filter((row) => row.status === "paid");
+    const rows = Array.isArray(data) ? data : [];
+    const paidRows = rows.filter((row) => row.order_status === "paid");
     if (countPackageSales) countPackageSales.textContent = String(paidRows.length);
 
     let totalGross = 0;
     let totalCommission = 0;
+    let inPanelCount = 0;
+    let meetingConfirmedCount = 0;
+    let reviewCount = 0;
     paidRows.forEach((row) => {
       totalGross += Number(row.amount_paid ?? row.list_price) || 0;
       totalCommission += Number(row.platform_fee) || 0;
+      if (row.in_panel) inPanelCount += 1;
+      if (String(row.meeting_status || "") === "confirmed") meetingConfirmedCount += 1;
+      if (Number(row.review_rating) >= 1) reviewCount += 1;
     });
 
     if (packageSalesSummary) {
@@ -980,51 +1056,50 @@
       if (packageSalesCommissionTotal) {
         packageSalesCommissionTotal.textContent = formatTryMoney(totalCommission);
       }
+      if (packageSalesPanelTotal) {
+        packageSalesPanelTotal.textContent = paidRows.length
+          ? `${inPanelCount} / ${paidRows.length}`
+          : "—";
+      }
+      if (packageSalesMeetingTotal) {
+        packageSalesMeetingTotal.textContent = paidRows.length
+          ? `${meetingConfirmedCount} / ${paidRows.length}`
+          : "—";
+      }
+      if (packageSalesReviewTotal) {
+        packageSalesReviewTotal.textContent = paidRows.length
+          ? `${reviewCount} / ${paidRows.length}`
+          : "—";
+      }
     }
 
     packageSalesBody.replaceChildren();
     if (!rows.length) {
-      clearTable(packageSalesBody, "Henüz satılan paket yok.", 7);
+      clearTable(packageSalesBody, "Henüz satılan paket yok.", 10);
       return;
     }
 
-    const profileIds = [
-      ...new Set(rows.flatMap((row) => [row.user_id, row.mentor_id]).filter(Boolean)),
-    ];
-    const profileById = new Map();
-    if (profileIds.length) {
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, display_name, email")
-        .in("id", profileIds);
-      if (profilesError) {
-        console.error("package sales profiles:", profilesError.message);
-      } else {
-        (profiles ?? []).forEach((profile) => profileById.set(profile.id, profile));
-      }
-    }
-
     rows.forEach((row) => {
-      const mentor = profileById.get(row.mentor_id);
-      const student = profileById.get(row.user_id);
-      const mentorLabel =
-        mentor?.display_name?.trim() || mentor?.email?.trim() || "Mentör";
-      const studentLabel =
-        student?.display_name?.trim() || student?.email?.trim() || "Öğrenci";
       const saleAmount = row.amount_paid ?? row.list_price;
       const commission = Number(row.platform_fee);
       const commissionLabel = Number.isFinite(commission)
         ? formatTryMoney(commission)
         : "—";
+      const meeting = mapPackageSaleMeeting(row);
+      const panelTone = row.in_panel ? "ok" : row.unenrolled_at ? "muted" : "bad";
+      const panelLabel = row.in_panel ? "Panelde" : row.unenrolled_at ? "Çıkarıldı" : "Yok";
 
       const tr = document.createElement("tr");
       tr.appendChild(createCell(formatDate(row.paid_at || row.created_at)));
-      tr.appendChild(createCell(mentorLabel));
-      tr.appendChild(createCell(studentLabel));
+      tr.appendChild(createCell(row.mentor_name || "Mentör"));
+      tr.appendChild(createCell(row.student_name || "Öğrenci"));
       tr.appendChild(createCell(row.package_title || "—"));
       tr.appendChild(createCell(formatTryMoney(saleAmount)));
       tr.appendChild(createCell(commissionLabel));
-      tr.appendChild(createCell(mapPackageSaleStatus(row.status)));
+      tr.appendChild(createCell(mapPackageSaleStatus(row.order_status)));
+      tr.appendChild(createSaleFlagCell(panelLabel, panelTone));
+      tr.appendChild(createSaleFlagCell(meeting.label, meeting.tone));
+      tr.appendChild(createSaleReviewCell(row));
       packageSalesBody.appendChild(tr);
     });
   }

@@ -28,6 +28,7 @@ const ROOT_JS = new Set([
   "communities-form.js",
   "communities.js",
   "community-feed.js",
+  "community-notal.js",
   "competitions.js",
   "confirm-dialog.js",
   "cookie-consent.js",

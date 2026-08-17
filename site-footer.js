@@ -9,23 +9,26 @@ const AUDIENCE_LINKS = [
 
 function injectMobileAudienceNav() {
   const container = document.querySelector(".mobile-menu-actions");
-  if (!container || container.querySelector('a[href="/kimler-icin#ogrenciler"]')) return;
+  if (!container) return;
 
-  const fragment = document.createDocumentFragment();
-  AUDIENCE_LINKS.forEach(({ href, label }) => {
-    const anchor = document.createElement("a");
-    anchor.className = "nav-btn";
-    anchor.href = href;
-    anchor.textContent = label;
-    fragment.appendChild(anchor);
+  [...container.querySelectorAll(":scope > a.nav-btn")].forEach((anchor) => {
+    const href = (anchor.getAttribute("href") || "").split("?")[0];
+    if (href.startsWith("/kimler-icin#") || href === "/kimler-icin") {
+      anchor.remove();
+    }
   });
 
-  const standaloneAbout = container.querySelector(
-    ':scope > a.nav-btn[href="/hakkimizda"]',
-  );
-  if (standaloneAbout) standaloneAbout.remove();
+  const kimlerIcin = document.createElement("a");
+  kimlerIcin.className = "nav-btn";
+  kimlerIcin.href = "/kimler-icin";
+  kimlerIcin.textContent = "Kimin için";
 
-  container.insertBefore(fragment, container.firstElementChild);
+  const profileBtn = container.querySelector("#mobile-profile-btn");
+  if (profileBtn) {
+    container.insertBefore(kimlerIcin, profileBtn);
+  } else {
+    container.appendChild(kimlerIcin);
+  }
 }
 
 (function initSiteFooter() {
