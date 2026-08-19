@@ -133,11 +133,7 @@
     if (userError || !user) return null;
 
     const meta = user.user_metadata ?? {};
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("display_name, phone, email")
-      .eq("id", user.id)
-      .maybeSingle();
+    const { data: profile } = await supabase.rpc("get_my_contact_info");
 
     const fromMeta = {
       firstName: String(meta.first_name ?? "").trim(),

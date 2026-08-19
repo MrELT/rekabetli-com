@@ -58,11 +58,7 @@
   }
 
   async function becomeMentor(sessionUser) {
-    const { data: profile, error: loadError } = await supabase
-      .from("profiles")
-      .select("id, user_type, is_mentor, display_name, email, phone")
-      .eq("id", sessionUser.id)
-      .maybeSingle();
+    const { data: profile, error: loadError } = await supabase.rpc("get_my_contact_info");
 
     if (loadError) throw loadError;
 

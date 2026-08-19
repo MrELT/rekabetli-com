@@ -356,10 +356,9 @@
     }
 
     const userIds = pageRows.map((row) => row.user_id);
-    const { data: profiles, error: profilesError } = await supabase
-      .from("profiles")
-      .select("id, display_name, email")
-      .in("id", userIds);
+    const { data: profiles, error: profilesError } = await supabase.rpc("admin_list_profiles", {
+      p_ids: userIds,
+    });
 
     if (profilesError) throw profilesError;
 
@@ -480,11 +479,9 @@
   }
 
   async function loadUsers() {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, display_name, email, user_type, is_mentor")
-      .order("updated_at", { ascending: false })
-      .limit(500);
+    const { data, error } = await supabase.rpc("admin_list_profiles", {
+      p_limit: 500,
+    });
 
     if (error) throw error;
     const rows = (data ?? []).filter((row) => row?.id && row?.email);
@@ -533,15 +530,17 @@
   }
 
   async function loadMentorsCache() {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, display_name, email, is_mentor")
-      .eq("is_mentor", true)
-      .order("display_name", { ascending: true })
-      .limit(500);
+    const { data, error } = await supabase.rpc("admin_list_profiles", {
+      p_only_mentors: true,
+      p_limit: 500,
+    });
 
     if (error) throw error;
-    mentorsCache = data ?? [];
+    mentorsCache = (data ?? [])
+      .slice()
+      .sort((a, b) =>
+        (a.display_name || "").localeCompare(b.display_name || "", "tr"),
+      );
   }
 
   function openMentorAssignModal(community) {
@@ -603,10 +602,9 @@
     const ownerById = new Map();
 
     if (ownerIds.length > 0) {
-      const { data: owners, error: ownersError } = await supabase
-        .from("profiles")
-        .select("id, display_name, email")
-        .in("id", ownerIds);
+      const { data: owners, error: ownersError } = await supabase.rpc("admin_list_profiles", {
+        p_ids: ownerIds,
+      });
       if (ownersError) throw ownersError;
       (owners ?? []).forEach((owner) => ownerById.set(owner.id, owner));
     }
