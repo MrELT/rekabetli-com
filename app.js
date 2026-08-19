@@ -40,6 +40,14 @@ let currentUserIsMentor = false;
 let questionContentQuill = null;
 const GUEST_FEED_PREVIEW_LIMIT = 3;
 const POST_CONTENT_MAX_LENGTH = 1800;
+// Yazar profili gönderiyle aynı sorguda gelir; profiles tablosuna ayrı istek atılmaz.
+const POST_AUTHOR_JOIN = "author:profiles(id, display_name, avatar_url, is_mentor)";
+const POST_BASE_FIELDS =
+  "id, user_id, author_name:author, title, content, created_at, updated_at, community_id";
+const COMMENT_BASE_FIELDS =
+  "id, post_id, parent_comment_id, user_id, author_name:author, content, created_at, updated_at";
+// İlişki bir kez bulunamazsa aynı sayfa oturumunda tekrar denenmez.
+let authorJoinUnavailable = false;
 let guestFeedHasMore = false;
 /** @type {Set<string>} Ana akışta görünen açık topluluklara üyelik */
 let memberCommunityIds = new Set();
@@ -712,12 +720,29 @@ function renderAnswers(container, answers, postId) {
   );
 }
 
+// Yazar bilgisi kaynağı: ilişkisel sorgunun author embed'i, RPC'nin author_* alanları
+// veya gönderiyle saklanan author metni (bu sırayla).
+function readAuthorInfo(row) {
+  const embedded = Array.isArray(row.author) ? row.author[0] : row.author;
+  const profile = embedded && typeof embedded === "object" ? embedded : null;
+  const storedName = typeof row.author === "string" ? row.author : row.author_name;
+  const displayName = profile?.display_name ?? row.author_display_name ?? null;
+  const avatarUrl = profile?.avatar_url ?? row.author_avatar_url ?? null;
+
+  return {
+    name: displayName?.trim() || storedName?.trim() || null,
+    avatarUrl: avatarUrl?.trim() || null,
+    isMentor: Boolean(profile?.is_mentor ?? row.author_is_mentor),
+  };
+}
+
 function mapPostRow(postRow) {
   const communityId = postRow.community_id ?? null;
+  const author = readAuthorInfo(postRow);
   return {
     id: postRow.id,
     userId: postRow.user_id ?? null,
-    author: postRow.author,
+    author: author.name,
     title: postRow.title,
     content: postRow.content,
     createdAt: postRow.created_at,
@@ -730,7 +755,8 @@ function mapPostRow(postRow) {
       ? memberCommunityIds.has(String(communityId).toLowerCase()) ||
         Boolean(currentUserId && sameCommunityId(postRow.community_owner_id, currentUserId))
       : true,
-    authorIsMentor: false,
+    authorAvatarUrl: author.avatarUrl,
+    authorIsMentor: author.isMentor,
     likeCount: 0,
     likedByMe: false,
     savedByMe: false,
@@ -855,18 +881,42 @@ function buildSavedSet(saveRows, userId) {
 }
 
 function mapCommentRow(commentRow) {
+  const author = readAuthorInfo(commentRow);
   return {
     id: commentRow.id,
     postId: commentRow.post_id,
     parentCommentId: commentRow.parent_comment_id ?? null,
     userId: commentRow.user_id ?? null,
-    author: commentRow.author,
+    author: author.name,
     content: commentRow.content,
     createdAt: commentRow.created_at,
     updatedAt: commentRow.updated_at ?? null,
-    authorIsMentor: false,
+    authorIsMentor: author.isMentor,
     replies: [],
   };
+}
+
+// supabase-feed-author-join.sql çalıştırılmadıysa PostgREST ilişkiyi bulamaz;
+// bu durumda akış yazar profili olmadan da yüklenmeye devam eder.
+function isMissingAuthorRelationError(error) {
+  if (!error) return false;
+  return error.code === "PGRST200" || /relationship|profiles/i.test(error.message ?? "");
+}
+
+async function fetchCommentRowsForPosts(postIds) {
+  const buildQuery = (withAuthorJoin) =>
+    getSb()
+      .from("comments")
+      .select(withAuthorJoin ? `${COMMENT_BASE_FIELDS}, ${POST_AUTHOR_JOIN}` : COMMENT_BASE_FIELDS)
+      .in("post_id", postIds)
+      .order("created_at", { ascending: false });
+
+  const result = await buildQuery(!authorJoinUnavailable);
+  if (isMissingAuthorRelationError(result.error)) {
+    authorJoinUnavailable = true;
+    return buildQuery(false);
+  }
+  return result;
 }
 
 async function fetchHomeFeedPostRows() {
@@ -877,39 +927,63 @@ async function fetchHomeFeedPostRows() {
       });
 
   if (!rpcResult.error) {
-    return { rows: rpcResult.data ?? [], error: null };
+    const rpcRows = rpcResult.data ?? [];
+    if (!rpcRows.length || "author_display_name" in rpcRows[0]) {
+      return { rows: rpcRows, error: null };
+    }
+    // Eski RPC sürümü yazar bilgisi döndürmüyor; ilişkisel sorguya düş.
+    console.warn(
+      "list_home_feed_posts yazar alanları olmadan döndü, ilişkisel sorgu kullanılıyor. supabase-feed-author-join.sql dosyasını çalıştırın.",
+    );
+  } else {
+    // RPC henüz kurulmadıysa: genel + tüm açık topluluk gönderileri
+    console.warn(
+      "list_home_feed_posts RPC unavailable, falling back to client merge:",
+      rpcResult.error.message,
+    );
   }
 
-  // RPC henüz kurulmadıysa: genel + tüm açık topluluk gönderileri
-  console.warn(
-    "list_home_feed_posts RPC unavailable, falling back to client merge:",
-    rpcResult.error.message,
-  );
+  const runFallbackQueries = (withAuthorJoin) => {
+    const fields = (communityJoin) =>
+      [
+        POST_BASE_FIELDS,
+        communityJoin,
+        ...(withAuthorJoin ? [POST_AUTHOR_JOIN] : []),
+      ].join(", ");
 
-  const selectFields =
-    "id, user_id, author, title, content, created_at, updated_at, community_id, communities(id, name, visibility, owner_id)";
+    let mainQuery = getSb()
+      .from("posts")
+      .select(fields("communities(id, name, visibility, owner_id)"))
+      .is("community_id", null)
+      .order("created_at", { ascending: false });
 
-  let mainQuery = getSb()
-    .from("posts")
-    .select(selectFields)
-    .is("community_id", null)
-    .order("created_at", { ascending: false });
+    let communityQuery = getSb()
+      .from("posts")
+      .select(fields("communities!inner(id, name, visibility, owner_id)"))
+      .eq("communities.visibility", "public")
+      .order("created_at", { ascending: false });
 
-  let communityQuery = getSb()
-    .from("posts")
-    .select(
-      "id, user_id, author, title, content, created_at, updated_at, community_id, communities!inner(id, name, visibility, owner_id)",
-    )
-    .eq("communities.visibility", "public")
-    .order("created_at", { ascending: false });
+    if (!isUserLoggedIn) {
+      const cap = GUEST_FEED_PREVIEW_LIMIT + 1;
+      mainQuery = mainQuery.limit(cap);
+      communityQuery = communityQuery.limit(cap);
+    }
 
-  if (!isUserLoggedIn) {
-    const cap = GUEST_FEED_PREVIEW_LIMIT + 1;
-    mainQuery = mainQuery.limit(cap);
-    communityQuery = communityQuery.limit(cap);
+    return Promise.all([mainQuery, communityQuery]);
+  };
+
+  let [mainResult, communityResult] = await runFallbackQueries(!authorJoinUnavailable);
+  if (
+    isMissingAuthorRelationError(mainResult.error) ||
+    isMissingAuthorRelationError(communityResult.error)
+  ) {
+    authorJoinUnavailable = true;
+    console.warn(
+      "posts → profiles ilişkisi bulunamadı, yazar profili olmadan yükleniyor. supabase-feed-author-join.sql dosyasını çalıştırın.",
+    );
+    [mainResult, communityResult] = await runFallbackQueries(false);
   }
 
-  const [mainResult, communityResult] = await Promise.all([mainQuery, communityQuery]);
   if (mainResult.error) return { rows: [], error: mainResult.error };
   if (communityResult.error) {
     console.error("Public community posts load error:", communityResult.error.message);
@@ -920,7 +994,8 @@ async function fetchHomeFeedPostRows() {
     return {
       id: row.id,
       user_id: row.user_id,
-      author: row.author,
+      author: row.author ?? null,
+      author_name: row.author_name ?? null,
       title: row.title,
       content: row.content,
       created_at: row.created_at,
@@ -958,7 +1033,7 @@ async function loadPosts() {
         window.RekabetliFeedSkeleton?.clearFeedLoadingState?.(questionList);
         showEmptyListMessage(
           questionList,
-          "Veriler yüklenemedi. Supabase'de list_home_feed_posts için supabase-community-comment-membership.sql dosyasını çalıştırın."
+          "Veriler yüklenemedi. Supabase'de supabase-community-comment-membership.sql ve supabase-feed-author-join.sql dosyalarını çalıştırın."
         );
       }
       return;
@@ -984,11 +1059,7 @@ async function loadPosts() {
 
     if (postIds.length > 0) {
       const [commentsResult, likesResult, savesResult] = await Promise.all([
-        getSb()
-          .from("comments")
-          .select("id, post_id, parent_comment_id, user_id, author, content, created_at, updated_at")
-          .in("post_id", postIds)
-          .order("created_at", { ascending: false }),
+        fetchCommentRowsForPosts(postIds),
         getSb().from("post_likes").select("post_id, user_id").in("post_id", postIds),
         getSb().from("post_saves").select("post_id, user_id").in("post_id", postIds),
       ]);
@@ -1016,28 +1087,6 @@ async function loadPosts() {
     const savedByMe = buildSavedSet(saveRows, currentUserId);
     const allComments = commentRows.map(mapCommentRow);
 
-    const authorIds = [
-      ...new Set(
-        [...mappedPosts.map((post) => post.userId), ...allComments.map((comment) => comment.userId)].filter(
-          Boolean
-        )
-      ),
-    ];
-    const profilesByUserId = new Map();
-
-    if (authorIds.length > 0) {
-      const { data: profileRows, error: profilesError } = await getSb()
-        .from("profiles")
-        .select("id, display_name, avatar_url, is_mentor")
-        .in("id", authorIds);
-
-      if (profilesError) {
-        console.error("Profiles load error:", profilesError.message);
-      } else {
-        (profileRows ?? []).forEach((row) => profilesByUserId.set(row.id, row));
-      }
-    }
-
     const commentIds = allComments.filter((c) => !c.parentCommentId).map((c) => c.id);
     const ratingStats = await window.RekabetliCommentRatings?.loadStatsForCommentIds(
       commentIds,
@@ -1050,11 +1099,6 @@ async function loadPosts() {
       );
     }
 
-    allComments.forEach((comment) => {
-      const profile = comment.userId ? profilesByUserId.get(comment.userId) : null;
-      comment.authorIsMentor = Boolean(profile?.is_mentor);
-    });
-
     const commentsByPostId = new Map();
     allComments.forEach((comment) => {
       const list = commentsByPostId.get(comment.postId) ?? [];
@@ -1062,22 +1106,15 @@ async function loadPosts() {
       commentsByPostId.set(comment.postId, list);
     });
 
-    questions = mappedPosts.map((post) => {
-      const profile = post.userId ? profilesByUserId.get(post.userId) : null;
-      const displayName = profile?.display_name?.trim() || post.author;
-      return {
-        ...post,
-        author: displayName,
-        authorAvatarUrl: profile?.avatar_url?.trim() || null,
-        authorIsMentor: Boolean(profile?.is_mentor),
-        likeCount: countByPostId.get(post.id) ?? 0,
-        likedByMe: likedByMe.has(post.id),
-        savedByMe: savedByMe.has(post.id),
-        answers: window.RekabetliCommentReplies?.partitionComments(
-          commentsByPostId.get(post.id) ?? [],
-        ) ?? [],
-      };
-    });
+    questions = mappedPosts.map((post) => ({
+      ...post,
+      likeCount: countByPostId.get(post.id) ?? 0,
+      likedByMe: likedByMe.has(post.id),
+      savedByMe: savedByMe.has(post.id),
+      answers: window.RekabetliCommentReplies?.partitionComments(
+        commentsByPostId.get(post.id) ?? [],
+      ) ?? [],
+    }));
 
     renderQuestions();
     scrollToFeedTarget();

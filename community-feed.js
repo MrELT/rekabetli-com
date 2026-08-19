@@ -77,6 +77,13 @@ let isCommunityMember = false;
 let canViewFeed = false;
 let canPostInCommunity = false;
 const POST_CONTENT_MAX_LENGTH = 1800;
+// Yazar profili gönderiyle aynı sorguda gelir; profiles tablosuna ayrı istek atılmaz.
+const POST_AUTHOR_JOIN = "author:profiles(id, display_name, avatar_url, is_mentor)";
+const POST_BASE_FIELDS = "id, user_id, author_name:author, title, content, created_at, updated_at";
+const COMMENT_BASE_FIELDS =
+  "id, post_id, parent_comment_id, user_id, author_name:author, content, created_at, updated_at";
+// İlişki bir kez bulunamazsa aynı sayfa oturumunda tekrar denenmez.
+let authorJoinUnavailable = false;
 const COMMUNITY_PURPOSE_MIN_LENGTH = 10;
 const COMMUNITY_PURPOSE_MAX_LENGTH = 600;
 const COMMUNITY_AVATAR_BUCKET = "avatars";
@@ -1690,16 +1697,32 @@ function renderAnswers(container, answers, postId) {
   );
 }
 
+// Yazar bilgisi kaynağı: ilişkisel sorgunun author embed'i veya gönderiyle
+// saklanan author metni (bu sırayla).
+function readAuthorInfo(row) {
+  const embedded = Array.isArray(row.author) ? row.author[0] : row.author;
+  const profile = embedded && typeof embedded === "object" ? embedded : null;
+  const storedName = typeof row.author === "string" ? row.author : row.author_name;
+
+  return {
+    name: profile?.display_name?.trim() || storedName?.trim() || null,
+    avatarUrl: profile?.avatar_url?.trim() || null,
+    isMentor: Boolean(profile?.is_mentor),
+  };
+}
+
 function mapPostRow(postRow) {
+  const author = readAuthorInfo(postRow);
   return {
     id: postRow.id,
     userId: postRow.user_id ?? null,
-    author: postRow.author,
+    author: author.name,
     title: postRow.title,
     content: postRow.content,
     createdAt: postRow.created_at,
     updatedAt: postRow.updated_at ?? null,
-    authorIsMentor: false,
+    authorAvatarUrl: author.avatarUrl,
+    authorIsMentor: author.isMentor,
     likeCount: 0,
     likedByMe: false,
     savedByMe: false,
@@ -1729,18 +1752,61 @@ function buildSavedSet(saveRows, userId) {
 }
 
 function mapCommentRow(commentRow) {
+  const author = readAuthorInfo(commentRow);
   return {
     id: commentRow.id,
     postId: commentRow.post_id,
     parentCommentId: commentRow.parent_comment_id ?? null,
     userId: commentRow.user_id ?? null,
-    author: commentRow.author,
+    author: author.name,
     content: commentRow.content,
     createdAt: commentRow.created_at,
     updatedAt: commentRow.updated_at ?? null,
-    authorIsMentor: false,
+    authorIsMentor: author.isMentor,
     replies: [],
   };
+}
+
+// supabase-feed-author-join.sql çalıştırılmadıysa PostgREST ilişkiyi bulamaz;
+// bu durumda akış yazar profili olmadan da yüklenmeye devam eder.
+function isMissingAuthorRelationError(error) {
+  if (!error) return false;
+  return error.code === "PGRST200" || /relationship|profiles/i.test(error.message ?? "");
+}
+
+async function fetchCommunityPostRows() {
+  const buildQuery = (withAuthorJoin) =>
+    getSb()
+      .from("posts")
+      .select(withAuthorJoin ? `${POST_BASE_FIELDS}, ${POST_AUTHOR_JOIN}` : POST_BASE_FIELDS)
+      .eq("community_id", communityId)
+      .order("created_at", { ascending: false });
+
+  const result = await buildQuery(!authorJoinUnavailable);
+  if (isMissingAuthorRelationError(result.error)) {
+    authorJoinUnavailable = true;
+    console.warn(
+      "posts → profiles ilişkisi bulunamadı, yazar profili olmadan yükleniyor. supabase-feed-author-join.sql dosyasını çalıştırın.",
+    );
+    return buildQuery(false);
+  }
+  return result;
+}
+
+async function fetchCommentRowsForPosts(postIds) {
+  const buildQuery = (withAuthorJoin) =>
+    getSb()
+      .from("comments")
+      .select(withAuthorJoin ? `${COMMENT_BASE_FIELDS}, ${POST_AUTHOR_JOIN}` : COMMENT_BASE_FIELDS)
+      .in("post_id", postIds)
+      .order("created_at", { ascending: false });
+
+  const result = await buildQuery(!authorJoinUnavailable);
+  if (isMissingAuthorRelationError(result.error)) {
+    authorJoinUnavailable = true;
+    return buildQuery(false);
+  }
+  return result;
 }
 
 async function loadPosts() {
@@ -1753,11 +1819,7 @@ async function loadPosts() {
   window.RekabetliFeedSkeleton?.setFeedLoadingState?.(questionList);
 
   try {
-    const { data: postRows, error: postsError } = await getSb()
-      .from("posts")
-      .select("id, user_id, author, title, content, created_at, updated_at")
-      .eq("community_id", communityId)
-      .order("created_at", { ascending: false });
+    const { data: postRows, error: postsError } = await fetchCommunityPostRows();
 
     if (postsError) {
       console.error("Posts load error:", postsError.message);
@@ -1780,11 +1842,7 @@ async function loadPosts() {
 
     if (postIds.length > 0) {
       const [commentsResult, likesResult, savesResult] = await Promise.all([
-        getSb()
-          .from("comments")
-          .select("id, post_id, parent_comment_id, user_id, author, content, created_at, updated_at")
-          .in("post_id", postIds)
-          .order("created_at", { ascending: false }),
+        fetchCommentRowsForPosts(postIds),
         getSb().from("post_likes").select("post_id, user_id").in("post_id", postIds),
         getSb().from("post_saves").select("post_id, user_id").in("post_id", postIds),
       ]);
@@ -1812,28 +1870,6 @@ async function loadPosts() {
     const savedByMe = buildSavedSet(saveRows, currentUserId);
     const allComments = commentRows.map(mapCommentRow);
 
-    const authorIds = [
-      ...new Set(
-        [...mappedPosts.map((post) => post.userId), ...allComments.map((comment) => comment.userId)].filter(
-          Boolean
-        )
-      ),
-    ];
-    const profilesByUserId = new Map();
-
-    if (authorIds.length > 0) {
-      const { data: profileRows, error: profilesError } = await getSb()
-        .from("profiles")
-        .select("id, display_name, avatar_url, is_mentor")
-        .in("id", authorIds);
-
-      if (profilesError) {
-        console.error("Profiles load error:", profilesError.message);
-      } else {
-        (profileRows ?? []).forEach((row) => profilesByUserId.set(row.id, row));
-      }
-    }
-
     const commentIds = allComments.filter((c) => !c.parentCommentId).map((c) => c.id);
     const ratingStats = await window.RekabetliCommentRatings?.loadStatsForCommentIds(
       commentIds,
@@ -1846,11 +1882,6 @@ async function loadPosts() {
       );
     }
 
-    allComments.forEach((comment) => {
-      const profile = comment.userId ? profilesByUserId.get(comment.userId) : null;
-      comment.authorIsMentor = Boolean(profile?.is_mentor);
-    });
-
     const commentsByPostId = new Map();
     allComments.forEach((comment) => {
       const list = commentsByPostId.get(comment.postId) ?? [];
@@ -1858,22 +1889,15 @@ async function loadPosts() {
       commentsByPostId.set(comment.postId, list);
     });
 
-    questions = mappedPosts.map((post) => {
-      const profile = post.userId ? profilesByUserId.get(post.userId) : null;
-      const displayName = profile?.display_name?.trim() || post.author;
-      return {
-        ...post,
-        author: displayName,
-        authorAvatarUrl: profile?.avatar_url?.trim() || null,
-        authorIsMentor: Boolean(profile?.is_mentor),
-        likeCount: countByPostId.get(post.id) ?? 0,
-        likedByMe: likedByMe.has(post.id),
-        savedByMe: savedByMe.has(post.id),
-        answers: window.RekabetliCommentReplies?.partitionComments(
-          commentsByPostId.get(post.id) ?? [],
-        ) ?? [],
-      };
-    });
+    questions = mappedPosts.map((post) => ({
+      ...post,
+      likeCount: countByPostId.get(post.id) ?? 0,
+      likedByMe: likedByMe.has(post.id),
+      savedByMe: savedByMe.has(post.id),
+      answers: window.RekabetliCommentReplies?.partitionComments(
+        commentsByPostId.get(post.id) ?? [],
+      ) ?? [],
+    }));
 
     renderQuestions();
     scrollToFeedTarget();
