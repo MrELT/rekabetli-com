@@ -4,6 +4,8 @@
 (function initRekabetliReferral() {
   const STORAGE_KEY = "rekabetli.referral.v1";
   const SESSION_KEY = "rekabetli.referral.session";
+  // Atıf sonucu kesinleşen kullanıcı: her oturum açılışında yeniden denenmez.
+  const CLAIM_SETTLED_KEY = "rekabetli.referral.claimed";
   const CLICK_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
   let claimInFlight = false;
 
@@ -44,6 +46,38 @@
     }
   }
 
+  function clearStoredReferral() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function readClaimSettledUserId() {
+    try {
+      return localStorage.getItem(CLAIM_SETTLED_KEY) || "";
+    } catch {
+      return "";
+    }
+  }
+
+  function markClaimSettled(userId) {
+    try {
+      localStorage.setItem(CLAIM_SETTLED_KEY, userId);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function clearClaimSettled() {
+    try {
+      localStorage.removeItem(CLAIM_SETTLED_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
   function getOrCreateSessionId() {
     try {
       let sessionId = localStorage.getItem(SESSION_KEY);
@@ -78,6 +112,8 @@
     const sessionId = getOrCreateSessionId();
     const payload = { code, clickedAt: Date.now(), sessionId };
     writeStoredReferral(payload);
+    // Yeni bir kod yakalandı: önceki kesinleşmiş sonuç artık geçerli değil.
+    clearClaimSettled();
     return payload;
   }
 
@@ -104,7 +140,9 @@
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    if (!session?.user?.id) return null;
+    const userId = session?.user?.id;
+    if (!userId) return null;
+    if (readClaimSettledUserId() === userId) return null;
 
     const stored = readStoredReferral();
     const sessionId = stored?.sessionId || getOrCreateSessionId();
@@ -117,10 +155,28 @@
         p_session_id: sessionId,
       });
       if (error) {
-        if (!String(error.message || "").includes("referral_self_not_allowed")) {
-          console.warn("[rekabetli][referral] claim:", error.message);
+        const message = String(error.message || "");
+        // Kod bir daha çözümlenemez: saklanan kaydı bırakmak her oturumda aynı hatayı üretir.
+        // referral_self_not_allowed yalnızca eski veritabanı sürümünde oluşur.
+        if (
+          /referral_self_not_allowed|invalid_referral_code|referral_code_not_found|referral_code_inactive/.test(
+            message,
+          )
+        ) {
+          clearStoredReferral();
+          markClaimSettled(userId);
+        }
+        if (!message.includes("referral_self_not_allowed")) {
+          console.warn("[rekabetli][referral] claim:", message);
         }
         return null;
+      }
+
+      if (data?.attributed || data?.already_attributed) {
+        markClaimSettled(userId);
+      } else if (data?.reason === "self_referral") {
+        clearStoredReferral();
+        markClaimSettled(userId);
       }
       return data;
     } finally {
