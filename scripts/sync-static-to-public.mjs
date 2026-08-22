@@ -43,6 +43,7 @@ const ROOT_JS = new Set([
   "influencer-program.js",
   "influencer-sayfam.js",
   "login.js",
+  "maintenance.js",
   "mentor-application.js",
   "mentor-public.js",
   "mentor-messaging.js",
@@ -78,6 +79,34 @@ function copyFile(from, to) {
   fs.copyFileSync(from, to);
 }
 
+function isSiteMaintenanceEnabled() {
+  const tsPath = path.join(root, "lib", "site-maintenance.ts");
+  if (!fs.existsSync(tsPath)) return false;
+  return /export const SITE_MAINTENANCE_ENABLED\s*=\s*true\b/.test(
+    fs.readFileSync(tsPath, "utf8"),
+  );
+}
+
+const SITE_MAINTENANCE_ON = isSiteMaintenanceEnabled();
+const MAINTENANCE_SCRIPT =
+  '<script src="/maintenance.js" data-rekabetli-maintenance="1"></script>';
+
+function injectMaintenanceScript(html) {
+  if (!SITE_MAINTENANCE_ON) return html;
+  if (html.includes("data-rekabetli-maintenance")) return html;
+  const tag = `    ${MAINTENANCE_SCRIPT}\n`;
+  if (/<head[^>]*>/i.test(html)) {
+    return html.replace(/<head[^>]*>/i, (open) => `${open}\n${tag}`);
+  }
+  return `${MAINTENANCE_SCRIPT}\n${html}`;
+}
+
+function copyHtmlFile(from, to) {
+  const html = injectMaintenanceScript(fs.readFileSync(from, "utf8"));
+  fs.mkdirSync(path.dirname(to), { recursive: true });
+  fs.writeFileSync(to, html, "utf8");
+}
+
 function copyDir(from, to) {
   fs.mkdirSync(to, { recursive: true });
   for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
@@ -97,9 +126,9 @@ for (const name of fs.readdirSync(root)) {
   if (!name.endsWith(".html")) continue;
   const from = path.join(root, name);
   const to = path.join(publicDir, name);
-  copyFile(from, to);
+  copyHtmlFile(from, to);
   if (name === "odeme-basarili.html") {
-    copyFile(from, path.join(publicDir, "odeme", "basarili", "index.html"));
+    copyHtmlFile(from, path.join(publicDir, "odeme", "basarili", "index.html"));
   }
 }
 
@@ -133,4 +162,8 @@ if (fs.existsSync(envLocal)) {
   copyFile(envLocal, path.join(publicDir, "env-config.local.js"));
 }
 
-console.log("Statik dosyalar public/ klasörüne kopyalandı.");
+console.log(
+  SITE_MAINTENANCE_ON
+    ? "Statik dosyalar public/ klasörüne kopyalandı. (bakım kilidi AÇIK)"
+    : "Statik dosyalar public/ klasörüne kopyalandı.",
+);

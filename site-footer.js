@@ -32,6 +32,14 @@ function injectMobileAudienceNav() {
 }
 
 (function initSiteFooter() {
+  // Bakım kilidi: kapatmak için maintenance.js + lib/site-maintenance.ts içindeki ENABLED bayraklarını false yapın.
+  if (!window.__REKABETLI_MAINTENANCE__ && !document.querySelector('script[data-rekabetli-maintenance="1"]')) {
+    const maintenanceScript = document.createElement("script");
+    maintenanceScript.src = "/maintenance.js";
+    maintenanceScript.dataset.rekabetliMaintenance = "1";
+    document.head.appendChild(maintenanceScript);
+  }
+
   if (!window.RekabetliCookieConsent && !document.querySelector('script[data-rekabetli-cookie-consent="1"]')) {
     const consentScript = document.createElement("script");
     consentScript.src = "/cookie-consent.js";
