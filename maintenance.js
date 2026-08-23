@@ -3,8 +3,8 @@
  * Sorun çözülünce `ENABLED` değerini false yapın — lib/site-maintenance.ts ile birlikte.
  */
 (function initRekabetliMaintenance() {
-  const ENABLED = false;
-  const REOPEN_LABEL = "23 Ağustos";
+  const ENABLED = true;
+  const REOPEN_LABEL = "Çok yakında";
 
   if (!ENABLED) return;
   if (window.__REKABETLI_MAINTENANCE__) return;
