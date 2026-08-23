@@ -27,6 +27,13 @@ SELECT cron.schedule(
     ),
     body := '{"action":"process_queue"}'::jsonb,
     timeout_milliseconds := 90000
-  ) AS request_id;
+  ) AS request_id
+  WHERE EXISTS (
+    SELECT 1
+    FROM public.notification_email_queue
+    WHERE status = 'pending'
+      AND scheduled_at <= now()
+    LIMIT 1
+  );
   $$
 );

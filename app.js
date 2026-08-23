@@ -39,6 +39,7 @@ let currentUserAvatarUrl = null;
 let currentUserIsMentor = false;
 let questionContentQuill = null;
 const GUEST_FEED_PREVIEW_LIMIT = 3;
+const HOME_FEED_PAGE_SIZE = 30;
 const POST_CONTENT_MAX_LENGTH = 1800;
 // Yazar profili gönderiyle aynı sorguda gelir; profiles tablosuna ayrı istek atılmaz.
 const POST_AUTHOR_JOIN = "author:profiles(id, display_name, avatar_url, is_mentor)";
@@ -439,42 +440,28 @@ async function loadBentoCommunityStats(options = {}) {
   if (!getSb()) return;
 
   try {
-    const { data: communities, error } = await getSb()
-      .from("communities")
-      .select("id, name, visibility, created_at, avatar_url");
+    const [countResult, statsResult] = await Promise.all([
+      getSb().from("communities").select("id", { count: "exact", head: true }),
+      getSb().rpc("get_communities_bento_stats", { p_limit: 3 }),
+    ]);
 
-    if (error) {
-      console.error("Bento communities load error:", error.message);
+    if (countResult.error) {
+      console.error("Bento communities load error:", countResult.error.message);
       if (!window.__REKABETLI_BENTO_APPLIED__) {
         renderBentoLoadError(listEl);
       }
       return;
     }
 
-    const rows = communities ?? [];
-    const total = rows.length;
-
-    const { data: stats, error: statsError } = await getSb().rpc(
-      "get_communities_bento_stats",
-    );
+    const total = countResult.count ?? 0;
+    const { data: stats, error: statsError } = statsResult;
 
     let trendingRows = [];
 
     if (!statsError && stats?.length) {
-      trendingRows = enrichBentoRows(stats, rows);
-    } else {
-      if (statsError) {
-        console.warn("Bento stats RPC unavailable:", statsError.message);
-      }
-      trendingRows = [...rows]
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .map((row) => ({
-          id: row.id,
-          name: row.name,
-          visibility: row.visibility,
-          avatar_url: row.avatar_url?.trim() || null,
-          member_count: 1,
-        }));
+      trendingRows = enrichBentoRows(stats, stats);
+    } else if (statsError) {
+      console.warn("Bento stats RPC unavailable:", statsError.message);
     }
 
     const payload = normalizeHomeBentoPayload({
@@ -920,11 +907,12 @@ async function fetchCommentRowsForPosts(postIds) {
 }
 
 async function fetchHomeFeedPostRows() {
-  const rpcResult = isUserLoggedIn
-    ? await getSb().rpc("list_home_feed_posts")
-    : await getSb().rpc("list_home_feed_posts", {
-        p_limit: GUEST_FEED_PREVIEW_LIMIT + 1,
-      });
+  const feedLimit = isUserLoggedIn
+    ? HOME_FEED_PAGE_SIZE
+    : GUEST_FEED_PREVIEW_LIMIT + 1;
+  const rpcResult = await getSb().rpc("list_home_feed_posts", {
+    p_limit: feedLimit,
+  });
 
   if (!rpcResult.error) {
     const rpcRows = rpcResult.data ?? [];
@@ -963,11 +951,8 @@ async function fetchHomeFeedPostRows() {
       .eq("communities.visibility", "public")
       .order("created_at", { ascending: false });
 
-    if (!isUserLoggedIn) {
-      const cap = GUEST_FEED_PREVIEW_LIMIT + 1;
-      mainQuery = mainQuery.limit(cap);
-      communityQuery = communityQuery.limit(cap);
-    }
+    mainQuery = mainQuery.limit(feedLimit);
+    communityQuery = communityQuery.limit(feedLimit);
 
     return Promise.all([mainQuery, communityQuery]);
   };

@@ -104,52 +104,31 @@ export async function fetchHomeBentoPayload(): Promise<HomeBentoPayload | null> 
   const sb = createSupabaseAnonServerClient();
   if (!sb) return null;
 
-  const [communitiesResult, statsResult] = await Promise.all([
-    sb.from("communities").select("id, name, visibility, created_at, avatar_url"),
-    sb.rpc("get_communities_bento_stats"),
+  const [countResult, statsResult] = await Promise.all([
+    sb.from("communities").select("id", { count: "exact", head: true }),
+    sb.rpc("get_communities_bento_stats", { p_limit: 3 }),
   ]);
 
-  if (communitiesResult.error) {
-    console.error("[home-bento] communities:", communitiesResult.error.message);
+  if (countResult.error) {
+    console.error("[home-bento] communities:", countResult.error.message);
     return null;
   }
 
-  const communities = communitiesResult.data ?? [];
-  const count = communities.length;
-  const avatarById = new Map(
-    communities.map((row) => [row.id, row.avatar_url?.trim() || null]),
-  );
+  const count = countResult.count ?? 0;
 
   let statsRows: Array<Record<string, unknown>> = [];
 
   if (!statsResult.error && statsResult.data?.length) {
     statsRows = statsResult.data as Array<Record<string, unknown>>;
-  } else {
-    if (statsResult.error) {
-      console.warn("[home-bento] rpc:", statsResult.error.message);
-    }
-    statsRows = [...communities]
-      .sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      )
-      .map((row) => ({
-        id: row.id,
-        name: row.name,
-        visibility: row.visibility,
-        avatar_url: row.avatar_url,
-        member_count: 1,
-      }));
+  } else if (statsResult.error) {
+    console.warn("[home-bento] rpc:", statsResult.error.message);
   }
 
   const trending = statsRows
     .map((row) =>
       sanitizeHomeBentoTrendingRow({
         ...row,
-        avatar_url:
-          String(row.avatar_url ?? "").trim() ||
-          avatarById.get(String(row.id)) ||
-          null,
+        avatar_url: String(row.avatar_url ?? "").trim() || null,
       }),
     )
     .filter((row): row is HomeBentoTrendingRow => Boolean(row))

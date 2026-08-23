@@ -132,7 +132,7 @@ AS $$
   WHERE p.community_id IS NULL
     OR c.visibility = 'public'
   ORDER BY p.created_at DESC
-  LIMIT p_limit;
+  LIMIT LEAST(GREATEST(COALESCE(p_limit, 30), 1), 50);
 $$;
 
 GRANT EXECUTE ON FUNCTION public.list_home_feed_posts (int) TO authenticated, anon;

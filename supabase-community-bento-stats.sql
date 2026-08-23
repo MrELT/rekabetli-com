@@ -2,8 +2,9 @@
 -- Supabase SQL Editor'da bir kez çalıştırın.
 
 DROP FUNCTION IF EXISTS public.get_communities_bento_stats ();
+DROP FUNCTION IF EXISTS public.get_communities_bento_stats (int);
 
-CREATE FUNCTION public.get_communities_bento_stats ()
+CREATE FUNCTION public.get_communities_bento_stats (p_limit int DEFAULT NULL)
 RETURNS TABLE (
   id uuid,
   name text,
@@ -36,7 +37,11 @@ AS $$
       END AS member_count,
     c.avatar_url
   FROM public.communities c
-  ORDER BY member_count DESC, c.created_at DESC;
+  ORDER BY member_count DESC, c.created_at DESC
+  LIMIT CASE
+    WHEN p_limit IS NULL THEN NULL
+    ELSE GREATEST(1, LEAST(p_limit, 50))
+  END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.get_communities_bento_stats () TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_communities_bento_stats (int) TO anon, authenticated;
