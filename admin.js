@@ -685,29 +685,23 @@
   }
 
   async function sendCampaignMailFromPanel(payload) {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.access_token) {
-      throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
-    }
-
-    const functionUrl = `${window.__ENV__?.SUPABASE_URL}/functions/v1/send-campaign-email`;
-    const response = await fetch(functionUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+    const result = await supabase.functions.invoke("send-campaign-email", {
+      body: payload,
     });
-
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || result?.ok === false) {
-      throw new Error(result?.error || "Kampanya gönderimi başarısız oldu.");
+    const parsed = await readSupabaseFunctionResult(result);
+    if (parsed.errorCode || parsed.errorMessage) {
+      const raw = parsed.errorMessage || parsed.errorCode || "Kampanya gönderimi başarısız oldu.";
+      if (/failed to fetch/i.test(raw)) {
+        throw new Error(
+          "Kampanya fonksiyonuna ulaşılamadı. Edge Function deploy ve CORS ayarını kontrol edin.",
+        );
+      }
+      throw new Error(raw);
     }
-    return result;
+    if (parsed.data?.ok === false) {
+      throw new Error(parsed.data?.error || "Kampanya gönderimi başarısız oldu.");
+    }
+    return parsed.data || {};
   }
 
   function formatTryMoney(value) {
@@ -1558,16 +1552,24 @@
 
     if (campaignMailSubmitBtn) campaignMailSubmitBtn.disabled = true;
     try {
-      const result = await sendCampaignMailFromPanel({
-        subject,
-        preview,
-        buttonLabel,
-        buttonUrl,
-        plainMessage,
-        recipientUserIds: Array.from(selectedCampaignRecipientIds),
-      });
+      const ids = Array.from(selectedCampaignRecipientIds);
+      const chunkSize = 40;
+      let sentCount = 0;
+      let failedCount = 0;
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        const result = await sendCampaignMailFromPanel({
+          subject,
+          preview,
+          buttonLabel,
+          buttonUrl,
+          plainMessage,
+          recipientUserIds: ids.slice(i, i + chunkSize),
+        });
+        sentCount += Number(result.sentCount ?? 0);
+        failedCount += Number(result.failedCount ?? 0);
+      }
       setCampaignMailMessage(
-        `Gönderim tamamlandı. Başarılı: ${result.sentCount ?? 0}, Hata: ${result.failedCount ?? 0}`
+        `Gönderim tamamlandı. Başarılı: ${sentCount}, Hata: ${failedCount}`
       );
       await loadCampaignJobs();
     } catch (error) {
