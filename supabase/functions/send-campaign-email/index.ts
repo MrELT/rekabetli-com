@@ -508,8 +508,11 @@ Deno.serve(async (req) => {
     }
 
     if (body && typeof body === "object" && (body as { action?: string }).action === "process_queue") {
-      if (!verifyCronSecret(req, body)) {
-        return jsonResponse({ error: "process_queue için CRON_SECRET gerekli." }, 401);
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+      const auth = req.headers.get("Authorization")?.trim() || "";
+      const isServiceRole = Boolean(serviceRoleKey && auth === `Bearer ${serviceRoleKey}`);
+      if (!isServiceRole && !verifyCronSecret(req, body)) {
+        return jsonResponse({ error: "process_queue için CRON_SECRET veya service role gerekli." }, 401);
       }
       const result = await processCampaignQueue(serviceClient, resendApiKey, siteUrl);
       return jsonResponse({ ok: true, mode: "process_queue", ...result });

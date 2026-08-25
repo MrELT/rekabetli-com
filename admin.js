@@ -1176,7 +1176,8 @@
 
     const { data, error } = await supabase.rpc("get_admin_payout_queue");
     if (error) {
-      clearTable(payoutsBody, "Ödeme kuyruğu yüklenemedi.", 10);
+      console.error("get_admin_payout_queue:", error);
+      clearTable(payoutsBody, error.message || "Ödeme kuyruğu yüklenemedi.", 10);
       if (countPayouts) countPayouts.textContent = "0";
       return;
     }
