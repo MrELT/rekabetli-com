@@ -462,6 +462,6 @@ entrypoint = "./functions/get-mentor-payout-invoice/index.ts"
 
 [functions.send-campaign-email]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/send-campaign-email/deno.json"
 entrypoint = "./functions/send-campaign-email/index.ts"

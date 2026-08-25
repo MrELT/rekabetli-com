@@ -260,6 +260,232 @@ async function sendEmailViaResend(options: {
   }
 }
 
+type QueuedRecipient = {
+  id: string;
+  email: string;
+  displayName: string;
+  unsubscribeToken: string | null;
+  marketingEmailsEnabled: boolean;
+};
+
+type JobPayload = {
+  subject: string;
+  preview: string;
+  buttonLabel: string;
+  buttonUrl: string;
+  plainMessage: string;
+};
+
+function verifyCronSecret(req: Request, body: unknown): boolean {
+  const expected = Deno.env.get("CRON_SECRET")?.trim();
+  if (!expected) return false;
+  const headerSecret = req.headers.get("x-cron-secret")?.trim();
+  if (headerSecret && headerSecret === expected) return true;
+  if (body && typeof body === "object") {
+    const fromBody = (body as { cron_secret?: unknown }).cron_secret;
+    if (typeof fromBody === "string" && fromBody.trim() === expected) return true;
+  }
+  return false;
+}
+
+async function collectRecipients(
+  serviceClient: SupabaseClient,
+  selectedUserIds: string[],
+): Promise<QueuedRecipient[]> {
+  const selectedSet = new Set(selectedUserIds);
+  const users: Array<{
+    id: string;
+    email?: string;
+    banned_until?: string | null;
+    user_metadata?: Record<string, unknown>;
+  }> = [];
+
+  for (let page = 1; page <= 10; page += 1) {
+    const { data: usersData, error: usersError } = await serviceClient.auth.admin.listUsers({
+      page,
+      perPage: 1000,
+    });
+    if (usersError) throw new Error(`Kullanıcı listesi alınamadı: ${usersError.message}`);
+    const batch = usersData.users || [];
+    users.push(...batch);
+    if (batch.length < 1000) break;
+  }
+
+  const { data: preferenceRows, error: preferenceError } = await serviceClient
+    .from("email_preferences")
+    .select("user_id, marketing_emails_enabled, unsubscribe_token")
+    .in("user_id", selectedUserIds);
+
+  if (preferenceError) {
+    throw new Error(`E-posta tercihleri alınamadı: ${preferenceError.message}`);
+  }
+
+  const preferenceByUserId = new Map(
+    (preferenceRows ?? []).map((row) => [
+      row.user_id,
+      {
+        marketingEmailsEnabled: row.marketing_emails_enabled !== false,
+        unsubscribeToken: row.unsubscribe_token ? String(row.unsubscribe_token) : null,
+      },
+    ]),
+  );
+
+  return users
+    .filter((user) => selectedSet.has(user.id))
+    .filter((user) => user.email && !user.banned_until)
+    .map((user) => {
+      const preference = preferenceByUserId.get(user.id) ?? {
+        marketingEmailsEnabled: true,
+        unsubscribeToken: null as string | null,
+      };
+      return {
+        id: user.id,
+        email: user.email as string,
+        displayName:
+          String(user.user_metadata?.display_name || user.user_metadata?.first_name || "").trim() ||
+          (user.email as string).split("@")[0] ||
+          "Kullanıcı",
+        unsubscribeToken: preference.unsubscribeToken,
+        marketingEmailsEnabled: preference.marketingEmailsEnabled,
+      };
+    });
+}
+
+async function processCampaignQueue(
+  serviceClient: SupabaseClient,
+  resendApiKey: string,
+  siteUrl: string,
+  batchSize = 20,
+): Promise<{ processed: number; sent: number; failed: number }> {
+  const { data: claimed, error: claimError } = await serviceClient.rpc(
+    "claim_campaign_mail_queue",
+    { p_limit: batchSize },
+  );
+  if (claimError) throw new Error(`Kampanya kuyruğu alınamadı: ${claimError.message}`);
+
+  const items = (claimed ?? []) as Array<{
+    id: string;
+    job_id: string;
+    user_id: string | null;
+    email: string;
+    display_name: string | null;
+    unsubscribe_token: string | null;
+  }>;
+
+  if (!items.length) return { processed: 0, sent: 0, failed: 0 };
+
+  const jobCache = new Map<string, JobPayload>();
+  let sent = 0;
+  let failed = 0;
+
+  for (const item of items) {
+    try {
+      let job = jobCache.get(item.job_id);
+      if (!job) {
+        const { data: jobRow, error: jobError } = await serviceClient
+          .from("campaign_mail_jobs")
+          .select("subject, preview, button_label, button_url, plain_message")
+          .eq("id", item.job_id)
+          .maybeSingle();
+        if (jobError || !jobRow) throw new Error(jobError?.message || "Kampanya kaydı yok.");
+        job = {
+          subject: jobRow.subject,
+          preview: jobRow.preview,
+          buttonLabel: jobRow.button_label,
+          buttonUrl: jobRow.button_url,
+          plainMessage: jobRow.plain_message,
+        };
+        jobCache.set(item.job_id, job);
+        await serviceClient
+          .from("campaign_mail_jobs")
+          .update({ status: "processing" })
+          .eq("id", item.job_id)
+          .eq("status", "queued");
+      }
+
+      const unsubscribeUrl = item.unsubscribe_token
+        ? `${siteUrl}/unsubscribe?token=${encodeURIComponent(item.unsubscribe_token)}`
+        : `${siteUrl}/unsubscribe`;
+
+      const html = buildEmailHtml({
+        siteUrl,
+        payload: job,
+        displayName: item.display_name || "Kullanıcı",
+        unsubscribeUrl,
+      });
+
+      await sendEmailViaResend({
+        apiKey: resendApiKey,
+        to: item.email,
+        subject: job.subject,
+        html,
+      });
+
+      await serviceClient
+        .from("campaign_mail_logs")
+        .update({ status: "sent", error_message: null })
+        .eq("id", item.id);
+      sent += 1;
+    } catch (sendError) {
+      failed += 1;
+      await serviceClient
+        .from("campaign_mail_logs")
+        .update({
+          status: "failed",
+          error_message: sendError instanceof Error ? sendError.message : String(sendError),
+        })
+        .eq("id", item.id);
+    }
+
+    await delay(SEND_DELAY_MS);
+  }
+
+  const jobIds = [...new Set(items.map((item) => item.job_id))];
+  for (const jobId of jobIds) {
+    const { count: queuedCount } = await serviceClient
+      .from("campaign_mail_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", jobId)
+      .in("status", ["queued", "sending"]);
+
+    const { count: sentCount } = await serviceClient
+      .from("campaign_mail_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", jobId)
+      .eq("status", "sent");
+
+    const { count: failedCount } = await serviceClient
+      .from("campaign_mail_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", jobId)
+      .eq("status", "failed");
+
+    const remaining = queuedCount ?? 0;
+    await serviceClient
+      .from("campaign_mail_jobs")
+      .update({
+        sent_count: sentCount ?? 0,
+        failed_count: failedCount ?? 0,
+        status: remaining > 0 ? "processing" : (failedCount ?? 0) > 0 && (sentCount ?? 0) === 0
+          ? "failed"
+          : "completed",
+      })
+      .eq("id", jobId);
+  }
+
+  return { processed: items.length, sent, failed };
+}
+
+function scheduleBackground(task: Promise<unknown>) {
+  const runtime = (globalThis as { EdgeRuntime?: { waitUntil: (p: Promise<unknown>) => void } })
+    .EdgeRuntime;
+  if (runtime?.waitUntil) {
+    runtime.waitUntil(task);
+    return;
+  }
+  void task;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS });
@@ -270,63 +496,33 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const resendApiKey = requireEnv("RESEND_API_KEY");
+    const serviceClient = createServiceClient();
+    const siteUrl = getSiteUrl();
+
+    let body: unknown = {};
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
+    }
+
+    if (body && typeof body === "object" && (body as { action?: string }).action === "process_queue") {
+      if (!verifyCronSecret(req, body)) {
+        return jsonResponse({ error: "process_queue için CRON_SECRET gerekli." }, 401);
+      }
+      const result = await processCampaignQueue(serviceClient, resendApiKey, siteUrl);
+      return jsonResponse({ ok: true, mode: "process_queue", ...result });
+    }
+
     const authHeader = req.headers.get("Authorization") || "";
     if (!authHeader.startsWith("Bearer ")) {
       return jsonResponse({ error: "Authorization header eksik." }, 401);
     }
 
-    const resendApiKey = requireEnv("RESEND_API_KEY");
-    const serviceClient = createServiceClient();
-    const siteUrl = getSiteUrl();
-    const payload = sanitizePayload(await req.json());
-
+    const payload = sanitizePayload(body);
     const adminUserId = await ensureAdminUser(authHeader);
-
-    const { data: usersData, error: usersError } = await serviceClient.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000,
-    });
-    if (usersError) throw new Error(`Kullanıcı listesi alınamadı: ${usersError.message}`);
-
-    const users = usersData.users || [];
-    const selectedUserIds = payload.recipientUserIds;
-    const selectedSet = new Set(selectedUserIds);
-    const { data: preferenceRows, error: preferenceError } = await serviceClient
-      .from("email_preferences")
-      .select("user_id, marketing_emails_enabled, unsubscribe_token")
-      .in("user_id", selectedUserIds);
-
-    if (preferenceError) {
-      throw new Error(`E-posta tercihleri alınamadı: ${preferenceError.message}`);
-    }
-
-    const preferenceByUserId = new Map(
-      (preferenceRows ?? []).map((row) => [
-        row.user_id,
-        {
-          marketingEmailsEnabled: row.marketing_emails_enabled !== false,
-          unsubscribeToken: row.unsubscribe_token ? String(row.unsubscribe_token) : null,
-        },
-      ])
-    );
-
-    const recipients = users
-      .filter((user) => selectedSet.has(user.id))
-      .filter((user) => user.email && !user.banned_until)
-      .map((user) => ({
-        id: user.id,
-        email: user.email as string,
-        preference: preferenceByUserId.get(user.id) ?? {
-          marketingEmailsEnabled: true,
-          unsubscribeToken: null,
-        },
-        displayName:
-          user.user_metadata?.display_name ||
-          user.user_metadata?.first_name ||
-          (user.email as string).split("@")[0] ||
-          "Kullanıcı",
-      }));
-
+    const recipients = await collectRecipients(serviceClient, payload.recipientUserIds);
     if (!recipients.length) {
       throw new Error("Seçilen kullanıcılar için geçerli e-posta bulunamadı.");
     }
@@ -348,71 +544,33 @@ Deno.serve(async (req) => {
       throw new Error(`Kampanya kaydı oluşturulamadı: ${jobInsertError?.message || "Bilinmeyen hata"}`);
     }
 
-    let sentCount = 0;
-    let failedCount = 0;
+    const logRows = recipients.map((recipient) => ({
+      job_id: jobInsert.id,
+      user_id: recipient.id,
+      email: recipient.email,
+      display_name: recipient.displayName,
+      unsubscribe_token: recipient.unsubscribeToken,
+      status: recipient.marketingEmailsEnabled ? "queued" : "skipped",
+      error_message: recipient.marketingEmailsEnabled ? null : "marketing_opt_out",
+    }));
 
-    for (const recipient of recipients) {
-      try {
-        if (!recipient.preference.marketingEmailsEnabled) {
-          await serviceClient.from("campaign_mail_logs").insert({
-            job_id: jobInsert.id,
-            user_id: recipient.id,
-            email: recipient.email,
-            status: "skipped",
-            error_message: "marketing_opt_out",
-          });
-          continue;
-        }
-
-        const unsubscribeUrl = recipient.preference.unsubscribeToken
-          ? `${siteUrl}/unsubscribe?token=${encodeURIComponent(recipient.preference.unsubscribeToken)}`
-          : `${siteUrl}/unsubscribe`;
-
-        const html = buildEmailHtml({
-          siteUrl,
-          payload,
-          displayName: recipient.displayName,
-          unsubscribeUrl,
-        });
-        await sendEmailViaResend({
-          apiKey: resendApiKey,
-          to: recipient.email,
-          subject: payload.subject,
-          html,
-        });
-
-        sentCount += 1;
-        await serviceClient.from("campaign_mail_logs").insert({
-          job_id: jobInsert.id,
-          user_id: recipient.id,
-          email: recipient.email,
-          status: "sent",
-        });
-      } catch (sendError) {
-        failedCount += 1;
-        await serviceClient.from("campaign_mail_logs").insert({
-          job_id: jobInsert.id,
-          user_id: recipient.id,
-          email: recipient.email,
-          status: "failed",
-          error_message: sendError instanceof Error ? sendError.message : String(sendError),
-        });
-      }
-
-      await delay(SEND_DELAY_MS);
+    const { error: logError } = await serviceClient.from("campaign_mail_logs").insert(logRows);
+    if (logError) {
+      throw new Error(`Kampanya kuyruğu yazılamadı: ${logError.message}`);
     }
 
-    const finalStatus = failedCount > 0 && sentCount === 0 ? "failed" : "completed";
-    await serviceClient
-      .from("campaign_mail_jobs")
-      .update({ status: finalStatus, sent_count: sentCount, failed_count: failedCount })
-      .eq("id", jobInsert.id);
+    scheduleBackground(
+      processCampaignQueue(serviceClient, resendApiKey, siteUrl, 20).catch((error) => {
+        console.error("campaign background send:", error);
+      }),
+    );
 
     return jsonResponse({
       ok: true,
+      queued: true,
       jobId: jobInsert.id,
-      sentCount,
-      failedCount,
+      queuedCount: recipients.filter((recipient) => recipient.marketingEmailsEnabled).length,
+      skippedCount: recipients.filter((recipient) => !recipient.marketingEmailsEnabled).length,
       total: recipients.length,
     });
   } catch (error) {
@@ -421,3 +579,4 @@ Deno.serve(async (req) => {
     return jsonResponse({ ok: false, error: message }, 500);
   }
 });
+

@@ -1558,24 +1558,17 @@
 
     if (campaignMailSubmitBtn) campaignMailSubmitBtn.disabled = true;
     try {
-      const ids = Array.from(selectedCampaignRecipientIds);
-      const chunkSize = 40;
-      let sentCount = 0;
-      let failedCount = 0;
-      for (let i = 0; i < ids.length; i += chunkSize) {
-        const result = await sendCampaignMailFromPanel({
-          subject,
-          preview,
-          buttonLabel,
-          buttonUrl,
-          plainMessage,
-          recipientUserIds: ids.slice(i, i + chunkSize),
-        });
-        sentCount += Number(result.sentCount ?? 0);
-        failedCount += Number(result.failedCount ?? 0);
-      }
+      const result = await sendCampaignMailFromPanel({
+        subject,
+        preview,
+        buttonLabel,
+        buttonUrl,
+        plainMessage,
+        recipientUserIds: Array.from(selectedCampaignRecipientIds),
+      });
+      const queued = Number(result.queuedCount ?? selectedCampaignRecipientIds.size);
       setCampaignMailMessage(
-        `Gönderim tamamlandı. Başarılı: ${sentCount}, Hata: ${failedCount}`
+        `Kuyruğa alındı: ${queued} kişi. Mailler arka planda sırayla gider; geçmiş tablosundan takip edebilirsiniz.`,
       );
       await loadCampaignJobs();
     } catch (error) {
