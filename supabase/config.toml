@@ -459,3 +459,9 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/get-mentor-payout-invoice/deno.json"
 entrypoint = "./functions/get-mentor-payout-invoice/index.ts"
+
+[functions.send-campaign-email]
+enabled = true
+verify_jwt = true
+import_map = "./functions/send-campaign-email/deno.json"
+entrypoint = "./functions/send-campaign-email/index.ts"

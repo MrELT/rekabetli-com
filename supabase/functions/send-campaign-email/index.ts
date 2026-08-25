@@ -7,7 +7,8 @@ const DEFAULT_SITE_URL = "https://rekabetli.com";
 const SEND_DELAY_MS = 250;
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-api-version, x-supabase-client-platform, x-supabase-client-platform-version, prefer",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 

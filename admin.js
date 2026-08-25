@@ -685,23 +685,29 @@
   }
 
   async function sendCampaignMailFromPanel(payload) {
-    const result = await supabase.functions.invoke("send-campaign-email", {
-      body: payload,
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+    }
+
+    const functionUrl = `${supabase.supabaseUrl}/functions/v1/send-campaign-email`;
+    const response = await fetch(functionUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: supabase.supabaseKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     });
-    const parsed = await readSupabaseFunctionResult(result);
-    if (parsed.errorCode || parsed.errorMessage) {
-      const raw = parsed.errorMessage || parsed.errorCode || "Kampanya gönderimi başarısız oldu.";
-      if (/failed to fetch/i.test(raw)) {
-        throw new Error(
-          "Kampanya fonksiyonuna ulaşılamadı. Edge Function deploy ve CORS ayarını kontrol edin.",
-        );
-      }
-      throw new Error(raw);
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result?.ok === false) {
+      throw new Error(result?.error || `Kampanya gönderimi başarısız oldu (${response.status}).`);
     }
-    if (parsed.data?.ok === false) {
-      throw new Error(parsed.data?.error || "Kampanya gönderimi başarısız oldu.");
-    }
-    return parsed.data || {};
+    return result;
   }
 
   function formatTryMoney(value) {
