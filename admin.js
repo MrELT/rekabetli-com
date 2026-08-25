@@ -692,12 +692,11 @@
       throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
     }
 
-    const functionUrl = `${supabase.supabaseUrl}/functions/v1/send-campaign-email`;
+    const functionUrl = "/api/admin/campaign-mail";
     const response = await fetch(functionUrl, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${session.access_token}`,
-        apikey: supabase.supabaseKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
