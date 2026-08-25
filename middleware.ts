@@ -59,7 +59,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|_next/webpack-hmr|assets/|.*\\.(?:ico|png|jpg|jpeg|gif|webp|svg|css|js|map|txt|xml|woff|woff2|json)$).*)",
-  ],
+  matcher: ["/notal", "/notal/:path*", "/api/notal/:path*"],
 };

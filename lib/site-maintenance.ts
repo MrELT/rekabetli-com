@@ -4,7 +4,7 @@
  * Sorun çözülünce yalnızca bu dosyadaki `SITE_MAINTENANCE_ENABLED` değerini
  * `false` yapıp deploy edin. `maintenance.js` içindeki aynı bayrağı da kapatın.
  */
-export const SITE_MAINTENANCE_ENABLED = true;
+export const SITE_MAINTENANCE_ENABLED = false;
 export const SITE_MAINTENANCE_REOPEN_LABEL = "Çok yakında";
 
 const ASSET_EXT =
