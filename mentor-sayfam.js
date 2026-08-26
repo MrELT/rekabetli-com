@@ -4164,10 +4164,7 @@
 
   async function resolveInitialPanelIdAsync() {
     const hashPanel = window.location.hash.replace("#", "");
-    if (hashPanel === "profil" || hashPanel === "sayfam" || hashPanel === "ogrenciler" || hashPanel === "cuzdanim") {
-      return hashPanel;
-    }
-    if (hashPanel.startsWith("paket-") && isKnownPanelId(hashPanel)) {
+    if (isKnownPanelId(hashPanel)) {
       return hashPanel;
     }
 
@@ -4336,6 +4333,10 @@
       const hashPanel = window.location.hash.replace("#", "");
       if (isKnownPanelId(hashPanel)) showPanel(hashPanel, { updateHash: false });
     });
+
+    if (window.location.hash.replace("#", "") === "profil") {
+      void showPanel("profil", { updateHash: false });
+    }
   }
 
   initMentorPanelNav();

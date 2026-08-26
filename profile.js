@@ -697,7 +697,10 @@
     window.RekabetliPanelHome?.setPath?.(currentUser.id, panelHome);
 
     if (isStandaloneProfilePage) {
-      window.location.replace(panelHome);
+      const profileTab =
+        window.RekabetliPanelHome?.withProfileTab?.(panelHome) ||
+        (String(panelHome).includes("#") ? panelHome : `${panelHome}#profil`);
+      window.location.replace(profileTab);
       return;
     }
 

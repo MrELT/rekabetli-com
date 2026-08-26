@@ -59,10 +59,12 @@ async function syncCommunitiesProfileNav() {
   }
   const isLoggedIn = Boolean(data?.session);
   const label = isLoggedIn ? "Profil" : "Giriş Yap";
-  let targetHref = isLoggedIn ? "/ogrenci-sayfam" : "/login";
+  let targetHref = isLoggedIn ? "/ogrenci-sayfam#profil" : "/login";
 
   if (isLoggedIn && window.RekabetliPanelHome?.resolve) {
-    targetHref = await window.RekabetliPanelHome.resolve(data.session.user);
+    const panelHome = await window.RekabetliPanelHome.resolve(data.session.user);
+    targetHref =
+      window.RekabetliPanelHome.withProfileTab?.(panelHome) || `${panelHome}#profil`;
   }
 
   if (desktopProfileBtn) {

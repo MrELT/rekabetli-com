@@ -1075,6 +1075,10 @@
       const hashPanel = window.location.hash.replace("#", "");
       if (isKnownPanelId(hashPanel)) showPanel(hashPanel, { updateHash: false });
     });
+
+    if (window.location.hash.replace("#", "") === "profil") {
+      showPanel("profil", { updateHash: false });
+    }
   }
 
   initStudentPanelNav();

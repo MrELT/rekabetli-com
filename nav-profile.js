@@ -40,11 +40,19 @@
     return isMentor ? MENTOR_HOME : STUDENT_HOME;
   }
 
+  function toProfileTabHref(path) {
+    const raw = String(path || STUDENT_HOME).trim();
+    if (!raw || raw === "/login" || raw.startsWith("/login?")) return raw;
+    if (raw.includes("#")) return raw;
+    return `${raw}#profil`;
+  }
+
   function applyHref(path) {
+    const href = toProfileTabHref(path);
     const desktopProfileBtn = document.getElementById("desktop-profile-btn");
     const mobileProfileBtn = document.getElementById("mobile-profile-btn");
-    if (desktopProfileBtn) desktopProfileBtn.setAttribute("href", path);
-    if (mobileProfileBtn) mobileProfileBtn.setAttribute("href", path);
+    if (desktopProfileBtn) desktopProfileBtn.setAttribute("href", href);
+    if (mobileProfileBtn) mobileProfileBtn.setAttribute("href", href);
   }
 
   function applyLoggedOut() {
@@ -65,11 +73,11 @@
     const mobileProfileBtn = document.getElementById("mobile-profile-btn");
     if (desktopProfileBtn) {
       desktopProfileBtn.textContent = "Profil";
-      desktopProfileBtn.setAttribute("href", path);
+      desktopProfileBtn.setAttribute("href", toProfileTabHref(path));
     }
     if (mobileProfileBtn) {
       mobileProfileBtn.textContent = "Profil";
-      mobileProfileBtn.setAttribute("href", path);
+      mobileProfileBtn.setAttribute("href", toProfileTabHref(path));
     }
   }
 
@@ -128,6 +136,7 @@
   window.RekabetliPanelHome = {
     MENTOR_HOME,
     STUDENT_HOME,
+    withProfileTab: toProfileTabHref,
     pathFromProfile,
     resolve: resolvePanelHome,
     setPath(userId, path) {
